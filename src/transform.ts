@@ -1,7 +1,7 @@
 // Pure transformations of elements: move, resize from a corner and rotate. Each function returns a new element and never changes its argument.
 import { hasPoints, MAX_FONT_SIZE, MIN_FONT_SIZE } from "./elements";
 import type { Point, SketchElement } from "./elements";
-import { Box, boxOf, centerOf, rotatePoint } from "./geometry";
+import { Box, boxOf, centerOf, rotatePoint, Side } from "./geometry";
 
 export const MIN_SIZE = 4;
 const SIGNS: [number, number][] = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
@@ -17,8 +17,8 @@ export function translate(el: SketchElement, dx: number, dy: number): SketchElem
 }
 
 // Returns a rectangle or an ellipse with a new box, keeping everything else. A text takes the size of its font from its height, so that it grows like a picture.
-function withBox(el: SketchElement, box: Box): SketchElement {
-  if (el.type === `text`) return { ...el, x: r2(box.x), y: r2(box.y), width: r2(box.w), height: r2(box.h), size: scaledSize(el.size, box.h / el.height) };
+function withBox(el: SketchElement, box: Box, scaleText = true): SketchElement {
+  if (el.type === `text`) return { ...el, x: r2(box.x), y: r2(box.y), width: r2(box.w), height: r2(box.h), ...(scaleText ? { size: scaledSize(el.size, box.h / el.height) } : {}) };
   if (el.type === `rect` || el.type === `diamond` || el.type === `drawing`) return { ...el, x: r2(box.x), y: r2(box.y), width: r2(box.w), height: r2(box.h) };
   if (el.type === `ellipse`) return { ...el, cx: r2(box.x + box.w / 2), cy: r2(box.y + box.h / 2), rx: r2(box.w / 2), ry: r2(box.h / 2) };
   return el;
@@ -68,6 +68,35 @@ export function resizeElement(el: SketchElement, corner: 0 | 1 | 2 | 3, pointer:
   }
   const centre = rotatePoint([c[0] + ox + (sx * nw) / 2, c[1] + oy + (sy * nh) / 2], c, angle);
   return withBox(el, { x: centre[0] - nw / 2, y: centre[1] - nh / 2, w: nw, h: nh });
+}
+
+// Resizes an element by dragging the middle of one of its sides (0 top, 1 right, 2 bottom, 3 left): the opposite side stays where it is on the page, even when the element is
+// rotated. The element is stretched or squashed along that side only; with keepRatio it keeps its proportions instead (the other side follows, about its middle). A text zone
+// only changes its zone, so that the text wraps again; with keepRatio its letters grow with it.
+export function resizeSide(el: SketchElement, side: Side, pointer: Point, keepRatio: boolean): SketchElement {
+  if (el.type !== `rect` && el.type !== `ellipse` && el.type !== `diamond` && !(el.type === `text` && el.zone === true)) return el;
+  const { box, angle } = boxOf(el);
+  const c = centerOf(box);
+  const local = rotatePoint(pointer, c, -angle);
+  const horizontal = side === 1 || side === 3;
+  const sign = side === 1 || side === 2 ? 1 : -1;
+  const oldLength = horizontal ? box.w : box.h;
+  // The new length along the side that moves, measured from the opposite side.
+  const edge = (horizontal ? c[0] : c[1]) - (sign * oldLength) / 2;
+  const length = Math.max(MIN_SIZE, sign * ((horizontal ? local[0] : local[1]) - edge));
+  let nw = horizontal ? length : box.w;
+  let nh = horizontal ? box.h : length;
+  if (keepRatio) {
+    const k = length / oldLength;
+    nw = box.w * k;
+    nh = box.h * k;
+  }
+  nw = Math.max(MIN_SIZE, nw);
+  nh = Math.max(MIN_SIZE, nh);
+  // The middle of the opposite side stays; the box grows from it along the moving axis and about its middle along the other one.
+  const centreLocal: Point = horizontal ? [edge + (sign * nw) / 2, c[1]] : [c[0], edge + (sign * nh) / 2];
+  const centre = rotatePoint(centreLocal, c, angle);
+  return withBox(el, { x: centre[0] - nw / 2, y: centre[1] - nh / 2, w: nw, h: nh }, keepRatio);
 }
 
 // Brings an angle in degrees into the range from -180 to 180.

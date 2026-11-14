@@ -153,3 +153,68 @@ test(`un cadre de dessin garde toujours ses proportions quand on le redimensionn
   const turned = rotateBy(frame, 45) as { angle?: number };
   assert.equal(turned.angle, 45);
 });
+
+// ------------------------------------------------------------------------------------------ the middle of the sides
+
+import { resizeSide } from "../src/transform";
+import { visibleSides, hitBoxHandle, sidePoint } from "../src/geometry";
+
+const box: SketchElement = { id: `b`, type: `rect`, x: 100, y: 100, width: 200, height: 100, stroke: `#000000`, strokeWidth: 3 };
+const zone: SketchElement = { id: `z`, type: `text`, x: 100, y: 100, width: 200, height: 100, text: `Zone`, font: `caveat`, size: 20, stroke: `#000000`, zone: true };
+
+test(`le milieu d'un cote etire ou tasse la forme dans un seul sens, le cote oppose reste en place`, () => {
+  const right = resizeSide(box, 1, [400, 999], false) as unknown as { x: number; y: number; width: number; height: number };
+  assert.deepEqual([right.x, right.y, right.width, right.height], [100, 100, 300, 100]);
+  const left = resizeSide(box, 3, [50, 0], false) as unknown as { x: number; width: number; height: number };
+  assert.deepEqual([left.x, left.width, left.height], [50, 250, 100]);
+  const bottom = resizeSide(box, 2, [0, 150], false) as unknown as { y: number; width: number; height: number };
+  assert.deepEqual([bottom.y, bottom.width, bottom.height], [100, 200, 50]);
+  const top = resizeSide(box, 0, [0, 40], false) as unknown as { y: number; height: number };
+  assert.deepEqual([top.y, top.height], [40, 160]);
+  // It never goes below the smallest size, even when the pointer crosses the opposite side.
+  const squashed = resizeSide(box, 1, [0, 0], false) as unknown as { width: number };
+  assert.equal(squashed.width, 4);
+});
+
+test(`avec Maj le milieu d'un cote garde les proportions autour du milieu de l'autre sens`, () => {
+  const r = resizeSide(box, 1, [500, 0], true) as unknown as { x: number; y: number; width: number; height: number };
+  assert.deepEqual([r.x, r.width, r.height], [100, 400, 200]);
+  assert.equal(r.y, 50);
+  const b = resizeSide(box, 2, [0, 300], true) as unknown as { x: number; y: number; width: number; height: number };
+  assert.deepEqual([b.y, b.height, b.width], [100, 200, 400]);
+  assert.equal(b.x, 0);
+});
+
+test(`une forme tournee garde son cote oppose en place sur la page`, () => {
+  const turned = { ...box, angle: 90 } as SketchElement;
+  // Turned by 90 degrees about (200, 150): its right side (local) is now at the bottom of the page, at y = 250; its left side is at y = 50.
+  const out = resizeSide(turned, 1, [200, 350], false) as unknown as { x: number; y: number; width: number; height: number; angle: number };
+  assert.equal(out.angle, 90);
+  assert.equal(out.width, 300);
+  // The opposite side (local left) stays at y = 50 on the page: the centre is now at y = 50 + 150 = 200.
+  assert.ok(Math.abs(out.x + out.width / 2 - 200) < 0.01 && Math.abs(out.y + out.height / 2 - 200) < 0.01);
+});
+
+test(`une zone de texte garde la taille de ses lettres quand on tire un cote, et la grossit avec Maj ou un angle`, () => {
+  const wider = resizeSide(zone, 1, [500, 0], false) as unknown as { width: number; size: number };
+  assert.deepEqual([wider.width, wider.size], [400, 20]);
+  const bigger = resizeSide(zone, 1, [500, 0], true) as unknown as { width: number; height: number; size: number };
+  assert.deepEqual([bigger.width, bigger.height, bigger.size], [400, 200, 40]);
+  const corner = resizeElement(zone, 2, [500, 300], false) as unknown as { size: number; width: number; height: number };
+  assert.ok(corner.size > 20 && Math.abs(corner.width / corner.height - 2) < 0.01);
+});
+
+test(`seuls certains elements ont des poignees de cote`, () => {
+  assert.deepEqual(visibleSides(box), [0, 1, 2, 3]);
+  assert.deepEqual(visibleSides(zone), [0, 1, 2, 3]);
+  assert.deepEqual(visibleSides({ ...zone, zone: undefined } as SketchElement), []);
+  assert.deepEqual(visibleSides({ id: `l`, type: `line`, points: [[0, 0], [1, 1]], stroke: `#000000`, strokeWidth: 3 }), []);
+  assert.deepEqual(visibleSides({ id: `f`, type: `drawing`, x: 0, y: 0, width: 5, height: 5, path: null }), []);
+  // The line handle of a text that is not a zone is left alone.
+  assert.deepEqual(resizeSide({ ...zone, zone: undefined } as SketchElement, 1, [500, 0], false), { ...zone, zone: undefined });
+  const b = { x: 0, y: 0, w: 100, h: 50 };
+  assert.deepEqual(sidePoint(b, 0, 1), [100, 25]);
+  assert.deepEqual(hitBoxHandle(b, 0, [50, 0], 1, 8, [0, 1, 2, 3], true, [0, 1, 2, 3]), { kind: `side`, side: 0 });
+  assert.deepEqual(hitBoxHandle(b, 0, [3, 3], 1, 8, [0, 1, 2, 3], true, [0, 1, 2, 3]), { kind: `resize`, corner: 0 });
+  assert.equal(hitBoxHandle(b, 0, [50, 0], 1, 8), null);
+});

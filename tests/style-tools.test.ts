@@ -209,3 +209,20 @@ test(`les motifs de remplissage sont quatre et un motif inconnu est refuse`, () 
   const grid = applyStyle(filled as SketchElement, { fill: `#0000ff`, fillStyle: `grid` }) as { fillStyle?: string };
   assert.equal(grid.fillStyle, `grid`);
 });
+
+test(`la police, la taille et l'alignement du panneau s'appliquent au texte d'une forme`, () => {
+  const shape = { ...rect, label: { text: `Bonjour`, font: `caveat`, size: 32 } } as SketchElement;
+  const next = applyStyle(shape, { font: `gloria-hallelujah`, fontSize: 52, align: `left` }) as unknown as { label: { font: string; size: number; align?: string; text: string }; stroke: string };
+  assert.deepEqual([next.label.font, next.label.size, next.label.align, next.label.text], [`gloria-hallelujah`, 52, `left`, `Bonjour`]);
+  assert.equal(next.stroke, `#000000`);
+  // Centred is the default of a shape: it is not written.
+  const centred = applyStyle(next as unknown as SketchElement, { align: `center` }) as unknown as { label: { align?: string } };
+  assert.equal(`align` in centred.label, false);
+  const s = styleOf(next as unknown as SketchElement);
+  assert.deepEqual([s?.font, s?.fontSize, s?.align], [`gloria-hallelujah`, 52, `left`]);
+  assert.equal(styleOf(shape)?.align, `center`);
+  // A shape without a text is not given one by the panel.
+  assert.equal(`label` in applyStyle(rect, { font: `caveat`, fontSize: 52 }), false);
+  // The colour of the stroke does not touch the text; the shape keeps its own settings.
+  assert.equal((applyStyle(shape, { stroke: `#ff0000` }) as unknown as { label: { text: string } }).label.text, `Bonjour`);
+});

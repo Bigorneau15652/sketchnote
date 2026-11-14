@@ -340,6 +340,12 @@
   min-width: 1ch;
 }
 
+.sketchnote-text-editor.is-zone {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  box-sizing: border-box;
+}
+
 .sketchnote-addfont h4 {
   margin: 12px 0 4px;
 }

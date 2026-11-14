@@ -10,8 +10,10 @@ export interface Box {
   h: number;
 }
 
-// A handle of a selected element: one of the four corners (0 top left, 1 top right, 2 bottom right, 3 bottom left) or the rotation handle.
-export type Handle = { kind: `rotate` } | { kind: `resize`; corner: 0 | 1 | 2 | 3 };
+// A handle of a selected element: one of the four corners (0 top left, 1 top right, 2 bottom right, 3 bottom left), the middle of one of the four sides (0 top, 1 right,
+// 2 bottom, 3 left) or the rotation handle.
+export type Side = 0 | 1 | 2 | 3;
+export type Handle = { kind: `rotate` } | { kind: `resize`; corner: 0 | 1 | 2 | 3 } | { kind: `side`; side: Side };
 
 // Distance in screen pixels between the top of a selected element and its rotation handle.
 export const ROTATE_OFFSET = 28;
@@ -139,6 +141,20 @@ export function hitElement(el: SketchElement, p: Point, tolerance: number): bool
   return Math.abs(r - 1) * Math.min(box.w / 2, box.h / 2) <= reach;
 }
 
+// Tells whether a point is inside a rectangle, an ellipse, a diamond or a text zone (rotation included), whether or not it has a fill. Used to write in a shape that is selected
+// and to move it by its inside.
+export function insideShape(el: SketchElement, p: Point): boolean {
+  if (el.type !== `rect` && el.type !== `ellipse` && el.type !== `diamond` && !(el.type === `text` && el.zone === true)) return false;
+  const { box, angle } = boxOf(el);
+  const c = centerOf(box);
+  const q = rotatePoint(p, c, -angle);
+  const lx = Math.abs(q[0] - c[0]);
+  const ly = Math.abs(q[1] - c[1]);
+  if (el.type === `ellipse`) return (lx / (box.w / 2)) ** 2 + (ly / (box.h / 2)) ** 2 <= 1;
+  if (el.type === `diamond`) return lx / (box.w / 2) + ly / (box.h / 2) <= 1;
+  return lx <= box.w / 2 && ly <= box.h / 2;
+}
+
 // Returns the element that is on top at a point (the last one of the list), or null.
 export function hitTop(elements: SketchElement[], p: Point, tolerance: number): SketchElement | null {
   for (let i = elements.length - 1; i >= 0; i--) if (hitElement(elements[i], p, tolerance)) return elements[i];
@@ -162,8 +178,22 @@ export function visibleCorners(el: SketchElement): (0 | 1 | 2 | 3)[] {
   return el.type === `line` || el.type === `arrow` ? [] : [0, 1, 2, 3];
 }
 
-// Returns the handle of a box (upright, without rotation) that a point touches, among the given corners and the rotation handle when `rotation` is true.
-export function hitBoxHandle(box: Box, angle: number, p: Point, zoom: number, radiusPx: number, corners: (0 | 1 | 2 | 3)[] = [0, 1, 2, 3], rotation = true): Handle | null {
+// Returns the sides that carry a handle in their middle: the rectangle, the ellipse, the diamond and the text zone, which are stretched or squashed with them. A text that is
+// only as large as its lines, a picture frame, a line, an arrow and a pen stroke have none.
+export function visibleSides(el: SketchElement): Side[] {
+  if (el.type === `rect` || el.type === `ellipse` || el.type === `diamond` || (el.type === `text` && el.zone === true)) return [0, 1, 2, 3];
+  return [];
+}
+
+// Returns the middle of a side of a box turned by an angle around its centre.
+export function sidePoint(box: Box, angle: number, side: Side): Point {
+  const raw: Point = side === 0 ? [box.x + box.w / 2, box.y] : side === 1 ? [box.x + box.w, box.y + box.h / 2] : side === 2 ? [box.x + box.w / 2, box.y + box.h] : [box.x, box.y + box.h / 2];
+  return angle === 0 ? raw : rotatePoint(raw, centerOf(box), angle);
+}
+
+// Returns the handle of a box (upright, without rotation) that a point touches, among the given corners, the middle of the given sides and the rotation handle when `rotation`
+// is true. The corners come first when they are close to a side handle.
+export function hitBoxHandle(box: Box, angle: number, p: Point, zoom: number, radiusPx: number, corners: (0 | 1 | 2 | 3)[] = [0, 1, 2, 3], rotation = true, sides: Side[] = []): Handle | null {
   const r = radiusPx / zoom;
   if (rotation) {
     const rot = rotateHandlePos(box, angle, zoom);
@@ -173,13 +203,17 @@ export function hitBoxHandle(box: Box, angle: number, p: Point, zoom: number, ra
   for (const i of corners) {
     if (Math.hypot(p[0] - all[i][0], p[1] - all[i][1]) <= r) return { kind: `resize`, corner: i };
   }
+  for (const side of sides) {
+    const at = sidePoint(box, angle, side);
+    if (Math.hypot(p[0] - at[0], p[1] - at[1]) <= r) return { kind: `side`, side };
+  }
   return null;
 }
 
 // Returns the handle that a point touches on a selected element, or null. The radius is in screen pixels.
 export function hitHandle(el: SketchElement, p: Point, zoom: number, radiusPx: number): Handle | null {
   const { box, angle } = boxOf(el);
-  return hitBoxHandle(box, angle, p, zoom, radiusPx, visibleCorners(el), hasRotateHandle(el));
+  return hitBoxHandle(box, angle, p, zoom, radiusPx, visibleCorners(el), hasRotateHandle(el), visibleSides(el));
 }
 
 // Returns the frame drawn around several selected elements, a little larger than their common box: the block that is moved, resized and turned as one.

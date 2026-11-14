@@ -41,3 +41,11 @@ test(`sans selection le panneau suit l'outil, et sans outil il montre les choix 
   // The tool wins over a selection left behind.
   assert.deepEqual(shown(`text`, [`rect`]), [`colour`, `text`, `effects`]);
 });
+
+test(`une forme qui contient un texte montre aussi les reglages de texte`, () => {
+  const labelled = { ...make(`rect`), label: { text: `a`, font: `caveat`, size: 20 } } as SketchElement;
+  const kinds = panelKinds(`select`, [labelled]);
+  assert.ok(sectionShown(`text`, kinds));
+  assert.ok(sectionShown(`fill`, kinds) && sectionShown(`border`, kinds));
+  assert.equal(sectionShown(`text`, panelKinds(`select`, [make(`rect`)])), false);
+});
