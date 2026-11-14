@@ -4,6 +4,7 @@ import { App, normalizePath, TFile } from "obsidian";
 import { BUILTIN_FONTS } from "./fonts-builtin";
 import { fontKind, isPlainStyle, readFontNames } from "./font-file";
 import { cssFamily, FontEntry, userFontId } from "./fonts";
+import { measureLine } from "./measure";
 
 const FONT_EXTENSIONS = [`ttf`, `otf`];
 const MAX_FONT_BYTES = 50 * 1024 * 1024;
@@ -28,7 +29,6 @@ export class FontStore {
   private listeners = new Set<() => void>();
   private running: Promise<void> | null = null;
   private destroyed = false;
-  private measurer: CanvasRenderingContext2D | null = null;
 
   constructor(private app: App, private folder: () => string) {}
 
@@ -135,13 +135,7 @@ export class FontStore {
   }
 
   // Measures the width of a line of text in a font at a size, in pixels (the unit of the drawing).
-  measure = (line: string, font: string, size: number): number => {
-    if (!this.measurer) this.measurer = document.createElement(`canvas`).getContext(`2d`);
-    const ctx = this.measurer;
-    if (!ctx) return line.length * size * 0.5;
-    ctx.font = `${size}px ${cssFamily(font)}, cursive`;
-    return ctx.measureText(line === `` ? ` ` : line).width;
-  };
+  measure = measureLine;
 
   // Removes the fonts from the browser when the plugin stops.
   destroy(): void {

@@ -88,7 +88,7 @@ export class SketchnoteView extends CanvasView<SketchnoteDoc> {
 
   // Draws the elements of the page: the drawings shown in the frames of the zones, and the dotted outline of the empty zones unless the eye hid them.
   protected drawContent(group: SVGElement): void {
-    drawElements(this.doc.elements, group, { lookup: (path) => this.api.drawings.lookup(path), showZones: this.showZones, background: this.doc.page.background });
+    drawElements(this.doc.elements, group, { lookup: (path) => this.api.drawings.lookup(path), showZones: this.showZones, background: this.doc.page.background, ink: this.doc.page.ink });
   }
 
   protected extraSnapTargets(): Box[] {

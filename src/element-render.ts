@@ -3,7 +3,9 @@
 import { DrawingElement, isStroked, SketchElement, TextElement } from "./elements";
 import { boxOf, elementBounds } from "./geometry";
 import { fontStack } from "./fonts";
-import { lineMiddle, textLines } from "./text-layout";
+import { labelColor, labelLayout, LabeledShape } from "./labels";
+import { measureLine } from "./measure";
+import { lineMiddle, textLines, wrapLines } from "./text-layout";
 import { contentBox, fitInFrame, SketchdrawDoc } from "./drawing-file";
 import { slotStyle } from "./page-background";
 import { elementPaths } from "./shape-paths";
@@ -18,10 +20,12 @@ export interface RenderOptions {
   lookup: DrawingLookup | null;
   showZones: boolean;
   background: string;
+  // The ink of the drawing (black, or white for a drawing made on a chalkboard): the colour of the text written in a shape that has no fill.
+  ink: string;
 }
 
 // Options for the drawing inside a frame and for a drawing surface: no nested drawings and no zones.
-export const PLAIN: RenderOptions = { lookup: null, showZones: false, background: `#ffffff` };
+export const PLAIN: RenderOptions = { lookup: null, showZones: false, background: `#ffffff`, ink: `#000000` };
 
 // Returns the transform that mirrors an element in its own frame (about the middle of its box, before its rotation), or null when it is not mirrored. A line, an arrow
 // and a pen stroke have no such mirror: they are mirrored by their points.
@@ -41,13 +45,27 @@ function mirrored(el: SketchElement, parent: Element): Element {
 }
 
 // Draws one element with a stroke (everything except a drawing frame and a text).
-function drawStroked(el: Exclude<SketchElement, DrawingElement | TextElement>, parent: Element): void {
+function drawStroked(el: Exclude<SketchElement, DrawingElement | TextElement>, parent: Element, options: RenderOptions): void {
   const { pieces, transform } = elementPaths(el);
   const turned = svgEl(`g`, transform ? { transform } : {}, parent);
   const group = mirrored(el, turned);
   for (const p of pieces) {
     svgEl(`path`, { d: p.d, stroke: p.stroke, "stroke-width": p.strokeWidth, fill: p.fill, ...(p.opacity < 1 ? { opacity: p.opacity } : {}), ...(p.dash ? { "stroke-dasharray": p.dash } : {}), "stroke-linecap": `round`, "stroke-linejoin": `round` }, group);
   }
+  if ((el.type === `rect` || el.type === `ellipse` || el.type === `diamond`) && el.label) drawLabel(el, group, options.ink);
+}
+
+// Draws the text written inside a shape: its lines wrapped to the part of the shape that holds them, centred in height, in the colour that suits the fill.
+function drawLabel(el: LabeledShape, parent: Element, ink: string): void {
+  const label = el.label;
+  if (!label) return;
+  const layout = labelLayout(el, label, measureLine);
+  const anchor = layout.align === `center` ? `middle` : layout.align === `right` ? `end` : `start`;
+  const text = svgEl(`text`, { class: `sketchnote-text sketchnote-label`, "font-family": fontStack(label.font), "font-size": label.size, fill: labelColor(el, ink), "text-anchor": anchor, "dominant-baseline": `central`, style: `white-space:pre` }, parent);
+  layout.lines.forEach((line, i) => {
+    const row = svgEl(`tspan`, { x: layout.anchorX, y: layout.top + lineMiddle(i, label.size) }, text);
+    row.textContent = line === `` ? ` ` : line;
+  });
 }
 
 // Draws a text: one line of the SVG text for each line of the text, each one centred on its own height, so that the position does not depend on the font. The lines keep
@@ -58,7 +76,9 @@ function drawText(el: TextElement, parent: Element): void {
   const turn: Record<string, string> = el.angle ? { transform: `rotate(${el.angle} ${el.x + el.width / 2} ${el.y + el.height / 2})` } : {};
   const holder = mirrored(el, svgEl(`g`, turn, parent));
   const group = svgEl(`text`, { class: `sketchnote-text`, "font-family": fontStack(el.font), "font-size": el.size, fill: el.stroke, "text-anchor": anchor, "dominant-baseline": `central`, style: `white-space:pre` }, holder);
-  textLines(el.text).forEach((line, i) => {
+  // A text zone wraps its lines to its width; any other text keeps its own lines.
+  const lines = el.zone === true ? wrapLines(el.text, el.width, (line) => measureLine(line, el.font, el.size)) : textLines(el.text);
+  lines.forEach((line, i) => {
     const row = svgEl(`tspan`, { x, y: el.y + lineMiddle(i, el.size) }, group);
     row.textContent = line === `` ? ` ` : line;
   });
@@ -74,7 +94,7 @@ function drawFrame(el: DrawingElement, parent: Element, options: RenderOptions):
     const group = mirrored(el, svgEl(`g`, { class: `sketchnote-frame`, ...turn }, parent));
     const fit = fitInFrame(el.x, el.y, el.width, box);
     const inner = svgEl(`g`, { transform: `translate(${fit.tx} ${fit.ty}) scale(${fit.scale})` }, group);
-    drawElements(doc.elements, inner, PLAIN);
+    drawElements(doc.elements, inner, { ...PLAIN, ink: doc.ink });
     return;
   }
   if (!options.showZones) return;
@@ -87,7 +107,7 @@ function drawFrame(el: DrawingElement, parent: Element, options: RenderOptions):
 
 // Draws an element without its effects.
 function drawBare(el: SketchElement, parent: Element, options: RenderOptions): void {
-  if (isStroked(el)) drawStroked(el, parent);
+  if (isStroked(el)) drawStroked(el, parent, options);
   else if (el.type === `text`) drawText(el, parent);
   else drawFrame(el, parent, options);
 }

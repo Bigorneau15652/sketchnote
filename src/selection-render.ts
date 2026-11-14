@@ -1,7 +1,7 @@
 // Draws the editor overlay: selection frames, handles, the selection rectangle and the magnetism guide lines.
 // Everything is drawn with the DOM into the group `ui` of the page and styled by CSS classes; none of it is part of the drawing.
 import type { SketchElement } from "./elements";
-import { blockBox, Box, boxCorners, boxOf, centerOf, hasRotateHandle, ROTATE_OFFSET, rotateHandlePos, rotatePoint, visibleCorners } from "./geometry";
+import { blockBox, Box, boxCorners, boxOf, centerOf, hasRotateHandle, ROTATE_OFFSET, rotateHandlePos, rotatePoint, sidePoint, visibleCorners, visibleSides } from "./geometry";
 import { svgEl } from "./svg";
 import { visibleMidpoints } from "./linear";
 
@@ -68,6 +68,12 @@ export function drawUi(ui: Element, st: UiState): void {
     }
     const s = 10 / z;
     for (const i of visibleCorners(el)) svgEl(`rect`, { class: `sketchnote-handle`, x: corners[i][0] - s / 2, y: corners[i][1] - s / 2, width: s, height: s }, ui);
+    // The middle of the sides: small handles that stretch or squash the element.
+    const h = 8 / z;
+    for (const side of visibleSides(el)) {
+      const at = sidePoint(box, angle, side);
+      svgEl(`rect`, { class: `sketchnote-handle sketchnote-side-handle`, x: at[0] - h / 2, y: at[1] - h / 2, width: h, height: h, rx: h / 4 }, ui);
+    }
   } else if (st.selected.length > 1) {
     for (const el of st.selected) {
       const { box, angle } = boxOf(el);

@@ -15,6 +15,9 @@ export interface TextEditorOptions {
   initial: string;
   // Gives the width in drawing units of a line of text, to size the text area.
   measure: (line: string) => number;
+  // Writing in a zone (a text zone, or the inside of a shape): the text area has the size of the zone (in drawing units) and the text wraps to its width. When `centered` is
+  // true the text is centred in height too, like the text of a shape; `lineCount` gives the number of lines of a text once wrapped, to do so.
+  zone?: { width: number; height: number; centered: boolean; lineCount: (text: string) => number };
   // Called once with the text when the writing ends.
   onDone: (text: string) => void;
 }
@@ -26,7 +29,8 @@ export function openTextEditor(doc: Document, o: TextEditorOptions): () => void 
   area.value = o.initial;
   area.rows = 1;
   area.spellcheck = false;
-  area.setAttribute(`wrap`, `off`);
+  area.setAttribute(`wrap`, o.zone ? `soft` : `off`);
+  if (o.zone) area.classList.add(`is-zone`);
   area.style.left = `${o.left}px`;
   area.style.top = `${o.top}px`;
   area.style.fontFamily = o.font;
@@ -37,6 +41,13 @@ export function openTextEditor(doc: Document, o: TextEditorOptions): () => void 
   let done = false;
   // Fits the text area to its text: the widest line and one row for each line.
   const fit = (): void => {
+    if (o.zone) {
+      area.style.width = `${Math.ceil(o.zone.width * o.zoom)}px`;
+      area.style.height = `${Math.ceil(o.zone.height * o.zoom)}px`;
+      const free = o.zone.height - o.zone.lineCount(area.value) * o.size * LINE_HEIGHT;
+      area.style.paddingTop = o.zone.centered && free > 0 ? `${Math.floor((free / 2) * o.zoom)}px` : `0px`;
+      return;
+    }
     const lines = textLines(area.value);
     let width = o.size * 0.5;
     for (const line of lines) width = Math.max(width, o.measure(line));

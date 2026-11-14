@@ -83,6 +83,13 @@ export function applyStyle(el: SketchElement, patch: StylePatch): SketchElement 
     void _l;
     next = (p.lineStyle === `solid` ? rest : { ...rest, lineStyle: p.lineStyle }) as typeof el;
   }
+  if (isShape(next) && next.label && (p.font !== undefined || p.fontSize !== undefined || p.align !== undefined)) {
+    // The font, the size and the alignment of the panel apply to the text written inside a shape.
+    const { align: _a, ...label } = next.label;
+    void _a;
+    const align = p.align !== undefined ? p.align : next.label.align;
+    next = { ...next, label: { ...label, ...(p.font !== undefined ? { font: p.font } : {}), ...(p.fontSize !== undefined ? { size: p.fontSize } : {}), ...(align !== undefined && align !== `center` ? { align } : {}) } } as typeof el;
+  }
   if (isShape(next)) {
     if (p.border !== undefined) {
       const { border: _b, ...rest } = next;
@@ -186,7 +193,7 @@ export function styleOf(el: SketchElement): ToolStyle | null {
   const rounded = linear && el.rounded === true;
   const startHead: Head = el.type === `arrow` ? headOf(el, `start`) : `none`;
   const endHead: Head = el.type === `arrow` ? headOf(el, `end`) : `none`;
-  return { stroke: el.stroke, fill, fillStyle, fillOpacity, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0, rounded, startHead, endHead, font: DEFAULT_FONT, fontSize: TEXT_SIZES.medium, align: `left`, ...effectsOfElement(el), lineStyle: el.type === `freedraw` ? `solid` : el.lineStyle ?? `solid`, border: isShape(el) ? el.border ?? `simple` : `simple`, radius: el.type === `rect` ? el.radius ?? 0 : 0 };
+  return { stroke: el.stroke, fill, fillStyle, fillOpacity, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0, rounded, startHead, endHead, font: isShape(el) && el.label ? el.label.font : DEFAULT_FONT, fontSize: isShape(el) && el.label ? el.label.size : TEXT_SIZES.medium, align: isShape(el) && el.label ? el.label.align ?? `center` : `left`, ...effectsOfElement(el), lineStyle: el.type === `freedraw` ? `solid` : el.lineStyle ?? `solid`, border: isShape(el) ? el.border ?? `simple` : `simple`, radius: el.type === `rect` ? el.radius ?? 0 : 0 };
 }
 
 // Returns the effects an element has, as the panel shows them.

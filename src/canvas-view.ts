@@ -2,7 +2,7 @@
 // undo and redo, keyboard shortcuts, and the bottom bar. A subclass says what the document is, how its surface is drawn and which tools it offers.
 import { setIcon, TextFileView, WorkspaceLeaf } from "obsidian";
 import { newId, SketchElement } from "./elements";
-import { blockBox, Box, boxesIntersect, boxOf, centerOf, elementBounds, hitBoxHandle, hitHandle, hitTop, unionBox } from "./geometry";
+import { blockBox, Box, Side, boxesIntersect, boxOf, centerOf, elementBounds, hitBoxHandle, hitHandle, hitTop, insideShape, unionBox } from "./geometry";
 import { canUngroup, expandToGroups, groupAction, groupElements, topGroupId, ungroupElements } from "./groups";
 import { flipElements } from "./flip";
 import { insertPointAt, lockAngle, midpointIndexAt, movePointTo, nearestOnLine, pointIndexAt, removePointAt } from "./linear";
@@ -14,7 +14,7 @@ import { cloneElements, moveElements, reorder, removeElements } from "./selectio
 import { snapBox } from "./snap";
 import { ToolStyle } from "./style";
 import { addPenPoint, CREATION_TOOLS, CreationTool, elementFromDrag, linearElement, penElement, pointElement } from "./tools";
-import { normalizeAngle, resizeElement, rotateAbout, rotateBy, scaleAbout, translate } from "./transform";
+import { normalizeAngle, resizeElement, resizeSide, rotateAbout, rotateBy, scaleAbout, translate } from "./transform";
 import { MAX_FREEDRAW_POINTS } from "./elements";
 import { clampZoom, fitZoom, pinchZoom, sliderToZoom, stepZoom, zoomToSlider } from "./viewport";
 
@@ -25,6 +25,8 @@ type Gesture =
   | { kind: `pan`; pointerId: number; lastX: number; lastY: number }
   | { kind: `move`; pointerId: number; start: Point; startClient: Point; ids: Set<string>; hitId: string; box: Box; moved: boolean }
   | { kind: `resize`; pointerId: number; orig: SketchElement; corner: 0 | 1 | 2 | 3; moved: boolean }
+  // The middle of a side dragged: the element is stretched or squashed along that side.
+  | { kind: `resizeSide`; pointerId: number; orig: SketchElement; side: Side; moved: boolean }
   | { kind: `rotate`; pointerId: number; orig: SketchElement; center: Point; startAngle: number; moved: boolean }
   // A point of a line or an arrow dragged anywhere (`point`), or the middle handle of a segment, which creates a new point as soon as it is dragged (`midpoint`).
   | { kind: `point`; pointerId: number; orig: SketchElement; index: number; startClient: Point; moved: boolean }
@@ -52,7 +54,7 @@ export abstract class CanvasView<D> extends TextFileView {
   // The group that the user is editing (after a double click on one of its members): its members are selected one by one instead of as a block.
   protected editingGroup: string | null = null;
   // A press with the Text tool, waiting for the release of the pointer to open the writing.
-  private pendingText: { pointerId: number; at: Point } | null = null;
+  private pendingText: { pointerId: number; at: Point; current: Point } | null = null;
   // The point of the selected line or arrow that was clicked last: the Delete key removes it.
   protected activePoint: { id: string; index: number } | null = null;
   // A line or an arrow being drawn point by point (clicks): the committed points, the document before it was started. The last point follows the pointer until the next click.
@@ -139,8 +141,8 @@ export abstract class CanvasView<D> extends TextFileView {
   protected onSelectionChanged(): void {}
 
   // Called when an element is double clicked (or double tapped) with the selection tool.
-  // Writes a text at a point of the surface (the Text tool). Does nothing by default: only the drawings have texts.
-  protected writeText(_at: Point): void {}
+  // Writes a text at a point of the surface (the Text tool), or in a zone that was dragged. Does nothing by default: only the drawings have texts.
+  protected writeText(_at: Point, _zone?: Box): void {}
 
   protected onActivate(_el: SketchElement): void {
     void _el;
@@ -360,14 +362,23 @@ export abstract class CanvasView<D> extends TextFileView {
         if (pointIndexAt(el.points, p, radius) >= 0 || midpointIndexAt(el.points, p, radius) >= 0) return `crosshair`;
       } else if (el) {
         const handle = hitHandle(el, p, this.zoom, 10);
-        if (handle) return handle.kind === `rotate` ? `grab` : corner(handle.corner);
+        if (handle) return handle.kind === `rotate` ? `grab` : handle.kind === `side` ? (handle.side === 0 || handle.side === 2 ? `ns-resize` : `ew-resize`) : corner(handle.corner);
       }
     } else if (this.selected.size >= 2) {
       const frame = blockBox(this.selectedElements(), this.zoom);
       const handle = frame ? hitBoxHandle(frame, 0, p, this.zoom, 10) : null;
-      if (handle) return handle.kind === `rotate` ? `grab` : corner(handle.corner);
+      if (handle && handle.kind !== `side`) return handle.kind === `rotate` ? `grab` : corner(handle.corner);
     }
-    return hitTop(this.elementsOf(this.doc), p, this.reach(false)) ? `grab` : ``;
+    return this.hitAt(p, false) ? `grab` : ``;
+  }
+
+  // Returns the element under a point: the one on top that is touched on its line (or inside, when it has a fill), or else the shape that is selected when the point is
+  // inside it, so that a shape without a fill can be written in and moved by its inside once it is selected.
+  private hitAt(p: Point, touch: boolean): SketchElement | null {
+    const hit = hitTop(this.elementsOf(this.doc), p, this.reach(touch));
+    if (hit) return hit;
+    const only = this.selected.size === 1 ? this.selectedElements()[0] : undefined;
+    return only && insideShape(only, p) ? only : null;
   }
 
   // Returns how far from an element, in page units, a click still touches it: a little more for a finger.
@@ -569,7 +580,7 @@ export abstract class CanvasView<D> extends TextFileView {
     const single = this.selected.size === 1 ? this.selectedElements()[0] : undefined;
     if (this.multi && (key === `enter` || key === `escape`)) {
       this.finishMulti();
-    } else if (key === `enter` && !mod && single && single.type === `text`) {
+    } else if (key === `enter` && !mod && single && (single.type === `text` || single.type === `rect` || single.type === `ellipse` || single.type === `diamond`)) {
       this.onActivate(single);
     } else if (key === ` `) {
       this.spaceDown = true;
@@ -685,7 +696,7 @@ export abstract class CanvasView<D> extends TextFileView {
     if (this.tool === `text`) {
       // The writing starts when the pointer is released: the press moves the focus to the surface, which would take it away from the text area at once.
       this.baseDoc = null;
-      this.pendingText = { pointerId: e.pointerId, at: p };
+      this.pendingText = { pointerId: e.pointerId, at: p, current: p };
       return;
     }
     if (this.tool !== `select` && CREATION_TOOLS.includes(this.tool as CreationTool) && this.creationTools().includes(this.tool as CreationTool)) {
@@ -737,13 +748,15 @@ export abstract class CanvasView<D> extends TextFileView {
         if (handle.kind === `rotate`) {
           const center = centerOf(boxOf(el).box);
           this.gesture = { kind: `rotate`, pointerId: e.pointerId, orig: el, center, startAngle: this.angleTo(center, p), moved: false };
+        } else if (handle.kind === `side`) {
+          this.gesture = { kind: `resizeSide`, pointerId: e.pointerId, orig: el, side: handle.side, moved: false };
         } else {
           this.gesture = { kind: `resize`, pointerId: e.pointerId, orig: el, corner: handle.corner, moved: false };
         }
         return;
       }
     }
-    const hit = hitTop(this.elementsOf(this.doc), p, this.reach(touch));
+    const hit = this.hitAt(p, touch);
     if (hit) {
       this.leaveGroupIfOutside(hit);
       if (e.shiftKey || e.ctrlKey || e.metaKey) {
@@ -908,7 +921,7 @@ export abstract class CanvasView<D> extends TextFileView {
     const frame = blockBox(selected, this.zoom);
     if (!frame) return false;
     const handle = hitBoxHandle(frame, 0, p, this.zoom, touch ? 18 : 10);
-    if (!handle) return false;
+    if (!handle || handle.kind === `side`) return false;
     const orig = new Map(selected.map((el): [string, SketchElement] => [el.id, el]));
     if (handle.kind === `rotate`) {
       const center = centerOf(frame);
@@ -981,6 +994,16 @@ export abstract class CanvasView<D> extends TextFileView {
       this.setZoom(pinchZoom(this.pinch.zoom, this.pinch.distance, this.pointerDistance()));
       return;
     }
+    if (this.pendingText && this.pendingText.pointerId === e.pointerId) {
+      // The Text tool dragged: the zone that is being drawn shows as a rectangle, as the selection rectangle does.
+      const t = this.pendingText;
+      t.current = this.pagePoint(e);
+      if (Math.hypot(t.current[0] - t.at[0], t.current[1] - t.at[1]) * this.zoom > 6) {
+        this.marquee = { x: Math.min(t.at[0], t.current[0]), y: Math.min(t.at[1], t.current[1]), w: Math.abs(t.current[0] - t.at[0]), h: Math.abs(t.current[1] - t.at[1]) };
+        this.renderUi();
+      }
+      return;
+    }
     const g = this.gesture;
     if (!g || g.pointerId !== e.pointerId || !this.baseDoc) return;
     const p = this.pagePoint(e);
@@ -997,6 +1020,9 @@ export abstract class CanvasView<D> extends TextFileView {
     } else if (g.kind === `resize`) {
       g.moved = true;
       this.replaceElement(resizeElement(g.orig, g.corner, p, e.shiftKey));
+    } else if (g.kind === `resizeSide`) {
+      g.moved = true;
+      this.replaceElement(resizeSide(g.orig, g.side, p, e.shiftKey));
     } else if (g.kind === `rotate`) {
       g.moved = true;
       let delta = this.angleTo(g.center, p) - g.startAngle;
@@ -1083,9 +1109,13 @@ export abstract class CanvasView<D> extends TextFileView {
     this.pointers.delete(e.pointerId);
     if (this.pointers.size < 2) this.pinch = null;
     if (this.pendingText && this.pendingText.pointerId === e.pointerId) {
-      const at = this.pendingText.at;
+      const { at, current } = this.pendingText;
       this.pendingText = null;
-      this.writeText(at);
+      this.marquee = null;
+      // A drag draws a text zone (when it is large enough to write in); a click starts a text as large as its lines.
+      const zone: Box = { x: Math.min(at[0], current[0]), y: Math.min(at[1], current[1]), w: Math.abs(current[0] - at[0]), h: Math.abs(current[1] - at[1]) };
+      this.renderUi();
+      this.writeText(at, zone.w * this.zoom >= 30 && zone.h * this.zoom >= 20 ? zone : undefined);
       return;
     }
     const g = this.gesture;
@@ -1100,7 +1130,7 @@ export abstract class CanvasView<D> extends TextFileView {
       this.finishCreation(g, base);
       return;
     }
-    if ((g.kind === `move` || g.kind === `resize` || g.kind === `rotate` || g.kind === `blockResize` || g.kind === `blockRotate` || g.kind === `point` || g.kind === `midpoint`) && g.moved && base) {
+    if ((g.kind === `move` || g.kind === `resize` || g.kind === `resizeSide` || g.kind === `rotate` || g.kind === `blockResize` || g.kind === `blockRotate` || g.kind === `point` || g.kind === `midpoint`) && g.moved && base) {
       this.history.push(base);
       this.onElementsChanged();
       this.requestSave();

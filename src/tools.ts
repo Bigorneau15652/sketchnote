@@ -120,3 +120,22 @@ export function textElement(at: Point, text: string, style: ToolStyle, id: strin
   const base: TextElement = { id, type: `text`, x: r2(at[0]), y: r2(at[1]), width: 1, height: 1, text, font: style.font, size: style.fontSize, stroke: style.stroke, ...(style.align === `left` ? {} : { align: style.align }), ...effectFields(style) };
   return refitText(base, measure);
 }
+
+// Returns a text zone: a text in the box that the user dragged, wrapped to the width of the box, with the font, the size, the alignment and the colour of the style.
+export function zoneElement(box: { x: number; y: number; w: number; h: number }, text: string, style: ToolStyle, id: string): TextElement {
+  return {
+    id,
+    type: `text`,
+    x: r2(box.x),
+    y: r2(box.y),
+    width: r2(box.w),
+    height: r2(box.h),
+    text,
+    font: style.font,
+    size: style.fontSize,
+    stroke: style.stroke,
+    zone: true,
+    ...(style.align === `left` ? {} : { align: style.align }),
+    ...effectFields(style),
+  };
+}

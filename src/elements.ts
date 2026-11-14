@@ -97,6 +97,15 @@ export interface FreedrawElement extends BaseElement, Strokes {
   points: Point[];
 }
 
+// A text written inside a shape (a rectangle, an ellipse or a diamond). It belongs to the shape: it moves, turns, is copied and deleted with it. It is centred in the
+// shape (the middle of the part inside), wraps to the width of that part and takes its colour from the fill. The size is one of the sizes of texts.
+export interface ShapeLabel {
+  text: string;
+  font: string;
+  size: number;
+  align?: TextAlign;
+}
+
 export interface RectElement extends BaseElement, Strokes, Fills {
   type: `rect`;
   x: number;
@@ -108,6 +117,7 @@ export interface RectElement extends BaseElement, Strokes, Fills {
   // The radius of the corners. Absent means square corners.
   radius?: number;
   border?: Border;
+  label?: ShapeLabel;
 }
 
 export interface EllipseElement extends BaseElement, Strokes, Fills {
@@ -118,6 +128,7 @@ export interface EllipseElement extends BaseElement, Strokes, Fills {
   ry: number;
   angle?: number;
   border?: Border;
+  label?: ShapeLabel;
 }
 
 export interface DiamondElement extends BaseElement, Strokes, Fills {
@@ -128,6 +139,7 @@ export interface DiamondElement extends BaseElement, Strokes, Fills {
   height: number;
   angle?: number;
   border?: Border;
+  label?: ShapeLabel;
 }
 
 // A frame on a page that shows a drawing kept in its own note. The path is the path of the drawing note in the vault, or null while the
@@ -162,6 +174,9 @@ export interface TextElement extends BaseElement {
   size: number;
   align?: TextAlign;
   stroke: string;
+  // A text zone: the width and the height are the ones of the zone that the user drew (shown dotted when selected); the text wraps to its width. Absent for a text
+  // that is only as large as its lines.
+  zone?: boolean;
 }
 
 export const MAX_TEXT_LENGTH = 5000;
@@ -315,6 +330,17 @@ function readBorder(value: Record<string, unknown>, withRadius: boolean): { bord
   return out;
 }
 
+// Reads the optional label of a shape: a text, a font, a size and an alignment. Returns null when it is present and wrong, undefined when absent.
+function readLabel(value: unknown): ShapeLabel | undefined | null {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) return null;
+  const { text, font, size, align } = value;
+  if (typeof text !== `string` || text.length === 0 || text.length > MAX_TEXT_LENGTH || !isFontId(font)) return null;
+  if (typeof size !== `number` || !Number.isFinite(size) || size < MIN_FONT_SIZE || size > MAX_FONT_SIZE) return null;
+  if (align !== undefined && !TEXT_ALIGNS.includes(align as TextAlign)) return null;
+  return { text, font, size, ...(align === undefined ? {} : { align: align as TextAlign }) };
+}
+
 // Reads one element and copies only its known fields. Returns null when it is not valid.
 function readElement(value: unknown): SketchElement | null {
   if (!isRecord(value)) return null;
@@ -347,7 +373,8 @@ function readElement(value: unknown): SketchElement | null {
     if (value.align !== undefined && !TEXT_ALIGNS.includes(value.align as TextAlign)) return null;
     const angle = readAngle(value.angle);
     if (angle === null) return null;
-    return { ...head, type, x, y, width, height, text, font, size, stroke: value.stroke, ...(value.align === undefined || value.align === `left` ? {} : { align: value.align as TextAlign }), ...(angle === 0 ? {} : { angle }) };
+    if (value.zone !== undefined && typeof value.zone !== `boolean`) return null;
+    return { ...head, type, x, y, width, height, text, font, size, stroke: value.stroke, ...(value.zone === true ? { zone: true as const } : {}), ...(value.align === undefined || value.align === `left` ? {} : { align: value.align as TextAlign }), ...(angle === 0 ? {} : { angle }) };
   }
   const { stroke, strokeWidth } = value;
   if (!isSafeColor(stroke)) return null;
@@ -380,13 +407,16 @@ function readElement(value: unknown): SketchElement | null {
   const turn = angle === 0 ? {} : { angle };
   const border = readBorder(value, type === `rect`);
   if (border === null) return null;
+  const label = readLabel(value.label);
+  if (label === null) return null;
+  const labelField = label ? { label } : {};
   if (type === `rect` || type === `diamond`) {
     const { x, y, width, height } = value;
-    return isCoord(x) && isCoord(y) && isSize(width) && isSize(height) ? { ...base, ...fill, ...turn, ...border, type, x, y, width, height } : null;
+    return isCoord(x) && isCoord(y) && isSize(width) && isSize(height) ? { ...base, ...fill, ...turn, ...border, ...labelField, type, x, y, width, height } : null;
   }
   if (type === `ellipse`) {
     const { cx, cy, rx, ry } = value;
-    return isCoord(cx) && isCoord(cy) && isSize(rx) && isSize(ry) ? { ...base, ...fill, ...turn, ...border, type, cx, cy, rx, ry } : null;
+    return isCoord(cx) && isCoord(cy) && isSize(rx) && isSize(ry) ? { ...base, ...fill, ...turn, ...border, ...labelField, type, cx, cy, rx, ry } : null;
   }
   return null;
 }
