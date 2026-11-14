@@ -119,3 +119,16 @@ test(`un fichier 0.2 sans structure ni element se relit`, () => {
     assert.deepEqual(r.doc.elements, []);
   }
 });
+
+test(`la palette de la page est lue, controlee et prend une valeur par defaut pour les anciens fichiers`, () => {
+  const old = parseSketchnote(fileWith((d) => delete (d.page as Record<string, unknown>).palette));
+  assert.equal(old.ok, true);
+  if (old.ok) assert.equal(old.doc.page.palette.length, 5);
+  const dark = parseSketchnote(fileWith((d) => { const page = d.page as Record<string, unknown>; delete page.palette; page.pattern = `chalkboard`; page.ink = `#ffffff`; }));
+  if (dark.ok) assert.equal(dark.doc.page.palette[0], `#ffffff`);
+  for (const bad of [[`#000000`], [`#000000`, `#111111`, `x`], `#000000`, [`#1`, `#2`, `#3`], null]) {
+    assert.equal(parseSketchnote(fileWith((d) => ((d.page as Record<string, unknown>).palette = bad))).ok, false, JSON.stringify(bad));
+  }
+  const ok = parseSketchnote(fileWith((d) => ((d.page as Record<string, unknown>).palette = [`#111111`, `#222222`, `#333333`])));
+  assert.equal(ok.ok, true);
+});

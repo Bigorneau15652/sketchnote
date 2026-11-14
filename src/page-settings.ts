@@ -1,5 +1,6 @@
 // Pure rules for the settings of a page: formats, orientation, size limits and background styles.
 // Every function returns a new page and never changes its argument, so the view can compare and undo changes later.
+import { defaultPaletteFor, isPalette } from "./color";
 import { isSafeColor, MAX_PAGE_SIZE, MIN_PAGE_SIZE, Orientation, PageSettings, Pattern } from "./file-format";
 
 export type PresetId = `a5` | `a4` | `a3` | `wide` | `square` | `custom`;
@@ -84,7 +85,7 @@ export function changeStyle(page: PageSettings, pattern: Pattern): PageSettings 
   if (pattern === page.pattern) return page;
   if (hasOwnColors(pattern) || hasOwnColors(page.pattern)) {
     const d = STYLE_DEFAULTS[pattern];
-    return { ...page, pattern, background: d.background, ink: d.ink };
+    return { ...page, pattern, background: d.background, ink: d.ink, palette: defaultPaletteFor(d.ink) };
   }
   return { ...page, pattern };
 }
@@ -97,4 +98,9 @@ export function changeBackground(page: PageSettings, color: string): PageSetting
 // Changes the default ink colour. A value that is not a #hex colour is ignored.
 export function changeInk(page: PageSettings, color: string): PageSettings {
   return isSafeColor(color) ? { ...page, ink: color } : page;
+}
+
+// Sets the palette of the page. A value that is not 3 to 5 #hex colours is ignored.
+export function changePalette(page: PageSettings, palette: string[]): PageSettings {
+  return isPalette(palette) ? { ...page, palette: [...palette] } : page;
 }

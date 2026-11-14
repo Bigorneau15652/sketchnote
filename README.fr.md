@@ -2,7 +2,7 @@
 
 Plugin Obsidian pour dessiner des sketchnotes : une page unique qui mêle dessins faits à la main et texte manuscrit, organisée selon l'une des sept structures (linéaire, radiale, verticale, chemin, modulaire, gratte-ciel, pop-corn).
 
-État : version 0.1.0, squelette. La commande Créer un sketchnote crée un fichier .sketchnote et ouvre une page vide. Les outils de dessin sont construits version après version (voir CHANGELOG.md).
+État : version 0.5.0. Une page de sketchnote avec sept structures, des éléments graphiques qui s'ouvrent comme des notes de dessin avec des outils à main levée. Les lignes et flèches comme sur Excalidraw, le texte, une bibliothèque de dessins et les exports sont construits version après version (voir CHANGELOG.md).
 
 ## Installer avec BRAT
 

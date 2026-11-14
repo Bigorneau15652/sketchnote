@@ -3,6 +3,7 @@
 // and the slots (dotted frames that help to place the contents, shown while editing and never printed).
 // Pure module: no dependency on Obsidian, tested without the application.
 import type { PageSettings } from "./file-format";
+import { seedFrom } from "./elements";
 import type { Point, SketchElement } from "./elements";
 
 export type LayoutType = `linear` | `radial` | `vertical` | `path` | `modular` | `skyscraper` | `popcorn`;
@@ -104,7 +105,7 @@ export function buildStructure(layout: LayoutSettings, page: PageSettings): Stru
 
   // Adds a line or an arrow of the structure.
   const link = (type: `line` | `arrow`, points: Point[]): void => {
-    elements.push({ id: `s${elements.length + 1}`, group: `structure`, type, points: points.map((p): Point => [r1(p[0]), r1(p[1])]), stroke, strokeWidth });
+    elements.push({ id: `s${elements.length + 1}`, group: `structure`, type, points: points.map((p): Point => [r1(p[0]), r1(p[1])]), stroke, strokeWidth, roughness: 1, seed: seedFrom(elements.length) });
   };
   // Adds a slot.
   const slot = (x: number, y: number, w: number, h: number, shape: `rect` | `ellipse`): void => {

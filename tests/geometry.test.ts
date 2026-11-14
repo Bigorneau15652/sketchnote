@@ -111,3 +111,38 @@ test(`la poignee de rotation suit la rotation de l'element`, () => {
   near(p[0], 50 + 78);
   near(p[1], 50);
 });
+
+test(`le losange est touche sur ses cotes et pas dans ses coins vides`, () => {
+  const d: SketchElement = { id: `d`, type: `diamond`, x: 0, y: 0, width: 100, height: 100, ...base };
+  assert.equal(hitElement(d, [50, 0], 3), true);
+  assert.equal(hitElement(d, [75, 25], 3), true);
+  assert.equal(hitElement(d, [5, 5], 3), false);
+  assert.equal(hitElement(d, [50, 50], 3), false);
+});
+
+test(`une forme avec remplissage est touchee a l'interieur, pas sans remplissage`, () => {
+  const plain = rect(`p`, 0, 0, 100, 100);
+  const filled: SketchElement = { ...plain, fill: `#ff0000` } as SketchElement;
+  assert.equal(hitElement(plain, [50, 50], 3), false);
+  assert.equal(hitElement(filled, [50, 50], 3), true);
+  const e: SketchElement = { id: `e`, type: `ellipse`, cx: 50, cy: 50, rx: 40, ry: 20, fill: `#00ff00`, ...base };
+  assert.equal(hitElement(e, [50, 50], 3), true);
+  assert.equal(hitElement(e, [5, 5], 3), false);
+});
+
+test(`un cadre de dessin est touche partout a l'interieur, y compris tourne`, () => {
+  const f: SketchElement = { id: `f`, type: `drawing`, x: 0, y: 0, width: 100, height: 20, path: null };
+  assert.equal(hitElement(f, [50, 10], 3), true);
+  assert.equal(hitElement(f, [50, 60], 3), false);
+  const turned: SketchElement = { ...f, angle: 90 } as SketchElement;
+  // Turned by 90 degrees around (50, 10): it now spans x from 40 to 60 and y from -40 to 60.
+  assert.equal(hitElement(turned, [50, -30], 3), true);
+  assert.equal(hitElement(turned, [95, 10], 3), false);
+});
+
+test(`un trait libre est touche sur son trace`, () => {
+  const f: SketchElement = { id: `f`, type: `freedraw`, points: [[0, 0], [50, 50], [100, 0]], ...base };
+  assert.equal(hitElement(f, [25, 25], 3), true);
+  assert.equal(hitElement(f, [50, 0], 3), false);
+  assert.deepEqual(boxOf(f).box, { x: 0, y: 0, w: 100, h: 50 });
+});

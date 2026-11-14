@@ -1,56 +1,118 @@
-// The elements that can be drawn on a page (lines, arrows, rectangles, ellipses) and the strict reading of them from a file.
+// The elements that can be drawn on a page or in a drawing, and the strict reading of them from a file.
 // No dependency on Obsidian: tested without the application.
 import { isSafeColor } from "./color";
 
 export type Point = [number, number];
+export type FillStyle = `solid` | `hachure`;
 
 export const MAX_ELEMENTS = 20000;
 export const MAX_POINTS = 500;
+export const MAX_FREEDRAW_POINTS = 5000;
 const MAX_COORD = 100000;
 const MIN_STROKE = 0.5;
 const MAX_STROKE = 40;
+const MAX_ROUGHNESS = 3;
+const MAX_SEED = 2147483647;
+const MAX_PATH_LENGTH = 512;
 
 interface BaseElement {
   id: string;
   // Elements made by a page structure carry the group `structure`: choosing another structure replaces them.
   group?: `structure`;
-  stroke: string;
-  strokeWidth: number;
 }
 
-export interface LineElement extends BaseElement {
+// How the lines of an element look. The roughness is 0 for clean lines, 1 for a hand drawn look and 2 for a rougher one. The seed makes the
+// hand drawn look identical at every drawing.
+interface Strokes {
+  stroke: string;
+  strokeWidth: number;
+  roughness?: number;
+  seed?: number;
+}
+
+// A fill, for the shapes that have an inside.
+interface Fills {
+  fill?: string;
+  fillStyle?: FillStyle;
+}
+
+export interface LineElement extends BaseElement, Strokes {
   type: `line`;
   points: Point[];
 }
 
-export interface ArrowElement extends BaseElement {
+export interface ArrowElement extends BaseElement, Strokes {
   type: `arrow`;
   points: Point[];
 }
 
-export interface RectElement extends BaseElement {
+// A line drawn freehand with the pen.
+export interface FreedrawElement extends BaseElement, Strokes {
+  type: `freedraw`;
+  points: Point[];
+}
+
+export interface RectElement extends BaseElement, Strokes, Fills {
   type: `rect`;
   x: number;
   y: number;
   width: number;
   height: number;
-  // Rotation in degrees around the centre of the rectangle. Absent means 0.
+  // Rotation in degrees around the centre. Absent means 0.
   angle?: number;
 }
 
-export interface EllipseElement extends BaseElement {
+export interface EllipseElement extends BaseElement, Strokes, Fills {
   type: `ellipse`;
   cx: number;
   cy: number;
   rx: number;
   ry: number;
-  // Rotation in degrees around the centre of the ellipse. Absent means 0.
   angle?: number;
 }
 
-export type SketchElement = LineElement | ArrowElement | RectElement | EllipseElement;
+export interface DiamondElement extends BaseElement, Strokes, Fills {
+  type: `diamond`;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  angle?: number;
+}
+
+// A frame on a page that shows a drawing kept in its own note. The path is the path of the drawing note in the vault, or null while the
+// drawing has not been created yet.
+export interface DrawingElement extends BaseElement {
+  type: `drawing`;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  angle?: number;
+  path: string | null;
+}
+
+export type PointsElement = LineElement | ArrowElement | FreedrawElement;
+export type ShapeElement = RectElement | EllipseElement | DiamondElement;
+export type StrokedElement = PointsElement | ShapeElement;
+export type SketchElement = StrokedElement | DrawingElement;
 
 export type ElementsResult = { ok: true; elements: SketchElement[] } | { ok: false; index: number } | { ok: false; tooMany: true };
+
+// Tells whether an element is a line, an arrow or a freehand line: a list of points.
+export function hasPoints(el: SketchElement): el is PointsElement {
+  return el.type === `line` || el.type === `arrow` || el.type === `freedraw`;
+}
+
+// Tells whether an element has lines with a colour and a width (everything except a drawing frame).
+export function isStroked(el: SketchElement): el is StrokedElement {
+  return el.type !== `drawing`;
+}
+
+// Tells whether an element is a shape with an inside: a rectangle, an ellipse or a diamond.
+export function isShape(el: SketchElement): el is ShapeElement {
+  return el.type === `rect` || el.type === `ellipse` || el.type === `diamond`;
+}
 
 // Tells whether a value is a plain object (not null, not an array).
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -67,9 +129,9 @@ function isSize(value: unknown): value is number {
   return isCoord(value) && value > 0;
 }
 
-// Reads a list of points: 2 to MAX_POINTS pairs of coordinates. Returns null when anything is wrong.
-function readPoints(value: unknown): Point[] | null {
-  if (!Array.isArray(value) || value.length < 2 || value.length > MAX_POINTS) return null;
+// Reads a list of points: at least 2 and at most `max` pairs of coordinates. Returns null when anything is wrong.
+function readPoints(value: unknown, max: number): Point[] | null {
+  if (!Array.isArray(value) || value.length < 2 || value.length > max) return null;
   const points: Point[] = [];
   for (const p of value) {
     if (!Array.isArray(p) || p.length !== 2 || !isCoord(p[0]) || !isCoord(p[1])) return null;
@@ -84,30 +146,79 @@ function readAngle(value: unknown): number | null {
   return typeof value === `number` && Number.isFinite(value) && Math.abs(value) <= 360 ? value : null;
 }
 
+// Tells whether a path is a safe path of a drawing note of the vault: relative, no `..`, no control character, ending with .sketchdraw.
+export function isSafeDrawingPath(value: unknown): value is string {
+  if (typeof value !== `string` || value.length === 0 || value.length > MAX_PATH_LENGTH) return false;
+  if (value.startsWith(`/`) || value.startsWith(`\\`) || /^[A-Za-z]:/.test(value)) return false;
+  if (/[\u0000-\u001f]/.test(value)) return false;
+  if (value.split(/[\\/]/).some((part) => part === `..` || part === `.`)) return false;
+  return value.toLowerCase().endsWith(`.sketchdraw`);
+}
+
+// Reads the optional look fields (roughness, seed). Returns null when a field is present and wrong, otherwise the fields that are present.
+function readLook(value: Record<string, unknown>): { roughness?: number; seed?: number } | null {
+  const out: { roughness?: number; seed?: number } = {};
+  if (value.roughness !== undefined) {
+    if (typeof value.roughness !== `number` || !Number.isFinite(value.roughness) || value.roughness < 0 || value.roughness > MAX_ROUGHNESS) return null;
+    out.roughness = value.roughness;
+  }
+  if (value.seed !== undefined) {
+    if (typeof value.seed !== `number` || !Number.isInteger(value.seed) || value.seed < 1 || value.seed > MAX_SEED) return null;
+    out.seed = value.seed;
+  }
+  return out;
+}
+
+// Reads the optional fill fields. Returns null when a field is present and wrong.
+function readFill(value: Record<string, unknown>): { fill?: string; fillStyle?: FillStyle } | null {
+  const out: { fill?: string; fillStyle?: FillStyle } = {};
+  if (value.fill !== undefined) {
+    if (!isSafeColor(value.fill)) return null;
+    out.fill = value.fill;
+  }
+  if (value.fillStyle !== undefined) {
+    if (value.fillStyle !== `solid` && value.fillStyle !== `hachure`) return null;
+    out.fillStyle = value.fillStyle;
+  }
+  return out;
+}
+
 // Reads one element and copies only its known fields. Returns null when it is not valid.
 function readElement(value: unknown): SketchElement | null {
   if (!isRecord(value)) return null;
-  const { id, type, stroke, strokeWidth } = value;
+  const { id, type } = value;
   if (typeof id !== `string` || !/^[A-Za-z0-9_-]{1,64}$/.test(id)) return null;
-  if (!isSafeColor(stroke)) return null;
-  if (typeof strokeWidth !== `number` || !Number.isFinite(strokeWidth) || strokeWidth < MIN_STROKE || strokeWidth > MAX_STROKE) return null;
   if (value.group !== undefined && value.group !== `structure`) return null;
-  const base = value.group === `structure` ? { id, group: `structure` as const, stroke, strokeWidth } : { id, stroke, strokeWidth };
-  if (type === `line` || type === `arrow`) {
-    const points = readPoints(value.points);
-    return points === null ? null : { ...base, type, points };
-  }
-  if (type === `rect`) {
+  const head = value.group === `structure` ? { id, group: `structure` as const } : { id };
+  if (type === `drawing`) {
     const { x, y, width, height } = value;
     if (!isCoord(x) || !isCoord(y) || !isSize(width) || !isSize(height)) return null;
     const angle = readAngle(value.angle);
-    return angle === null ? null : angle === 0 ? { ...base, type, x, y, width, height } : { ...base, type, x, y, width, height, angle };
+    const path = value.path === null ? null : isSafeDrawingPath(value.path) ? value.path : undefined;
+    if (angle === null || path === undefined) return null;
+    return { ...head, type, x, y, width, height, ...(angle === 0 ? {} : { angle }), path };
+  }
+  const { stroke, strokeWidth } = value;
+  if (!isSafeColor(stroke)) return null;
+  if (typeof strokeWidth !== `number` || !Number.isFinite(strokeWidth) || strokeWidth < MIN_STROKE || strokeWidth > MAX_STROKE) return null;
+  const look = readLook(value);
+  if (look === null) return null;
+  const base = { ...head, stroke, strokeWidth, ...look };
+  if (type === `line` || type === `arrow` || type === `freedraw`) {
+    const points = readPoints(value.points, type === `freedraw` ? MAX_FREEDRAW_POINTS : MAX_POINTS);
+    return points === null ? null : { ...base, type, points };
+  }
+  const fill = readFill(value);
+  const angle = readAngle(value.angle);
+  if (fill === null || angle === null) return null;
+  const turn = angle === 0 ? {} : { angle };
+  if (type === `rect` || type === `diamond`) {
+    const { x, y, width, height } = value;
+    return isCoord(x) && isCoord(y) && isSize(width) && isSize(height) ? { ...base, ...fill, ...turn, type, x, y, width, height } : null;
   }
   if (type === `ellipse`) {
     const { cx, cy, rx, ry } = value;
-    if (!isCoord(cx) || !isCoord(cy) || !isSize(rx) || !isSize(ry)) return null;
-    const angle = readAngle(value.angle);
-    return angle === null ? null : angle === 0 ? { ...base, type, cx, cy, rx, ry } : { ...base, type, cx, cy, rx, ry, angle };
+    return isCoord(cx) && isCoord(cy) && isSize(rx) && isSize(ry) ? { ...base, ...fill, ...turn, type, cx, cy, rx, ry } : null;
   }
   return null;
 }
@@ -153,4 +264,9 @@ export function newId(elements: SketchElement[], prefix = `e`): string {
   let n = elements.length + 1;
   while (used.has(`${prefix}${n}`)) n++;
   return `${prefix}${n}`;
+}
+
+// Returns a seed for the hand drawn look, from a number (for example the count of elements). The same number always gives the same seed.
+export function seedFrom(n: number): number {
+  return ((Math.imul(n + 1, 2654435761) >>> 0) % 2147483646) + 1;
 }

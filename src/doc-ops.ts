@@ -1,5 +1,6 @@
 // Pure operations on a whole document: applying new page settings and a new structure together.
 import type { SketchnoteDoc, PageSettings } from "./file-format";
+import { isStroked } from "./elements";
 import { buildStructure, LayoutSettings, sameLayout } from "./layout";
 
 // Returns the document with new page settings and a new structure (or none).
@@ -14,7 +15,7 @@ export function applySettings(doc: SketchnoteDoc, page: PageSettings, layout: La
     return { ...doc, page, layout, elements: [...buildStructure(layout, page).elements, ...own] };
   }
   if (page.ink !== doc.page.ink) {
-    const elements = doc.elements.map((e) => (e.group === `structure` && e.stroke === doc.page.ink ? { ...e, stroke: page.ink } : e));
+    const elements = doc.elements.map((e) => (e.group === `structure` && isStroked(e) && e.stroke === doc.page.ink ? { ...e, stroke: page.ink } : e));
     return { ...doc, page, layout, elements };
   }
   return { ...doc, page, layout };
