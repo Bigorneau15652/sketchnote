@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.2
+
+English
+
+Colours, the fill and the cursor. The colours of the stroke and of the fill are all on one line: the round swatches of the palette, then a small rectangle that shows the colour in use (crossed when there is no fill) and opens the colour window when it is used; the panel is a little wider. A new fill is half transparent (a shape drawn with a fill, or a fill put on a shape that had none), and the slider makes it opaque or more transparent; changing the colour of a fill keeps its opacity, and shapes already drawn do not change. With the Select tool the cursor shows what the pointer would do, like the hand of Bigorneau: an open hand over an element that can be moved (a closed hand while it is moved), resize arrows on the corner handles, a cross on the points and the middle handles of a line. A line or an arrow can be moved by its body, between its points, and it is a little easier to touch (the distance that counts as touching grew from 6 to 9 pixels). Files of the previous versions open without change.
+
+Français
+
+Les couleurs, le remplissage et le curseur. Les couleurs du trait et du remplissage sont toutes sur une seule ligne : les pastilles rondes de la palette, puis un petit rectangle qui montre la couleur utilisée (barré quand il n'y a pas de remplissage) et ouvre la fenêtre de couleur ; le panneau est un peu plus large. Un remplissage neuf est à moitié transparent (une forme dessinée avec un remplissage, ou un remplissage posé sur une forme qui n'en avait pas), et la réglette le rend opaque ou plus transparent ; changer la couleur d'un remplissage garde son opacité, et les formes déjà dessinées ne changent pas. Avec l'outil Sélection, le curseur montre ce que le pointeur ferait, comme la main de Bigorneau : une main ouverte sur un élément que l'on peut déplacer (une main fermée pendant le déplacement), des flèches de redimensionnement sur les poignées d'angle, une croix sur les points et les poignées de milieu d'un trait. Un trait ou une flèche se déplace par son corps, entre ses points, et il est un peu plus facile à toucher (la distance qui compte pour toucher est passée de 6 à 9 pixels). Les fichiers des versions précédentes s'ouvrent sans changement.
+
 ## 0.11.1
 
 English

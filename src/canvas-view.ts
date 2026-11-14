@@ -333,6 +333,40 @@ export abstract class CanvasView<D> extends TextFileView {
     this.scroller?.toggleClass(`is-panning`, panning);
     this.scroller?.toggleClass(`is-dragging`, this.gesture?.kind === `pan`);
     this.scroller?.toggleClass(`is-creating`, !panning && this.tool !== `select`);
+    if (this.scroller && (panning || this.tool !== `select`)) this.scroller.style.cursor = ``;
+  }
+
+  // Sets the cursor over what the pointer would act on with the Select tool, as the hand of Bigorneau shows what can be moved: an open hand over an element that can be
+  // moved, resize arrows on the corner handles, a cross on the points of a line, nothing special elsewhere. Nothing happens for a finger or with another tool.
+  private hoverCursor(e: PointerEvent): void {
+    const s = this.scroller;
+    if (!s || this.tool !== `select` || this.spaceDown || this.gesture || this.multi || e.pointerType === `touch` || !this.svg) return;
+    s.style.cursor = this.cursorAt(this.pagePoint(e));
+  }
+
+  // Returns the cursor for a point of the surface (an empty string for the usual one).
+  private cursorAt(p: Point): string {
+    const corner = (c: number): string => (c === 0 || c === 2 ? `nwse-resize` : `nesw-resize`);
+    if (this.selected.size === 1) {
+      const el = this.selectedElements()[0];
+      if (el && (el.type === `line` || el.type === `arrow`)) {
+        const radius = 10 / this.zoom;
+        if (pointIndexAt(el.points, p, radius) >= 0 || midpointIndexAt(el.points, p, radius) >= 0) return `crosshair`;
+      } else if (el) {
+        const handle = hitHandle(el, p, this.zoom, 10);
+        if (handle) return handle.kind === `rotate` ? `grab` : corner(handle.corner);
+      }
+    } else if (this.selected.size >= 2) {
+      const frame = blockBox(this.selectedElements(), this.zoom);
+      const handle = frame ? hitBoxHandle(frame, 0, p, this.zoom, 10) : null;
+      if (handle) return handle.kind === `rotate` ? `grab` : corner(handle.corner);
+    }
+    return hitTop(this.elementsOf(this.doc), p, this.reach(false)) ? `grab` : ``;
+  }
+
+  // Returns how far from an element, in page units, a click still touches it: a little more for a finger.
+  private reach(touch: boolean): number {
+    return (touch ? 14 : 9) / this.zoom;
   }
 
   // Chooses the active tool.
@@ -586,7 +620,13 @@ export abstract class CanvasView<D> extends TextFileView {
   private bindPointer(scroller: HTMLElement): void {
     this.registerDomEvent(scroller, `pointerdown`, (e: PointerEvent) => this.onPointerDown(e));
     this.registerDomEvent(scroller, `pointermove`, (e: PointerEvent) => this.onPointerMove(e));
-    this.registerDomEvent(scroller, `pointerup`, (e: PointerEvent) => this.onPointerUp(e));
+    this.registerDomEvent(scroller, `pointerup`, (e: PointerEvent) => {
+      this.onPointerUp(e);
+      this.hoverCursor(e);
+    });
+    this.registerDomEvent(scroller, `pointerleave`, () => {
+      if (!this.gesture) scroller.style.cursor = ``;
+    });
     this.registerDomEvent(scroller, `pointercancel`, (e: PointerEvent) => {
       this.pointers.delete(e.pointerId);
       this.pinch = null;
@@ -647,6 +687,7 @@ export abstract class CanvasView<D> extends TextFileView {
       return;
     }
     this.startSelection(e, p);
+    if (this.scroller && this.gesture?.kind === `move`) this.scroller.style.cursor = `grabbing`;
   }
 
   // Starts the creation of an element with a tool. The Point tool creates its element at once.
@@ -696,7 +737,7 @@ export abstract class CanvasView<D> extends TextFileView {
         return;
       }
     }
-    const hit = hitTop(this.elementsOf(this.doc), p, (touch ? 12 : 6) / this.zoom);
+    const hit = hitTop(this.elementsOf(this.doc), p, this.reach(touch));
     if (hit) {
       this.leaveGroupIfOutside(hit);
       if (e.shiftKey || e.ctrlKey || e.metaKey) {
@@ -925,7 +966,10 @@ export abstract class CanvasView<D> extends TextFileView {
       return;
     }
     const previous = this.pointers.get(e.pointerId);
-    if (!previous) return;
+    if (!previous) {
+      this.hoverCursor(e);
+      return;
+    }
     this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (this.pointers.size === 2 && this.pinch) {
       this.setZoom(pinchZoom(this.pinch.zoom, this.pinch.distance, this.pointerDistance()));

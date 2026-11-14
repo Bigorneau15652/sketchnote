@@ -35,6 +35,8 @@ export type StylePatch = Partial<ToolStyle>;
 
 // Widths proposed by the buttons: thin, medium and thick.
 export const STROKE_WIDTHS = { thin: 3, medium: 5, thick: 9 };
+// A new fill is half transparent: the shapes behind it show through, and the user can make it opaque with the slider.
+export const DEFAULT_FILL_OPACITY = 0.5;
 export const MIN_WIDTH = 1;
 export const MAX_WIDTH = 24;
 // Sizes of text proposed by the buttons: small, medium, large and very large.
@@ -45,7 +47,7 @@ const PLAIN_EFFECTS = { opacity: 1, shadow: `none` as ShadowKind, reflection: fa
 
 // Returns the style of a new drawing: a thin hand drawn line in the ink colour of the page, with no fill.
 export function defaultStyle(ink: string): ToolStyle {
-  return { stroke: isSafeColor(ink) ? ink : `#000000`, fill: null, fillStyle: `solid`, fillOpacity: 1, strokeWidth: STROKE_WIDTHS.thin, roughness: 1, rounded: false, startHead: `none`, endHead: `arrow`, font: DEFAULT_FONT, fontSize: TEXT_SIZES.medium, align: `left`, ...PLAIN_EFFECTS };
+  return { stroke: isSafeColor(ink) ? ink : `#000000`, fill: null, fillStyle: `solid`, fillOpacity: DEFAULT_FILL_OPACITY, strokeWidth: STROKE_WIDTHS.thin, roughness: 1, rounded: false, startHead: `none`, endHead: `arrow`, font: DEFAULT_FONT, fontSize: TEXT_SIZES.medium, align: `left`, ...PLAIN_EFFECTS };
 }
 
 // Returns a style patch with every value checked: unknown or invalid values are dropped.
@@ -118,7 +120,9 @@ export function applyStyle(el: SketchElement, patch: StylePatch): SketchElement 
       void _f;
       next = rest as typeof el;
     } else if (p.fill !== undefined) {
-      next = { ...next, fill: p.fill, fillStyle: next.fillStyle ?? p.fillStyle ?? `solid` } as typeof el;
+      // A fill put on a shape that had none is half transparent, unless the patch gives its own opacity.
+      const first = next.fill === undefined && p.fillOpacity === undefined && next.fillOpacity === undefined;
+      next = { ...next, fill: p.fill, fillStyle: next.fillStyle ?? p.fillStyle ?? `solid`, ...(first ? { fillOpacity: DEFAULT_FILL_OPACITY } : {}) } as typeof el;
     }
     if (p.fillStyle !== undefined && isShape(next) && next.fill !== undefined) next = { ...next, fillStyle: p.fillStyle } as typeof el;
     if (p.fillOpacity !== undefined && isShape(next)) {

@@ -34,8 +34,8 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   private readonly panelButtons: { el: HTMLElement; test: (s: ToolStyle) => boolean }[] = [];
   private widthInput: HTMLInputElement | null = null;
   private transparencyInput: HTMLInputElement | null = null;
-  private strokeCustom: { sync: (color: string | null, inPalette: boolean) => void } | null = null;
-  private fillCustom: { sync: (color: string | null, inPalette: boolean) => void } | null = null;
+  private strokeCustom: { sync: (color: string | null) => void } | null = null;
+  private fillCustom: { sync: (color: string | null) => void } | null = null;
   private lockButton: HTMLElement | null = null;
   // The text being written (hidden while the text area is over it) and the function that ends the writing.
   private editingText: string | null = null;
@@ -540,9 +540,8 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     if (this.fontSelect) this.fontSelect.value = s.font;
     if (this.opacityInput) this.opacityInput.value = String(Math.round(s.opacity * 100));
     if (this.transparencyInput) this.transparencyInput.value = String(Math.round((1 - s.fillOpacity) * 20) * 5);
-    const inPalette = (color: string | null): boolean => color !== null && this.doc.palette.some((c) => toHex6(c) === toHex6(color));
-    this.strokeCustom?.sync(s.stroke, inPalette(s.stroke));
-    this.fillCustom?.sync(s.fill, inPalette(s.fill));
+    this.strokeCustom?.sync(s.stroke);
+    this.fillCustom?.sync(s.fill);
   }
 }
 
