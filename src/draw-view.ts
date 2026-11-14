@@ -6,6 +6,7 @@ import { addColorSwatch } from "./color-modal";
 import { toHex6 } from "./page-background";
 import { CANVAS_HEIGHT, CANVAS_WIDTH, contentBox, createEmptyDrawing, guideBox, parseSketchdraw, serializeSketchdraw, SketchdrawDoc } from "./drawing-file";
 import { drawElements, PLAIN } from "./element-render";
+import { BORDER_KINDS, BorderKind, CORNER_RADII, SHADOW_KINDS, ShadowKind } from "./effects";
 import { Head, HEADS, Point, SketchElement, TextElement } from "./elements";
 import { fontStack } from "./fonts";
 import { openTextEditor } from "./text-editor";
@@ -313,11 +314,31 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     range.addEventListener(`input`, () => this.change({ strokeWidth: Number(range.value) }));
     this.widthInput = range;
 
+    const dashSec = this.section(props, `dash`);
+    this.sectionIcon(dashSec, `sketchnote-line-dashed`, t(`Type de trait`));
+    const dashes = dashSec.createDiv({ cls: `sketchdraw-row` });
+    this.panelButton(dashes, `sketchnote-line-solid`, t(`Trait continu`), (s) => s.lineStyle === `solid`, () => this.change({ lineStyle: `solid` }));
+    this.panelButton(dashes, `sketchnote-line-dashed`, t(`Tirets`), (s) => s.lineStyle === `dashed`, () => this.change({ lineStyle: `dashed` }));
+    this.panelButton(dashes, `sketchnote-line-dotted`, t(`Pointillés`), (s) => s.lineStyle === `dotted`, () => this.change({ lineStyle: `dotted` }));
+
     const lookSec = this.section(props, `look`);
     this.sectionIcon(lookSec, `brush`, t(`Style`));
     const looks = lookSec.createDiv({ cls: `sketchdraw-row` });
     this.panelButton(looks, `sketchnote-style-sketch`, t(`Dessiné à la main`), (s) => s.roughness > 0, () => this.change({ roughness: 1 }));
     this.panelButton(looks, `sketchnote-style-clean`, t(`Net`), (s) => s.roughness === 0, () => this.change({ roughness: 0 }));
+
+    // The border of the shapes: one drop-down menu, then the corners of a rectangle.
+    const borderSec = this.section(props, `border`);
+    this.sectionIcon(borderSec, `sketchnote-border-double`, t(`Bordure`));
+    const borderRow = borderSec.createDiv({ cls: `sketchdraw-row` });
+    this.dropdown(borderRow, t(`Bordure`), BORDER_KINDS, (v) => `sketchnote-border-${v}`, borderName, (s) => s.border, (v) => ({ border: v }));
+    const cornerSec = this.section(props, `corners`);
+    this.sectionIcon(cornerSec, `sketchnote-corner-round`, t(`Coins`));
+    const corners = cornerSec.createDiv({ cls: `sketchdraw-row` });
+    this.panelButton(corners, `sketchnote-corner-square`, t(`Coins carrés`), (s) => s.radius === 0, () => this.change({ radius: CORNER_RADII.square }));
+    this.panelButton(corners, `sketchnote-corner-slight`, t(`Coins légèrement arrondis`), (s) => s.radius > 0 && s.radius <= 20, () => this.change({ radius: CORNER_RADII.slight }));
+    this.panelButton(corners, `sketchnote-corner-round`, t(`Coins arrondis`), (s) => s.radius > 20 && s.radius <= 100, () => this.change({ radius: CORNER_RADII.round }));
+    this.panelButton(corners, `sketchnote-corner-pill`, t(`Coins très arrondis`), (s) => s.radius > 100, () => this.change({ radius: CORNER_RADII.pill }));
 
     // Sections shown only for lines and arrows: the edges, then the head at each end of an arrow.
     const edgeSec = this.section(props, `edges`);
@@ -329,8 +350,8 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     const headSec = this.section(props, `heads`);
     this.sectionIcon(headSec, `sketchnote-head-arrow`, t(`Pointes`));
     const headRow = headSec.createDiv({ cls: `sketchdraw-row` });
-    this.headMenu(headRow, `start`);
-    this.headMenu(headRow, `end`);
+    this.dropdown(headRow, t(`Pointe au début`), HEADS, (v) => headIcon(`start`, v), headName, (s) => s.startHead, (v) => ({ startHead: v }));
+    this.dropdown(headRow, t(`Pointe à la fin`), HEADS, (v) => headIcon(`end`, v), headName, (s) => s.endHead, (v) => ({ endHead: v }));
 
     // The section of the texts: the font (a list, each name written in its own font), the size and the alignment.
     const textSec = this.section(props, `text`);
@@ -351,13 +372,29 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.panelButton(aligns, `align-center`, t(`Centré`), (s) => s.align === `center`, () => this.change({ align: `center` }));
     this.panelButton(aligns, `align-right`, t(`Aligné à droite`), (s) => s.align === `right`, () => this.change({ align: `right` }));
 
+    // The effects of every element: the shadow (one drop-down menu), the reflection and the opacity of the whole element.
+    const effectSec = this.section(props, `effects`);
+    this.sectionIcon(effectSec, `sketchnote-shadow-soft`, t(`Effets`));
+    const effectRow = effectSec.createDiv({ cls: `sketchdraw-row` });
+    this.dropdown(effectRow, t(`Ombre`), SHADOW_KINDS, (v) => `sketchnote-shadow-${v}`, shadowName, (s) => (s.shadow === `custom` ? `soft` : s.shadow), (v) => ({ shadow: v }));
+    this.panelButton(effectRow, `sketchnote-reflection`, t(`Reflet`), (s) => s.reflection, () => this.change({ reflection: !this.currentStyle().reflection }));
+    const opacity = effectSec.createEl(`input`, { cls: `sketchdraw-range sketchdraw-opacity`, type: `range` });
+    opacity.min = `5`;
+    opacity.max = `100`;
+    opacity.step = `5`;
+    opacity.setAttribute(`aria-label`, t(`Opacité de l'élément`));
+    opacity.setAttribute(`title`, t(`Opacité de l'élément`));
+    opacity.addEventListener(`input`, () => this.change({ opacity: Number(opacity.value) / 100 }));
+    this.opacityInput = opacity;
+
     this.swatchRows = { stroke: strokeRow, fill: fillRow };
     this.refreshSwatches();
   }
 
   // The sections of the panel, each with the test that tells for which kind of element it is shown.
   private readonly sections: { el: HTMLElement; name: PanelSection }[] = [];
-  private readonly headButtons: { el: HTMLElement; side: `start` | `end` }[] = [];
+  private readonly dropdowns: { el: HTMLElement; label: string; icon: (s: ToolStyle) => string; name: (s: ToolStyle) => string }[] = [];
+  private opacityInput: HTMLInputElement | null = null;
   private fontSelect: HTMLSelectElement | null = null;
 
   // Adds a section to the panel.
@@ -367,29 +404,28 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     return el;
   }
 
-  // Adds the drop-down menu of the head at one end of an arrow: a button that shows the head and opens the list of heads. The start icons are the mirror of the end ones.
-  private headMenu(parent: HTMLElement, side: `start` | `end`): void {
-    const button = parent.createEl(`button`, { cls: `sketchdraw-chip sketchdraw-head-menu` });
-    const label = side === `start` ? t(`Pointe au début`) : t(`Pointe à la fin`);
+  // Adds a drop-down menu: a button that shows the choice that is made (its pictogram, its name as the tooltip) and opens the list of choices, each with its pictogram. The
+  // fewer menus the better: only the choices that have too many shapes for buttons go into a menu.
+  private dropdown<V extends string>(parent: HTMLElement, label: string, values: V[], icon: (v: V) => string, name: (v: V) => string, read: (s: ToolStyle) => V, write: (v: V) => StylePatch): void {
+    const button = parent.createEl(`button`, { cls: `sketchdraw-chip sketchdraw-menu` });
     button.addEventListener(`click`, (e) => {
-      const current = side === `start` ? this.currentStyle().startHead : this.currentStyle().endHead;
+      const current = read(this.currentStyle());
       const menu = new Menu();
-      for (const kind of HEADS) {
+      for (const value of values) {
         menu.addItem((item) =>
           item
-            .setTitle(headName(kind))
-            .setIcon(headIcon(side, kind))
-            .setChecked(kind === current)
+            .setTitle(name(value))
+            .setIcon(icon(value))
+            .setChecked(value === current)
             .onClick(() => {
-              this.change(side === `start` ? { startHead: kind } : { endHead: kind });
+              this.change(write(value));
               this.contentEl.focus({ preventScroll: true });
             }),
         );
       }
       menu.showAtMouseEvent(e);
     });
-    button.dataset.label = label;
-    this.headButtons.push({ el: button, side });
+    this.dropdowns.push({ el: button, label, icon: (s) => icon(read(s)), name: (s) => `${label} : ${name(read(s))}` });
   }
 
   // Fills the list of fonts: the built-in fonts, then the imported ones, each name in its own font.
@@ -495,18 +531,17 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     if (key === this.lastPanel) return;
     this.lastPanel = key;
     for (const b of this.panelButtons) b.el.toggleClass(`is-active`, b.test(s));
-    for (const h of this.headButtons) {
-      const kind = h.side === `start` ? s.startHead : s.endHead;
-      const name = `${h.el.dataset.label ?? ``} : ${headName(kind)}`;
-      h.el.empty();
-      setIcon(h.el, headIcon(h.side, kind));
-      h.el.setAttribute(`aria-label`, name);
-      h.el.setAttribute(`title`, name);
+    for (const d of this.dropdowns) {
+      d.el.empty();
+      setIcon(d.el, d.icon(s));
+      d.el.setAttribute(`aria-label`, d.name(s));
+      d.el.setAttribute(`title`, d.name(s));
     }
     for (const sw of this.strokeSwatches) sw.toggleClass(`is-active`, sw.dataset.color === toHex6(s.stroke));
     for (const sw of this.fillSwatches) sw.toggleClass(`is-active`, s.fill !== null && sw.dataset.color === toHex6(s.fill));
     if (this.widthInput) this.widthInput.value = String(Math.round(s.strokeWidth));
     if (this.fontSelect) this.fontSelect.value = s.font;
+    if (this.opacityInput) this.opacityInput.value = String(Math.round(s.opacity * 100));
     if (this.transparencyInput) this.transparencyInput.value = String(Math.round((1 - s.fillOpacity) * 20) * 5);
     this.strokeColor?.show(s.stroke);
     this.fillColor?.show(s.fill ?? `#ffffff`);
@@ -529,4 +564,29 @@ function headName(kind: Head): string {
 // Returns the name of the pictogram of a head at one end of an arrow.
 function headIcon(side: `start` | `end`, kind: Head): string {
   return side === `start` ? `sketchnote-head-start-${kind}` : `sketchnote-head-${kind}`;
+}
+
+// The name of a border, shown as a tooltip and in the menu.
+function borderName(kind: BorderKind): string {
+  const names: Record<BorderKind, string> = {
+    simple: t(`Bordure simple`),
+    none: t(`Sans bordure`),
+    double: t(`Bordure double`),
+    "double-reverse": t(`Bordure double inversée`),
+    frame: t(`Cadre de tableau`),
+    mat: t(`Cadre avec marie-louise`),
+  };
+  return names[kind];
+}
+
+// The name of a shadow, shown as a tooltip and in the menu.
+function shadowName(kind: ShadowKind): string {
+  const names: Record<ShadowKind, string> = {
+    none: t(`Aucune ombre`),
+    soft: t(`Ombre douce`),
+    strong: t(`Ombre marquée`),
+    offset: t(`Ombre décalée`),
+    custom: t(`Ombre personnalisée`),
+  };
+  return names[kind];
 }

@@ -2,7 +2,7 @@
 // Pure module (no DOM): it returns plain data, so the result is tested without a browser and the view writes it into the page as attributes.
 import getStroke from "perfect-freehand";
 import { RoughGenerator } from "roughjs/bin/generator";
-import { Point, StrokedElement } from "./elements";
+import { Border, DiamondElement, EllipseElement, LineStyle, Point, RectElement, StrokedElement } from "./elements";
 import { arrowHeadShapes, HeadShape } from "./linear";
 
 // One path to draw: its data, its line colour and width and its fill colour (`none` for no fill).
@@ -13,6 +13,10 @@ export interface PathPiece {
   fill: string;
   // Opacity of the piece, from 0 to 1. Only the pieces of a fill (the colour and the hatching) are made transparent.
   opacity: number;
+  // The dash pattern of an outline (stroke-dasharray), for a dashed or dotted line. Absent for a continuous line.
+  dash?: string;
+  // Whether the piece is the outline of a shape (as opposed to its fill), so that a shape without a border can keep its fill only.
+  outline?: boolean;
 }
 
 // What it takes to draw an element: the paths, and an SVG transform (a rotation) when the element is turned.
@@ -49,15 +53,22 @@ function roughOptions(el: StrokedElement): Record<string, unknown> {
   return opts;
 }
 
+// Returns the dash pattern of a line style at a line width: long dashes, or dots (tiny dashes with the round line caps of the drawing).
+function dashOf(style: LineStyle, width: number): { dash?: string } {
+  if (style === `dashed`) return { dash: `${r2(Math.max(8, width * 3.5))} ${r2(Math.max(6, width * 2.5))}` };
+  if (style === `dotted`) return { dash: `0.1 ${r2(Math.max(6, width * 2.2))}` };
+  return {};
+}
+
 // Turns a drawable of roughjs into pieces, one per set of operations: the outline (the colour and width of the line), the solid fill, or the hatching of a fill. The
 // fill pieces take the opacity of the fill; the outline stays opaque. (The same cases as roughjs does in its own toPaths, which does not tell them apart.)
-function piecesOf(drawable: ReturnType<RoughGenerator[`line`]>, fillOpacity = 1): PathPiece[] {
+function piecesOf(drawable: ReturnType<RoughGenerator[`line`]>, fillOpacity = 1, style: LineStyle = `solid`): PathPiece[] {
   const out: PathPiece[] = [];
   const o = drawable.options;
   for (const set of drawable.sets) {
     const d = generator.opsToPath(set);
     if (d === `` || !SAFE_PATH.test(d)) continue;
-    if (set.type === `path`) out.push({ d, stroke: o.stroke, strokeWidth: o.strokeWidth, fill: `none`, opacity: 1 });
+    if (set.type === `path`) out.push({ d, stroke: o.stroke, strokeWidth: o.strokeWidth, fill: `none`, opacity: 1, outline: true, ...dashOf(style, o.strokeWidth) });
     else if (set.type === `fillPath`) out.push({ d, stroke: `none`, strokeWidth: 0, fill: o.fill || `none`, opacity: fillOpacity });
     else if (set.type === `fillSketch`) out.push({ d, stroke: o.fill || `none`, strokeWidth: o.fillWeight < 0 ? o.strokeWidth / 2 : o.fillWeight, fill: `none`, opacity: fillOpacity });
   }
@@ -96,20 +107,86 @@ function headPieces(shape: HeadShape, opts: Record<string, unknown>, salt: numbe
   return out;
 }
 
+// A line of the border of a shape: how far it is from the edge of the shape (positive outwards, negative inwards), how wide it is, and whether it is the one that
+// goes with the fill.
+interface Ring {
+  grow: number;
+  width: number;
+  main: boolean;
+}
+
+// Returns the lines of the border of a shape. The thin line is half the width of the line of the shape and the thick one is 1.6 times that width, and a gap separates the lines.
+function ringsOf(border: Border | undefined, width: number): Ring[] {
+  if (border === undefined) return [{ grow: 0, width, main: true }];
+  const thin = Math.max(1.5, width * 0.5);
+  const thick = width * 1.6;
+  const gap = Math.max(4, width * 1.2);
+  switch (border) {
+    case `none`:
+      return [{ grow: 0, width: 0, main: true }];
+    case `double`:
+      return [{ grow: 0, width: thick, main: true }, { grow: thick / 2 + gap + thin / 2, width: thin, main: false }];
+    case `double-reverse`:
+      return [{ grow: 0, width: thin, main: true }, { grow: thin / 2 + gap + thick / 2, width: thick, main: false }];
+    case `frame`:
+      return [{ grow: 0, width: thick, main: true }, { grow: thick / 2 + gap + thin / 2, width: thin, main: false }, { grow: -(thick / 2 + gap + thin / 2), width: thin, main: false }];
+    case `mat`: {
+      const band = width * 2.6;
+      return [{ grow: 0, width: band, main: true }, { grow: -(band / 2 + gap + thin / 2), width: thin, main: false }];
+    }
+  }
+}
+
+// Returns the data of a rectangle with rounded corners as a path of lines and curves (the radius is limited to half of the shortest side).
+function roundedRectPath(x: number, y: number, w: number, h: number, radius: number): string {
+  const r = Math.max(0, Math.min(radius, w / 2, h / 2));
+  const [x2, y2] = [x + w, y + h];
+  return `M${r2(x + r)},${r2(y)} L${r2(x2 - r)},${r2(y)} Q${r2(x2)},${r2(y)} ${r2(x2)},${r2(y + r)} L${r2(x2)},${r2(y2 - r)} Q${r2(x2)},${r2(y2)} ${r2(x2 - r)},${r2(y2)} L${r2(x + r)},${r2(y2)} Q${r2(x)},${r2(y2)} ${r2(x)},${r2(y2 - r)} L${r2(x)},${r2(y + r)} Q${r2(x)},${r2(y)} ${r2(x + r)},${r2(y)} Z`;
+}
+
+// Returns the drawable of a shape grown (or shrunk) by a distance on every side, or null when nothing is left of it.
+function grownShape(el: RectElement | EllipseElement | DiamondElement, grow: number, opts: Record<string, unknown>): ReturnType<RoughGenerator[`rectangle`]> | null {
+  if (el.type === `rect`) {
+    const [x, y, w, h] = [el.x - grow, el.y - grow, el.width + 2 * grow, el.height + 2 * grow];
+    if (w < 2 || h < 2) return null;
+    const radius = el.radius === undefined ? 0 : Math.max(0, el.radius + grow);
+    return radius > 0 ? generator.path(roundedRectPath(x, y, w, h, radius), opts) : generator.rectangle(x, y, w, h, opts);
+  }
+  if (el.type === `ellipse`) {
+    const [rx, ry] = [el.rx + grow, el.ry + grow];
+    return rx < 1 || ry < 1 ? null : generator.ellipse(el.cx, el.cy, 2 * rx, 2 * ry, opts);
+  }
+  // A diamond: its sides are moved by the distance along their normal, which grows both half diagonals by the same factor.
+  const a = el.width / 2;
+  const b = el.height / 2;
+  const k = 1 + grow * Math.sqrt(1 / (a * a) + 1 / (b * b));
+  if (k <= 0.05) return null;
+  const [cx, cy] = [el.x + a, el.y + b];
+  const poly: Point[] = [[cx, cy - b * k], [cx + a * k, cy], [cx, cy + b * k], [cx - a * k, cy]];
+  return generator.polygon(poly, opts);
+}
+
+// Computes the pieces of a rectangle, an ellipse or a diamond: the fill with the main line of its border, then the other lines of the border (none for a simple border).
+function shapePieces(el: RectElement | EllipseElement | DiamondElement, opts: Record<string, unknown>): PathPiece[] {
+  const out: PathPiece[] = [];
+  const style = el.lineStyle ?? `solid`;
+  for (const ring of ringsOf(el.border, el.strokeWidth)) {
+    // The main line carries the fill. Without a border (width 0) only the fill is drawn.
+    const ringOpts: Record<string, unknown> = ring.main ? { ...opts, strokeWidth: Math.max(ring.width, 0.01) } : { ...opts, strokeWidth: ring.width, fill: undefined, seed: (opts.seed as number) + 31 };
+    const drawable = grownShape(el, ring.grow, ringOpts);
+    if (!drawable) continue;
+    const pieces = piecesOf(drawable, el.fillOpacity, style);
+    out.push(...(ring.main && ring.width === 0 ? pieces.filter((p) => p.outline !== true) : pieces));
+  }
+  return out;
+}
+
 // Computes the paths of an element.
 function compute(el: StrokedElement): ElementPaths {
   const opts = roughOptions(el);
-  if (el.type === `rect`) {
-    return { pieces: piecesOf(generator.rectangle(el.x, el.y, el.width, el.height, opts), el.fillOpacity), transform: turn(el.angle, el.x + el.width / 2, el.y + el.height / 2) };
-  }
-  if (el.type === `ellipse`) {
-    return { pieces: piecesOf(generator.ellipse(el.cx, el.cy, 2 * el.rx, 2 * el.ry, opts), el.fillOpacity), transform: turn(el.angle, el.cx, el.cy) };
-  }
-  if (el.type === `diamond`) {
-    const { x, y, width: w, height: h } = el;
-    const poly: Point[] = [[x + w / 2, y], [x + w, y + h / 2], [x + w / 2, y + h], [x, y + h / 2]];
-    return { pieces: piecesOf(generator.polygon(poly, opts), el.fillOpacity), transform: turn(el.angle, x + w / 2, y + h / 2) };
-  }
+  if (el.type === `rect`) return { pieces: shapePieces(el, opts), transform: turn(el.angle, el.x + el.width / 2, el.y + el.height / 2) };
+  if (el.type === `ellipse`) return { pieces: shapePieces(el, opts), transform: turn(el.angle, el.cx, el.cy) };
+  if (el.type === `diamond`) return { pieces: shapePieces(el, opts), transform: turn(el.angle, el.x + el.width / 2, el.y + el.height / 2) };
   if (el.type === `freedraw`) {
     const outline = getStroke(el.points, { size: el.strokeWidth * 1.6, thinning: 0.5, smoothing: 0.5, streamline: 0.5 });
     const d = pathFromOutline(outline);
@@ -117,7 +194,7 @@ function compute(el: StrokedElement): ElementPaths {
   }
   // A line or an arrow: straight segments, or a smooth curve through the points when the edges are rounded.
   const drawable = el.rounded === true && el.points.length >= 3 ? generator.curve(el.points, opts) : generator.linearPath(el.points, opts);
-  const pieces = piecesOf(drawable);
+  const pieces = piecesOf(drawable, 1, el.lineStyle ?? `solid`);
   if (el.type === `arrow`) {
     const heads = arrowHeadShapes(el);
     if (heads) {

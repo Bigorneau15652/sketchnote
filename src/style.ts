@@ -1,6 +1,7 @@
 // The look of the lines and fills that the user chooses, and how a choice is applied to elements. Pure module.
-import { FillStyle, Head, HEADS, headOf, isFontId, isShape, isStroked, MAX_FONT_SIZE, MIN_FILL_OPACITY, MIN_FONT_SIZE, SketchElement, TEXT_ALIGNS, TextAlign } from "./elements";
+import { FillStyle, Head, HEADS, headOf, isFontId, isShape, isStroked, LineStyle, MAX_FONT_SIZE, MIN_FILL_OPACITY, MIN_FONT_SIZE, SketchElement, TEXT_ALIGNS, TextAlign } from "./elements";
 import { DEFAULT_FONT } from "./fonts";
+import { BORDER_KINDS, BorderKind, cleanOpacity, CORNER_RADII, kindOfShadow, SHADOW_KINDS, shadowOf, ShadowKind } from "./effects";
 import { isSafeColor } from "./color";
 
 export interface ToolStyle {
@@ -21,6 +22,13 @@ export interface ToolStyle {
   font: string;
   fontSize: number;
   align: TextAlign;
+  // The effects of every element: its opacity, its shadow and its reflection. The line style, the border and the corners of the shapes.
+  opacity: number;
+  shadow: ShadowKind;
+  reflection: boolean;
+  lineStyle: LineStyle;
+  border: BorderKind;
+  radius: number;
 }
 
 export type StylePatch = Partial<ToolStyle>;
@@ -32,9 +40,12 @@ export const MAX_WIDTH = 24;
 // Sizes of text proposed by the buttons: small, medium, large and very large.
 export const TEXT_SIZES = { small: 20, medium: 32, large: 52, huge: 84 };
 
+// The effects of an element that has none: opaque, no shadow, no reflection, a continuous line, a simple border and square corners.
+const PLAIN_EFFECTS = { opacity: 1, shadow: `none` as ShadowKind, reflection: false, lineStyle: `solid` as LineStyle, border: `simple` as BorderKind, radius: 0 };
+
 // Returns the style of a new drawing: a thin hand drawn line in the ink colour of the page, with no fill.
 export function defaultStyle(ink: string): ToolStyle {
-  return { stroke: isSafeColor(ink) ? ink : `#000000`, fill: null, fillStyle: `solid`, fillOpacity: 1, strokeWidth: STROKE_WIDTHS.thin, roughness: 1, rounded: false, startHead: `none`, endHead: `arrow`, font: DEFAULT_FONT, fontSize: TEXT_SIZES.medium, align: `left` };
+  return { stroke: isSafeColor(ink) ? ink : `#000000`, fill: null, fillStyle: `solid`, fillOpacity: 1, strokeWidth: STROKE_WIDTHS.thin, roughness: 1, rounded: false, startHead: `none`, endHead: `arrow`, font: DEFAULT_FONT, fontSize: TEXT_SIZES.medium, align: `left`, ...PLAIN_EFFECTS };
 }
 
 // Returns a style patch with every value checked: unknown or invalid values are dropped.
@@ -52,15 +63,38 @@ export function cleanPatch(patch: StylePatch): StylePatch {
   if (isFontId(patch.font)) out.font = patch.font;
   if (typeof patch.fontSize === `number` && Number.isFinite(patch.fontSize)) out.fontSize = Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, Math.round(patch.fontSize)));
   if (patch.align !== undefined && TEXT_ALIGNS.includes(patch.align)) out.align = patch.align;
+  if (typeof patch.opacity === `number` && Number.isFinite(patch.opacity)) out.opacity = cleanOpacity(patch.opacity);
+  if (patch.shadow !== undefined && SHADOW_KINDS.includes(patch.shadow)) out.shadow = patch.shadow;
+  if (typeof patch.reflection === `boolean`) out.reflection = patch.reflection;
+  if (patch.lineStyle === `solid` || patch.lineStyle === `dashed` || patch.lineStyle === `dotted`) out.lineStyle = patch.lineStyle;
+  if (patch.border !== undefined && BORDER_KINDS.includes(patch.border)) out.border = patch.border;
+  if (typeof patch.radius === `number` && Number.isFinite(patch.radius)) out.radius = Math.min(CORNER_RADII.pill, Math.max(0, Math.round(patch.radius)));
   return out;
 }
 
 // Applies a style patch to one element. A drawing frame has no style and is returned as it is. The fill only applies to shapes; a line keeps its stroke only.
 export function applyStyle(el: SketchElement, patch: StylePatch): SketchElement {
-  if (el.type === `text`) return applyTextStyle(el, cleanPatch(patch));
+  if (el.type === `text`) return applyEffects(applyTextStyle(el, cleanPatch(patch)), cleanPatch(patch));
   if (!isStroked(el)) return el;
   const p = cleanPatch(patch);
-  let next = { ...el } as typeof el;
+  let next = { ...applyEffects(el, p) } as typeof el;
+  if (p.lineStyle !== undefined && next.type !== `freedraw`) {
+    const { lineStyle: _l, ...rest } = next;
+    void _l;
+    next = (p.lineStyle === `solid` ? rest : { ...rest, lineStyle: p.lineStyle }) as typeof el;
+  }
+  if (isShape(next)) {
+    if (p.border !== undefined) {
+      const { border: _b, ...rest } = next;
+      void _b;
+      next = (p.border === `simple` ? rest : { ...rest, border: p.border }) as typeof el;
+    }
+    if (p.radius !== undefined && next.type === `rect`) {
+      const { radius: _r, ...rest } = next;
+      void _r;
+      next = (p.radius === 0 ? rest : { ...rest, radius: p.radius }) as typeof el;
+    }
+  }
   if (p.stroke !== undefined) next.stroke = p.stroke;
   if (p.strokeWidth !== undefined) next.strokeWidth = p.strokeWidth;
   if (p.roughness !== undefined) next.roughness = p.roughness;
@@ -100,6 +134,28 @@ export function applyStyle(el: SketchElement, patch: StylePatch): SketchElement 
   return next;
 }
 
+// Applies the effects of a style patch that every element has: its opacity, its shadow and its reflection. A value that is the default is removed from the element.
+function applyEffects<T extends SketchElement>(el: T, p: StylePatch): T {
+  let next: SketchElement = el;
+  if (p.opacity !== undefined) {
+    const { opacity: _o, ...rest } = next;
+    void _o;
+    next = (p.opacity >= 1 ? rest : { ...rest, opacity: p.opacity }) as SketchElement;
+  }
+  if (p.shadow !== undefined && p.shadow !== `custom`) {
+    const { shadow: _s, ...rest } = next;
+    void _s;
+    const shadow = shadowOf(p.shadow);
+    next = (shadow ? { ...rest, shadow } : rest) as SketchElement;
+  }
+  if (p.reflection !== undefined) {
+    const { reflection: _f, ...rest } = next;
+    void _f;
+    next = (p.reflection ? { ...rest, reflection: true } : rest) as SketchElement;
+  }
+  return next as T;
+}
+
 // Applies the parts of a style patch that concern a text: its colour, its font, its size and its alignment. The size of its box is measured again by the caller.
 function applyTextStyle(el: Extract<SketchElement, { type: `text` }>, p: StylePatch): SketchElement {
   let next = { ...el };
@@ -121,7 +177,7 @@ export function applyStyleToIds(elements: SketchElement[], ids: Set<string>, pat
 
 // Returns the style an element currently has, or null for a drawing frame. A line has no fill.
 export function styleOf(el: SketchElement): ToolStyle | null {
-  if (el.type === `text`) return { ...defaultStyle(el.stroke), font: el.font, fontSize: el.size, align: el.align ?? `left` };
+  if (el.type === `text`) return { ...defaultStyle(el.stroke), font: el.font, fontSize: el.size, align: el.align ?? `left`, ...effectsOfElement(el) };
   if (!isStroked(el)) return null;
   const fill = isShape(el) && el.fill !== undefined ? el.fill : null;
   const fillStyle: FillStyle = isShape(el) && el.fillStyle ? el.fillStyle : `solid`;
@@ -130,5 +186,10 @@ export function styleOf(el: SketchElement): ToolStyle | null {
   const rounded = linear && el.rounded === true;
   const startHead: Head = el.type === `arrow` ? headOf(el, `start`) : `none`;
   const endHead: Head = el.type === `arrow` ? headOf(el, `end`) : `none`;
-  return { stroke: el.stroke, fill, fillStyle, fillOpacity, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0, rounded, startHead, endHead, font: DEFAULT_FONT, fontSize: TEXT_SIZES.medium, align: `left` };
+  return { stroke: el.stroke, fill, fillStyle, fillOpacity, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0, rounded, startHead, endHead, font: DEFAULT_FONT, fontSize: TEXT_SIZES.medium, align: `left`, ...effectsOfElement(el), lineStyle: el.type === `freedraw` ? `solid` : el.lineStyle ?? `solid`, border: isShape(el) ? el.border ?? `simple` : `simple`, radius: el.type === `rect` ? el.radius ?? 0 : 0 };
+}
+
+// Returns the effects an element has, as the panel shows them.
+function effectsOfElement(el: SketchElement): { opacity: number; shadow: ShadowKind; reflection: boolean } {
+  return { opacity: el.opacity ?? 1, shadow: kindOfShadow(el.shadow), reflection: el.reflection === true };
 }
