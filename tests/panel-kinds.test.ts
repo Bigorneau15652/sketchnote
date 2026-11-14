@@ -5,7 +5,7 @@ import { panelKinds, PanelSection, sectionShown } from "../src/panel-kinds";
 
 const make = (type: string): SketchElement => ({ id: type, type, stroke: `#000000`, strokeWidth: 3, points: [[0, 0], [1, 1]], x: 0, y: 0, width: 1, height: 1, cx: 0, cy: 0, rx: 1, ry: 1, text: `a`, font: `caveat`, size: 20, path: null }) as unknown as SketchElement;
 
-const ALL: PanelSection[] = [`colour`, `fill`, `width`, `dash`, `look`, `regularity`, `border`, `corners`, `edges`, `heads`, `text`, `effects`];
+const ALL: PanelSection[] = [`colour`, `fill`, `brush`, `width`, `dash`, `look`, `regularity`, `border`, `corners`, `edges`, `heads`, `text`, `effects`];
 const shown = (tool: string, types: string[]): PanelSection[] => ALL.filter((s) => sectionShown(s, panelKinds(tool, types.map(make))));
 
 test(`un trait ou une fleche n'ont pas de remplissage ni de bordure`, () => {
@@ -20,7 +20,7 @@ test(`une forme a un remplissage et une bordure mais ni bords ni pointes, et seu
 test(`un texte n'a que sa couleur, ses reglages de texte et les effets, un cadre de dessin rien`, () => {
   assert.deepEqual(shown(`select`, [`text`]), [`colour`, `text`, `effects`]);
   assert.deepEqual(shown(`select`, [`drawing`]), []);
-  assert.deepEqual(shown(`select`, [`freedraw`]), [`colour`, `width`, `regularity`, `effects`]);
+  assert.deepEqual(shown(`select`, [`freedraw`]), [`colour`, `brush`, `width`, `regularity`, `effects`]);
 });
 
 test(`une selection de plusieurs sortes montre les sections de chacune`, () => {
@@ -35,7 +35,7 @@ test(`sans selection le panneau suit l'outil, et sans outil il montre les choix 
   assert.deepEqual(shown(`arrow`, []), [`colour`, `width`, `dash`, `look`, `edges`, `heads`, `effects`]);
   // A line about to be drawn has no heads: it becomes an arrow once one is chosen.
   assert.deepEqual(shown(`line`, []), [`colour`, `width`, `dash`, `look`, `edges`, `effects`]);
-  assert.deepEqual(shown(`pen`, []), [`colour`, `width`, `regularity`, `effects`]);
+  assert.deepEqual(shown(`pen`, []), [`colour`, `brush`, `width`, `regularity`, `effects`]);
   assert.deepEqual(shown(`point`, []), [`colour`, `width`, `look`, `effects`]);
   assert.deepEqual(shown(`text`, []), [`colour`, `text`, `effects`]);
   // The tool wins over a selection left behind.
@@ -62,6 +62,6 @@ test(`un trait libre qui revient a son depart a un remplissage et des effets, un
   const ring = { ...make(`freedraw`), points: Array.from({ length: 41 }, (_, i): [number, number] => [100 + 50 * Math.cos((i * Math.PI) / 20), 100 + 50 * Math.sin((i * Math.PI) / 20)]) } as SketchElement;
   const open = { ...make(`freedraw`), points: Array.from({ length: 20 }, (_, i): [number, number] => [i * 10, (i % 2) * 8]) } as SketchElement;
   const of = (el: SketchElement): PanelSection[] => ALL.filter((s) => sectionShown(s, panelKinds(`select`, [el])));
-  assert.deepEqual(of(ring), [`colour`, `fill`, `width`, `regularity`, `effects`]);
-  assert.deepEqual(of(open), [`colour`, `width`, `regularity`, `effects`]);
+  assert.deepEqual(of(ring), [`colour`, `fill`, `brush`, `width`, `regularity`, `effects`]);
+  assert.deepEqual(of(open), [`colour`, `brush`, `width`, `regularity`, `effects`]);
 });
