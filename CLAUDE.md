@@ -1,45 +1,49 @@
-# Working notes for Claude Code sessions
+# CLAUDE.md : socle commun des projets d'Olivier
 
-Sketchnote is an Obsidian plugin (TypeScript, one bundled `main.js`, desktop and mobile). It draws sketchnotes: one page that mixes hand-drawn pictures and handwritten text, organised by one of seven structures (linear, radial, vertical, path, modular, skyscraper, popcorn). The maintainer is not a programmer.
+Lis ce fichier avant d'écrire la moindre ligne de code. Applique chaque règle. Si une règle semble en conflit avec la demande, signale-le avant de coder. Les règles propres à un type de projet sont dans les skills du dossier .claude/skills : ouvre celui qui correspond au projet (widget-grist, plugin-obsidian, automatisation-python).
 
-## Dialogue
+## Utilisateur
+- Olivier Holweck, chargé de mission bâtiment durable et décarbonation à l'Université de Montpellier Paul Valéry (UMPV). Écrire « UMPV », jamais « Paul Valéry Montpellier 3 ».
+- Non-informaticien. Il ne connaît ni le code ni les bibliothèques : choisis toi-même les techniques en lisant le dépôt, ne lui pose jamais de question technique.
+- Pose seulement des questions de besoin, par petits groupes, avec une recommandation. Travaille par petites versions testables une par une.
+- Réponds en français, ton professionnel et factuel, sans flatterie ni emoji.
+- Texte destiné à Word : pas de trait horizontal, pas de puces inutiles, jamais de virgule devant « et », pas de tiret long au milieu d'une phrase.
+- Quand tu produis un texte suivi de commentaires, sépare-les par un trait horizontal.
+- Les sessions sont des sessions Claude Code sur le web : les changements arrivent en pull request en brouillon qu'Olivier valide sur GitHub. Pour chaque étape GitHub, donne le nom exact des boutons (skill etapes-github).
 
-- Talk to the maintainer in French, in plain words, without flattery. Explain every step that the maintainer has to do on GitHub or in Obsidian (merging a pull request, publishing a release, updating the plugin), with the exact names of the buttons.
-- Before programming, ask the questions that remove ambiguity, in small groups, with a recommendation. Work by small versions that the maintainer can test one by one.
-- Texts meant to be pasted into Word contain no emoji, no horizontal rules and no needless bullets. In French, never put a comma before "et" and avoid long dashes in the middle of a sentence. French quotation marks are written with non-breaking spaces.
+## Règles de code communes
+- Toutes les chaînes de caractères en template literals (backticks), jamais d'apostrophes ni de guillemets : l'apostrophe française provoque « Unexpected token, expected ; ». Vérifie les caractères spéciaux avant de livrer.
+- Identifiants et commentaires en anglais, un court bloc au-dessus de chaque fichier et de chaque fonction. Textes affichés en français avec traduction anglaise, via le fichier de traductions du projet.
+- Aucun code ni bibliothèque chargés depuis un CDN : copie le nécessaire dans le dépôt avec sa licence. Aucun `eval`, aucun `new Function`. Données de l'utilisateur insérées comme texte, jamais comme HTML.
+- Liens https sans identifiants seulement. Content-Security-Policy aussi stricte que possible.
+- Aucune dépendance, police ou fichier de données sans accord d'Olivier ; enregistre-les avec leur licence. Aucune bibliothèque payante sans accord explicite.
+- Jamais de clé d'API, mot de passe ou identifiant réel dans un fichier : utilise les variables d'environnement ou les secrets GitHub.
+- Dans un dépôt public, aucun vrai nom de table ou de colonne, chiffre ou lien d'Olivier : données inventées dans le code, les tests, les commentaires, les commits et les pull requests.
+- Logique dans des modules purs (sans accès à la page ni à l'application) testés avec `node --test`. Un test par comportement. Ne désactive et n'affaiblis jamais un test pour obtenir un résultat vert.
+- Valide toute valeur lue dans un réglage, une note ou une configuration avant usage.
+- Ne renomme pas une clé d'option, une classe CSS ou un identifiant déjà publié : des réglages enregistrés en dépendent. Migration versionnée pour changer un format.
+- Messages lisibles à 340 px de large et en mode sombre : couleurs explicites, texte à la ligne, pas de texte tronqué.
+- Avant de créer un fichier, vérifie que le nom n'existe pas.
 
-## Code rules
+## Versions et pull requests
+- Nouvelle fonction : dizaine suivante (0.15.0 puis 0.16.0). Correction : dernier chiffre (0.16.1).
+- Commit : `Version 0.16.1 : description courte en français`. Travaille sur la branche imposée, pousse, ouvre une pull request en brouillon, abonne-toi à son suivi. Après fusion, repars de la branche principale.
+- Journal des modifications CHANGELOG.md : une section par version, en anglais puis en français.
+- Annonce à Olivier le nom exact de la release : numéro de version sans « v », identique au titre de la pull request.
 
-- All strings are written as template literals (backticks), never with single or double quotes, so that French apostrophes cause no syntax error. A test checks it.
-- Code identifiers are in English. Comments are written in English: one short block above every function, method, class and file, in the present tense. Messages shown to the user go through `t()` in `src/i18n.ts` with their English text in `src/i18n-en.ts` (French text is the key; a French text must not be translated twice).
-- Never turn text into code or markup (`eval`, `new Function`, `innerHTML`, `DOMParser`): a test forbids it. SVG is built with the DOM (`src/svg.ts`). No network access in the plugin (no `fetch`, `XMLHttpRequest`, `requestUrl`, `WebSocket`): a test forbids it.
-- Everything read from a file, a note, the clipboard or an import is validated before use (see `src/file-format.ts`): colours as `#hex` only, numbers in a range, unknown fields dropped, SVG cleaned.
-- The plugin works on desktop and on mobile: use pointer events (mouse, touch, stylus), no Node or Electron API.
-- No new dependency, font or data file without the agreement of the maintainer. Each one is recorded with its licence in `docs/DEPENDANCES.md` and `NOTICE`.
+## Fin de session
+Applique le skill fin-de-session : relis ce qui a été durablement appris, propose les ajouts à ce fichier, ne modifie jamais une règle sans le signaler à Olivier.
 
-## Decisions of the maintainer
+## Erreurs à ne jamais reproduire
+- Question technique posée à Olivier : trouve l'information dans les dépôts avant de demander.
+- Release publiée sous un mauvais numéro : annonce toujours le nom exact.
+- Fichier de test existant écrasé : vérifie l'existence avant de créer.
+- Boucle infinie dans un parcours de texte par lignes : teste exhaustivement.
+- Rendu d'une liste d'éléments cassé par un élément `undefined` : protège chaque élément par try/catch et enregistre l'erreur.
+- Aperçu limité en hauteur qui coupe un cadre : ne limite pas la hauteur d'un aperçu qui contient un trait.
 
-- File: one `.sketchnote` file (JSON) holds the page, the structure and all the elements, including the mini drawing of each graphic element.
-- Drawing: own engine rendering SVG, with the data model inspired by Excalidraw. Accepted dependencies: roughjs and perfect-freehand (MIT), to add when the drawing tools are built (version 0.5.0).
-- Library of pictures: Lucide (ISC) and Tabler icons (MIT), drawn through the sketchy renderer. The maintainer can also import banks and own pictures.
-- Fonts: 3 or 4 handwritten fonts under the SIL Open Font License are bundled in `main.js`; others are imported from a .ttf or .otf file (no download by the plugin).
-- Structures are guides: elements snap to the slots and everything can be moved afterwards. The skyscraper structure also creates separators that can be moved or deleted.
-- Page palette: 3 to 5 colours chosen at creation, offered first in the tools, next to a free colour picker.
-- Interface in French and English. Manifest: id `sketchnote`, name `Sketchnote`, author `Bigorneau`, licence MIT (copyright holder: Olivier Holweck). Desktop and mobile (`isDesktopOnly: false`).
+## Journal des mises à jour
+- [2026-10-31] Création du socle.
 
-## Plan of the versions
-
-0.1.0 skeleton and BRAT, 0.2.0 page (size, orientation, background, pattern), 0.3.0 the seven structures, 0.4.0 drawing engine core (selection, handles, undo), 0.5.0 shape tools, 0.6.0 text and fonts, 0.7.0 nested graphic element with double click, 0.8.0 library and images, 0.9.0 exports and embedding in notes, 0.10.0 performance and security audit, 1.0.0 publication in the community directory.
-
-## Tests and checks
-
-- `npm test` bundles every `tests/*.test.ts` and runs it with `node --test`; `npm run build` type-checks (unused variables and parameters are errors) and writes `main.js`. No test is disabled or weakened to get a green result.
-- A test checks that `manifest.json`, `package.json`, `package-lock.json` (two places) and `versions.json` carry the same version, and that `CHANGELOG.md` has a section for it.
-
-## Versions, commits and releases
-
-- One small version at a time. Commit message: `Version 0.2.0 : short description in French`.
-- Every version has a section `## X.Y.Z` in `CHANGELOG.md` with an `English` part then a `Français` part (a test checks it). The release workflow copies it onto the GitHub release page.
-- To change the version, edit `manifest.json`, `package.json`, `package-lock.json` (the `version` at the top and the one under `packages[""]`) and add a line to `versions.json` with the minimum Obsidian version.
-- A release is a GitHub release whose tag is the version number without `v`, with `main.js`, `manifest.json` and `styles.css` attached (the workflow `release.yml` does it when the tag is pushed). Never a pre-release: the community directory does not count it. The maintainer publishes it from GitHub after merging the pull request.
-- Work on the branch given by the session, push, and open a draft pull request.
+## Projet Sketchnote
+Plugin Obsidian de sketchnotes. Lis docs/PROJET.md : décisions d'Olivier, règles techniques propres au projet et plan des versions.
