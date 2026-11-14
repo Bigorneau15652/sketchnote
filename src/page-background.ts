@@ -3,8 +3,22 @@
 import { PageSettings } from "./file-format";
 
 export interface TileShape {
-  tag: `line` | `circle` | `ellipse`;
+  tag: `line` | `circle` | `ellipse` | `rect`;
   attrs: Record<string, string | number>;
+  // Name of a gradient of the spec used to fill the shape. The view turns it into a unique reference.
+  gradient?: string;
+}
+
+export interface GradientStop {
+  offset: number;
+  color: string;
+  opacity: number;
+}
+
+// A radial gradient, in fractions of the shape it fills.
+export interface GradientDef {
+  name: string;
+  stops: GradientStop[];
 }
 
 export interface BackgroundSpec {
@@ -13,6 +27,10 @@ export interface BackgroundSpec {
   // Side of the repeating square tile in pixels, or null when the page has no tile.
   tile: number | null;
   shapes: TileShape[];
+  // Gradients used by the overlay shapes.
+  gradients: GradientDef[];
+  // Shapes drawn once over the whole page, in page coordinates, after the tile (soft marks and shading of the chalkboard).
+  overlay: TileShape[];
 }
 
 const STEP = 32;
@@ -52,8 +70,67 @@ const FIBRES: [number, number, number, number][] = [
 ];
 const SPECKS: [number, number][] = [[56, 44], [118, 52], [150, 98], [24, 104], [86, 126], [190, 140], [102, 196], [8, 176]];
 
-// Smudges of chalk dust of the chalkboard, as [cx, cy, rx, ry] inside a 240 pixel tile.
-const SMUDGES: [number, number, number, number][] = [[50, 60, 46, 14], [170, 40, 38, 10], [120, 140, 60, 16], [40, 200, 34, 12], [200, 190, 30, 9]];
+// Returns a function that gives repeatable pseudo random numbers between 0 and 1 (mulberry32). The same seed always gives the same sequence,
+// so the chalkboard looks identical at every drawing and in every export.
+function seeded(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Rounds a number to one decimal, which keeps the drawing description short.
+const r1 = (n: number): number => Math.round(n * 10) / 10;
+
+// Builds the chalkboard. Three layers: a fine grain (a 160 pixel tile of tiny light and dark specks, too fine to show a repetition),
+// a few very soft wide wipe marks of the eraser (radial gradients, no sharp edge) and a slight darkening of the borders.
+function chalkboard(fill: string, width: number, height: number): BackgroundSpec {
+  const grain = seeded(7);
+  const shapes: TileShape[] = [];
+  for (let i = 0; i < 240; i++) {
+    const light = grain() < 0.6;
+    shapes.push({
+      tag: `circle`,
+      attrs: {
+        cx: r1(grain() * 160),
+        cy: r1(grain() * 160),
+        r: r1(0.4 + grain() * 0.6),
+        fill: light ? `#ffffff` : `#000000`,
+        "fill-opacity": r1((light ? 0.03 + grain() * 0.07 : 0.06 + grain() * 0.1) * 100) / 100,
+      },
+    });
+  }
+  const wipes = seeded(21);
+  const overlay: TileShape[] = [];
+  for (let i = 0; i < 6; i++) {
+    const rx = width * (0.22 + wipes() * 0.2);
+    const ry = height * (0.035 + wipes() * 0.04);
+    const cx = width * (0.1 + wipes() * 0.8);
+    const cy = height * ((i + 0.5) / 6 + (wipes() - 0.5) * 0.2);
+    const angle = (wipes() - 0.5) * 14;
+    overlay.push({ tag: `ellipse`, gradient: `dust`, attrs: { cx: r1(cx), cy: r1(cy), rx: r1(rx), ry: r1(ry), transform: `rotate(${r1(angle)} ${r1(cx)} ${r1(cy)})` } });
+  }
+  overlay.push({ tag: `rect`, gradient: `shade`, attrs: { x: 0, y: 0, width, height } });
+  return {
+    fill,
+    tile: 160,
+    shapes,
+    gradients: [
+      { name: `dust`, stops: [{ offset: 0, color: `#ffffff`, opacity: 0.055 }, { offset: 0.6, color: `#ffffff`, opacity: 0.025 }, { offset: 1, color: `#ffffff`, opacity: 0 }] },
+      { name: `shade`, stops: [{ offset: 0, color: `#000000`, opacity: 0 }, { offset: 0.65, color: `#000000`, opacity: 0 }, { offset: 1, color: `#000000`, opacity: 0.2 }] },
+    ],
+    overlay,
+  };
+}
+
+// Returns a spec with the page colour, an optional tile size and nothing else yet.
+function plain(fill: string, tile: number | null): BackgroundSpec {
+  return { fill, tile, shapes: [], gradients: [], overlay: [] };
+}
 
 // Returns the description of the background of a page.
 export function backgroundSpec(page: PageSettings): BackgroundSpec {
@@ -62,34 +139,28 @@ export function backgroundSpec(page: PageSettings): BackgroundSpec {
   const lineAttrs = { stroke: guide.color, "stroke-opacity": guide.opacity, "stroke-width": 1 };
   switch (page.pattern) {
     case `lines`:
-      return { fill, tile: STEP, shapes: [{ tag: `line`, attrs: { x1: 0, y1: STEP - 0.5, x2: STEP, y2: STEP - 0.5, ...lineAttrs } }] };
+      return { ...plain(fill, STEP), shapes: [{ tag: `line`, attrs: { x1: 0, y1: STEP - 0.5, x2: STEP, y2: STEP - 0.5, ...lineAttrs } }] };
     case `grid`:
       return {
-        fill,
-        tile: STEP,
+        ...plain(fill, STEP),
         shapes: [
           { tag: `line`, attrs: { x1: 0, y1: STEP - 0.5, x2: STEP, y2: STEP - 0.5, ...lineAttrs } },
           { tag: `line`, attrs: { x1: STEP - 0.5, y1: 0, x2: STEP - 0.5, y2: STEP, ...lineAttrs } },
         ],
       };
     case `dots`:
-      return { fill, tile: STEP, shapes: [{ tag: `circle`, attrs: { cx: STEP / 2, cy: STEP / 2, r: 1.6, fill: guide.color, "fill-opacity": guide.opacity + 0.1 } }] };
+      return { ...plain(fill, STEP), shapes: [{ tag: `circle`, attrs: { cx: STEP / 2, cy: STEP / 2, r: 1.6, fill: guide.color, "fill-opacity": guide.opacity + 0.1 } }] };
     case `craft`:
       return {
-        fill,
-        tile: 200,
+        ...plain(fill, 200),
         shapes: [
           ...FIBRES.map(([x1, y1, x2, y2]): TileShape => ({ tag: `line`, attrs: { x1, y1, x2, y2, stroke: `#7a5a2e`, "stroke-opacity": 0.22, "stroke-width": 1 } })),
           ...SPECKS.map(([cx, cy]): TileShape => ({ tag: `circle`, attrs: { cx, cy, r: 1.2, fill: `#7a5a2e`, "fill-opacity": 0.3 } })),
         ],
       };
     case `chalkboard`:
-      return {
-        fill,
-        tile: 240,
-        shapes: SMUDGES.map(([cx, cy, rx, ry]): TileShape => ({ tag: `ellipse`, attrs: { cx, cy, rx, ry, fill: `#ffffff`, "fill-opacity": 0.032 } })),
-      };
+      return chalkboard(fill, page.width, page.height);
     default:
-      return { fill, tile: null, shapes: [] };
+      return plain(fill, null);
   }
 }
