@@ -2,6 +2,7 @@
 // the engine (zoom, selection, undo...) is in CanvasView.
 import { setIcon, WorkspaceLeaf } from "obsidian";
 import { CanvasView, Tool } from "./canvas-view";
+import { addColorSwatch } from "./color-modal";
 import { toHex6 } from "./page-background";
 import { CANVAS_HEIGHT, CANVAS_WIDTH, contentBox, createEmptyDrawing, guideBox, parseSketchdraw, serializeSketchdraw, SketchdrawDoc } from "./drawing-file";
 import { drawElements, PLAIN } from "./element-render";
@@ -31,8 +32,8 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   private readonly panelButtons: { el: HTMLElement; test: (s: ToolStyle) => boolean }[] = [];
   private widthInput: HTMLInputElement | null = null;
   private transparencyInput: HTMLInputElement | null = null;
-  private strokeColor: HTMLInputElement | null = null;
-  private fillColor: HTMLInputElement | null = null;
+  private strokeColor: { show: (color: string) => void } | null = null;
+  private fillColor: { show: (color: string) => void } | null = null;
   private lockButton: HTMLElement | null = null;
   // The text being written (hidden while the text area is over it) and the function that ends the writing.
   private editingText: string | null = null;
@@ -408,12 +409,11 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.panelButtons.push({ el: b, test });
   }
 
-  // Adds a free colour picker. The value is checked before use.
-  private colorInput(parent: HTMLElement, onPick: (color: string) => void): HTMLInputElement {
-    const input = parent.createEl(`input`, { cls: `sketchdraw-color`, type: `color` });
-    input.setAttribute(`aria-label`, t(`Autre couleur`));
-    input.addEventListener(`input`, () => onPick(input.value));
-    return input;
+  // Adds a button that shows a colour and opens the colour window (wheel, sliders, hexadecimal code, eyedropper).
+  private colorInput(parent: HTMLElement, onPick: (color: string) => void): { show: (color: string) => void } {
+    const swatch = addColorSwatch(parent, this.app, `#000000`, t(`Autre couleur`), onPick);
+    swatch.el.addClass(`sketchdraw-color`);
+    return swatch;
   }
 
   // Draws the swatches of the palette of the drawing, for the stroke and for the fill.
@@ -473,8 +473,8 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     if (this.widthInput) this.widthInput.value = String(Math.round(s.strokeWidth));
     if (this.fontSelect) this.fontSelect.value = s.font;
     if (this.transparencyInput) this.transparencyInput.value = String(Math.round((1 - s.fillOpacity) * 20) * 5);
-    if (this.strokeColor) this.strokeColor.value = toHex6(s.stroke);
-    if (this.fillColor) this.fillColor.value = toHex6(s.fill ?? `#ffffff`);
+    this.strokeColor?.show(s.stroke);
+    this.fillColor?.show(s.fill ?? `#ffffff`);
   }
 }
 

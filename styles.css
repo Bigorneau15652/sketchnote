@@ -224,6 +224,19 @@
   padding: 0;
 }
 
+.sketchnote-color-swatch {
+  width: 32px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.sketchdraw-color.sketchnote-color-swatch {
+  width: 100%;
+}
+
 .sketchdraw-chip {
   flex: 1 1 auto;
   display: inline-flex;
@@ -348,4 +361,91 @@
 .sketchnote-addfont-problem {
   color: var(--text-error);
   overflow-wrap: anywhere;
+}
+
+.sketchnote-color-modal {
+  max-width: min(360px, 94vw);
+}
+
+.sketchnote-wheel {
+  position: relative;
+  width: 100%;
+  max-width: 240px;
+  margin: 0 auto 12px;
+  aspect-ratio: 1;
+}
+
+.sketchnote-wheel-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.sketchnote-wheel-handle,
+.sketchnote-wheel-tick {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #000000;
+  pointer-events: none;
+}
+
+.sketchnote-wheel-tick {
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+}
+
+.sketchnote-color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.sketchnote-color-label {
+  flex: 0 0 5.5em;
+  color: var(--text-normal);
+}
+
+.sketchnote-color-range {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 10px;
+  border-radius: 5px;
+}
+
+.sketchnote-color-number {
+  flex: 0 0 4.5em;
+  width: 4.5em;
+}
+
+.sketchnote-color-hex {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-monospace);
+}
+
+.sketchnote-color-pipette {
+  flex: 0 0 auto;
+}
+
+.sketchnote-color-preview {
+  display: flex;
+  flex: 0 0 auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.sketchnote-color-old,
+.sketchnote-color-new {
+  width: 24px;
+  height: 28px;
 }

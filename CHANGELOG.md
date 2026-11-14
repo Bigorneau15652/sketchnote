@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.0
+
+English
+
+A colour window and an eyedropper. Every colour button of the plugin (stroke and fill of the drawing tools, background, default ink and palette of the page settings) now shows the chosen colour and opens one window. It has a colour wheel: the angle of the handle sets the hue and its distance from the centre sets the saturation, and a press on the outer ring of pure hues changes the hue only. Under the wheel, the sliders and the number fields of the hue, the saturation and the luminance follow each other (the luminance goes from -100 to 100, 0 giving the pure colour), then comes a field for the hexadecimal code (#rgb or #rrggbb, with or without the #; a wrong code is flagged and ignored) and a preview of the starting colour next to the new one. The eyedropper takes a colour anywhere on the screen, with the eyedropper of the browser (computer versions of Obsidian; the button is not shown where it does not exist, for example on a phone). The colour is applied only with the check mark, as one change that can be undone; the cross closes the window and changes nothing. Files of the previous versions open without change.
+
+Français
+
+Une fenêtre de couleur et une pipette. Chaque bouton de couleur du plugin (trait et remplissage des outils de dessin, fond, trait par défaut et palette des réglages de la page) montre maintenant la couleur choisie et ouvre une seule fenêtre. Elle contient un cercle chromatique : l'angle de la poignée donne la teinte et sa distance au centre donne la saturation, et un appui sur l'anneau extérieur des teintes pures ne change que la teinte. Sous le cercle, les curseurs et les champs numériques de la teinte, de la saturation et de la luminance se suivent (la luminance va de -100 à 100, 0 donnant la couleur pure), puis un champ pour le code hexadécimal (#rgb ou #rrggbb, avec ou sans le #; un code faux est signalé et ignoré) et un aperçu de la couleur de départ à côté de la nouvelle. La pipette prend une couleur n'importe où à l'écran, avec la pipette du navigateur (versions ordinateur d'Obsidian ; le bouton n'apparaît pas là où elle n'existe pas, par exemple sur téléphone). La couleur n'est appliquée qu'avec la coche, en une seule modification que l'on peut annuler ; la croix ferme la fenêtre sans rien changer. Les fichiers des versions précédentes s'ouvrent sans changement.
+
 ## 0.9.0
 
 English

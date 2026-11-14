@@ -4,7 +4,7 @@ import { ConfirmModal } from "./confirm-modal";
 import { MAX_PAGE_SIZE, MIN_PAGE_SIZE, PageSettings, Pattern } from "./file-format";
 import { t } from "./i18n";
 import { defaultLayout, LAYOUT_LIMITS, LAYOUT_TYPES, LayoutSettings, LayoutType, normalizeLayout, ROW_LIMITS } from "./layout";
-import { toHex6 } from "./page-background";
+import { addColorSwatch } from "./color-modal";
 import { changeBackground, changeInk, changeOrientation, changePalette, changePreset, changeSize, changeStyle, detectPreset, PresetId } from "./page-settings";
 import { MAX_PALETTE, MIN_PALETTE } from "./color";
 
@@ -106,14 +106,13 @@ export class PageModal extends Modal {
         d.setValue(this.page.pattern).onChange((v) => this.apply(changeStyle(this.page, v as Pattern)));
       });
 
-    new Setting(el)
-      .setName(t(`Couleur du fond`))
-      .addColorPicker((c) => c.setValue(toHex6(this.page.background)).onChange((v) => this.apply(changeBackground(this.page, v))));
+    const background = new Setting(el).setName(t(`Couleur du fond`));
+    addColorSwatch(background.controlEl, this.app, this.page.background, t(`Couleur du fond`), (v) => this.apply(changeBackground(this.page, v)));
 
-    new Setting(el)
+    const ink = new Setting(el)
       .setName(t(`Couleur du trait par défaut`))
-      .setDesc(t(`Couleur proposée pour écrire et dessiner. Sur le tableau noir, elle passe au blanc.`))
-      .addColorPicker((c) => c.setValue(toHex6(this.page.ink)).onChange((v) => this.apply(changeInk(this.page, v))));
+      .setDesc(t(`Couleur proposée pour écrire et dessiner. Sur le tableau noir, elle passe au blanc.`));
+    addColorSwatch(ink.controlEl, this.app, this.page.ink, t(`Couleur du trait par défaut`), (v) => this.apply(changeInk(this.page, v)));
 
     this.buildPaletteFields(el);
     this.buildLayoutFields(el);
@@ -126,12 +125,10 @@ export class PageModal extends Modal {
       .setName(t(`Palette de la page`))
       .setDesc(t(`De 3 à 5 couleurs proposées en premier dans les outils de dessin. Elles sont copiées dans chaque nouveau dessin.`));
     this.page.palette.forEach((color, i) => {
-      setting.addColorPicker((c) =>
-        c.setValue(toHex6(color)).onChange((v) => {
-          const next = this.page.palette.map((x, j) => (j === i ? v : x));
-          this.commitChange(changePalette(this.page, next), this.layout, false);
-        }),
-      );
+      addColorSwatch(setting.controlEl, this.app, color, t(`Autre couleur`), (v) => {
+        const next = this.page.palette.map((x, j) => (j === i ? v : x));
+        this.commitChange(changePalette(this.page, next), this.layout, false);
+      });
     });
     if (this.page.palette.length < MAX_PALETTE) {
       setting.addExtraButton((b) => b.setIcon(`plus`).setTooltip(t(`Ajouter une couleur`)).onClick(() => this.commitChange(changePalette(this.page, [...this.page.palette, this.page.ink]), this.layout)));
