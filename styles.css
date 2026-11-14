@@ -161,7 +161,7 @@
 /* Toolbar of the drawing view, on the right: the tools, then the properties of the lines and fills. */
 .sketchdraw-side {
   flex: 0 0 auto;
-  width: 176px;
+  width: 204px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -211,24 +211,35 @@
   gap: 4px;
 }
 
+/* The colours are all on one line: the round swatches shrink a little when the panel is narrow. */
+.sketchdraw-swatches {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
 .sketchdraw-swatch {
-  width: 26px;
-  height: 26px;
-  min-height: 26px;
+  flex: 0 1 26px;
+  min-width: 14px;
+  aspect-ratio: 1;
+  height: auto;
+  min-height: 0;
   padding: 0;
   border-radius: 50%;
   border: 2px solid var(--background-modifier-border);
 }
 
+/* The small rectangle that shows the colour in use and opens the colour window. */
 .sketchdraw-swatch.sketchdraw-swatch-custom {
-  width: 36px;
-  border-radius: 6px;
-  border: 3px solid transparent;
-  background: linear-gradient(var(--background-primary), var(--background-primary)) padding-box, conic-gradient(#ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000) border-box;
+  flex: 0 1 38px;
+  min-width: 22px;
+  aspect-ratio: auto;
+  height: 26px;
+  border-radius: 5px;
+  border: 2px solid var(--text-muted);
 }
 
-.sketchdraw-swatch.sketchdraw-swatch-custom.is-active {
-  box-shadow: 0 0 0 2px var(--interactive-accent);
+.sketchdraw-swatch.sketchdraw-swatch-custom.is-empty {
+  background: linear-gradient(to top right, transparent 44%, var(--text-muted) 44%, var(--text-muted) 56%, transparent 56%), var(--background-primary);
 }
 
 .sketchdraw-swatch.is-active {
