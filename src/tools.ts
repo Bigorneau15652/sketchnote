@@ -1,5 +1,6 @@
 // Creation of elements from a gesture (a drag from one point to another, or the points of a pen stroke), with the same keys as Excalidraw:
 // Shift for a square, a circle or a line at a multiple of 15 degrees, Alt to start from the centre. Pure module.
+import { DEFAULT_NIB_ANGLE } from "./brushes";
 import { MAX_FONT_SIZE, MIN_FONT_SIZE } from "./elements";
 import type { ArrowElement, DiamondElement, FillStyle, TriangleElement, EllipseElement, FreedrawElement, LineElement, Point, RectElement, SketchElement, TextElement } from "./elements";
 import type { ToolStyle } from "./style";
@@ -139,7 +140,7 @@ export function penElement(points: Point[], style: ToolStyle, id: string, seed: 
   const pts: Point[] = points.length === 1 ? [points[0], [r2(points[0][0] + 0.1), r2(points[0][1])]] : points.slice(0, maxPoints);
   const { lineStyle: _l, ...rest } = look(style, seed);
   void _l;
-  return { id, type: `freedraw`, points: pts, ...rest, ...(style.regularity > 0 ? { regularity: style.regularity } : {}) };
+  return { id, type: `freedraw`, points: pts, ...rest, ...(style.regularity > 0 ? { regularity: style.regularity } : {}), ...(style.brush !== `round` ? { brush: style.brush } : {}), ...(style.flow < 1 ? { flow: style.flow } : {}), ...(style.brushAngle !== DEFAULT_NIB_ANGLE ? { nibAngle: style.brushAngle } : {}) };
 }
 
 // Returns a text whose top left corner is at a point, in the font, the size, the alignment and the colour of the style. `measure` gives the width of a line of text.

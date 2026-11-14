@@ -1,6 +1,7 @@
 // The elements that can be drawn on a page or in a drawing, and the strict reading of them from a file.
 // No dependency on Obsidian: tested without the application.
 import { isSafeColor } from "./color";
+import { BrushKind, DEFAULT_NIB_ANGLE, isBrush, MAX_NIB_ANGLE, MIN_FLOW } from "./brushes";
 import { isClosedStroke, MAX_REGULARITY } from "./tidy";
 
 export type Point = [number, number];
@@ -113,6 +114,10 @@ export interface FreedrawElement extends BaseElement, Strokes, Fills {
   points: Point[];
   // How much the stroke is tidied, from 0 (as drawn, not stored) to MAX_REGULARITY (the clean shape it was meant to be). A stroke that comes back to its start can have a fill.
   regularity?: number;
+  // The brush (the round one when absent), how much paint it puts (1 when absent) and the angle of the nib in degrees (45 when absent).
+  brush?: BrushKind;
+  flow?: number;
+  nibAngle?: number;
 }
 
 // A text written inside a shape (a rectangle, an ellipse or a diamond). It belongs to the shape: it moves, turns, is copied and deleted with it. It is centred in the
@@ -439,7 +444,19 @@ function readElement(value: unknown): SketchElement | null {
       const fillOfStroke = readFill(value);
       if (fillOfStroke === null) return null;
       if (value.regularity !== undefined && (typeof value.regularity !== `number` || !Number.isFinite(value.regularity) || value.regularity < 0 || value.regularity > MAX_REGULARITY)) return null;
-      return { ...base, ...fillOfStroke, type, points, ...(typeof value.regularity === `number` && value.regularity > 0 ? { regularity: value.regularity } : {}) };
+      if (value.brush !== undefined && (!isBrush(value.brush) || value.brush === `round`)) return null;
+      if (value.flow !== undefined && (typeof value.flow !== `number` || !Number.isFinite(value.flow) || value.flow < MIN_FLOW || value.flow > 1)) return null;
+      if (value.nibAngle !== undefined && (typeof value.nibAngle !== `number` || !Number.isFinite(value.nibAngle) || value.nibAngle < 0 || value.nibAngle > MAX_NIB_ANGLE)) return null;
+      return {
+        ...base,
+        ...fillOfStroke,
+        type,
+        points,
+        ...(typeof value.regularity === `number` && value.regularity > 0 ? { regularity: value.regularity } : {}),
+        ...(value.brush !== undefined ? { brush: value.brush as BrushKind } : {}),
+        ...(typeof value.flow === `number` && value.flow < 1 ? { flow: value.flow } : {}),
+        ...(typeof value.nibAngle === `number` && value.nibAngle !== DEFAULT_NIB_ANGLE ? { nibAngle: value.nibAngle } : {}),
+      };
     }
     const lineLabel = readLabel(value.label);
     if (lineLabel === null) return null;

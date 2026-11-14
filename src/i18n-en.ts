@@ -1,6 +1,13 @@
 // English translations: the French text is the key. Every text passed to t() in the code must be listed here (a test checks it).
 // Variable values are written {0}, {1}... as in the French text.
 const PAIRS: [string, string][] = [
+  [`Pinceau`, `Brush`],
+  [`Pinceau rond`, `Round brush`],
+  [`Aérosol`, `Spray`],
+  [`Pinceau carré`, `Square brush`],
+  [`Plume`, `Nib`],
+  [`Flux du pinceau : de léger à plein`, `Flow of the brush: from light to full`],
+  [`Angle de la plume`, `Angle of the nib`],
   [`Régularité du tracé`, `Regularity of the stroke`],
   [`Régularité du tracé : 0 pour un tracé à main levée, 5 pour une forme parfaite`, `Regularity of the stroke: 0 for a hand drawn stroke, 5 for a perfect shape`],
   [`Éloignement de l'ombre`, `Distance of the shadow`],

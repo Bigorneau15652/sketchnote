@@ -16,6 +16,7 @@ import { Box, unionBox as unionBoxes } from "./geometry";
 import { brightness } from "./page-background";
 import { t } from "./i18n";
 import { panelKinds, PanelSection, sectionShown } from "./panel-kinds";
+import { BRUSH_KINDS, BrushKind, MAX_NIB_ANGLE, MIN_FLOW } from "./brushes";
 import { allLocked, isLocked } from "./lock";
 import { MAX_REGULARITY } from "./tidy";
 import { PluginApi } from "./plugin-api";
@@ -28,6 +29,14 @@ import { newId } from "./elements";
 import { VIEW_TYPE as PAGE_VIEW_TYPE } from "./view";
 
 export const DRAW_VIEW_TYPE = `sketchdraw-view`;
+
+// The pictogram and the name of every brush of the pen.
+const BRUSH_ICONS: Record<BrushKind, string> = { round: `circle`, aerosol: `spray-can`, square: `square`, nib: `pen-tool` };
+
+// Returns the name of a brush in the language of the user.
+function brushName(brush: BrushKind): string {
+  return brush === `round` ? t(`Pinceau rond`) : brush === `aerosol` ? t(`Aérosol`) : brush === `square` ? t(`Pinceau carré`) : t(`Plume`);
+}
 
 export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   private readonly api: PluginApi;
@@ -396,6 +405,14 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     // The transparency of the fill: 0 is opaque, the line keeps its colour and stays opaque.
     this.slider(fillSec, ``, t(`Transparence du remplissage`), 0, 95, 5, (s) => Math.round(((1 - s.fillOpacity) * 100) / 5) * 5, (v) => ({ fillOpacity: 1 - v / 100 }));
 
+    // The brush of the pen: one menu, then how much paint it puts and, for the nib, its angle. The thickness is the one of every line.
+    const brushSec = this.section(props, `brush`);
+    this.sectionIcon(brushSec, `paintbrush`, t(`Pinceau`));
+    const brushRow = brushSec.createDiv({ cls: `sketchdraw-row` });
+    this.dropdown(brushRow, t(`Pinceau`), [...BRUSH_KINDS], (v) => BRUSH_ICONS[v], brushName, (s) => s.brush, (v) => ({ brush: v }), true);
+    this.slider(brushSec, ``, t(`Flux du pinceau : de léger à plein`), Math.round(MIN_FLOW * 100), 100, 5, (s) => Math.round(s.flow * 100), (v) => ({ flow: v / 100 }));
+    this.slider(brushSec, ``, t(`Angle de la plume`), 0, MAX_NIB_ANGLE, 5, (s) => Math.round(s.brushAngle), (v) => ({ brushAngle: v }), (s) => s.brush === `nib`);
+
     const widthSec = this.section(props, `width`);
     this.sectionIcon(widthSec, `sketchnote-width-medium`, t(`Épaisseur`));
     this.slider(widthSec, ``, t(`Épaisseur`), MIN_WIDTH, MAX_WIDTH, 1, (s) => Math.round(s.strokeWidth), (v) => ({ strokeWidth: v }));
@@ -590,7 +607,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     for (const sec of this.sections) {
       sec.el.toggleClass(`sketchdraw-hidden`, !sectionShown(sec.name, kinds));
       // With nothing selected the choices of the panel have nothing to apply to (a new shape is always standard): they are dimmed, except the settings of a text.
-      sec.el.toggleClass(`sketchdraw-idle`, (this.selected.size === 0 && sec.name !== `text` && sec.name !== `regularity`) || allLocked(this.elementsOf(this.doc), this.selected));
+      sec.el.toggleClass(`sketchdraw-idle`, (this.selected.size === 0 && sec.name !== `text` && sec.name !== `regularity` && sec.name !== `brush`) || allLocked(this.elementsOf(this.doc), this.selected));
     }
   }
 
@@ -715,6 +732,9 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       if (clean.fontSize !== undefined) keep.fontSize = clean.fontSize;
       if (clean.align !== undefined) keep.align = clean.align;
       if (clean.regularity !== undefined) keep.regularity = clean.regularity;
+      if (clean.brush !== undefined) keep.brush = clean.brush;
+      if (clean.flow !== undefined) keep.flow = clean.flow;
+      if (clean.brushAngle !== undefined) keep.brushAngle = clean.brushAngle;
       this.style = { ...this.style, ...keep };
     }
     if (this.selected.size > 0) {

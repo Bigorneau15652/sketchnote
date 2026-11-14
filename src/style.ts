@@ -1,8 +1,9 @@
 // The look of the lines and fills that the user chooses, and how a choice is applied to elements. Pure module.
-import { canFill, FILL_STYLES, FillStyle, MAX_ROUGHNESS, Head, HEADS, headOf, isFontId, isShape, isStroked, LineStyle, MAX_FONT_SIZE, MIN_FILL_OPACITY, MIN_FONT_SIZE, SketchElement, TEXT_ALIGNS, TextAlign } from "./elements";
+import { canFill, FILL_STYLES, FreedrawElement, FillStyle, MAX_ROUGHNESS, Head, HEADS, headOf, isFontId, isShape, isStroked, LineStyle, MAX_FONT_SIZE, MIN_FILL_OPACITY, MIN_FONT_SIZE, SketchElement, TEXT_ALIGNS, TextAlign } from "./elements";
 import { DEFAULT_FONT } from "./fonts";
 import { BORDER_KINDS, BorderKind, cleanOpacity, CORNER_RADII, DEFAULT_REFLECT_DEPTH, DEFAULT_REFLECT_FADE, DEFAULT_REFLECT_GAP, DEFAULT_SHADOW, SHADOW_MAX_BLUR, SHADOW_MAX_DISTANCE, shadowFrom, shadowSettingsOf } from "./effects";
 import { isSafeColor } from "./color";
+import { BrushKind, cleanFlow, DEFAULT_NIB_ANGLE, isBrush, MAX_NIB_ANGLE } from "./brushes";
 import { MAX_REGULARITY } from "./tidy";
 
 export interface ToolStyle {
@@ -17,6 +18,10 @@ export interface ToolStyle {
   roughness: number;
   // How much a pen stroke is tidied, from 0 (as drawn) to MAX_REGULARITY (the clean shape: line, circle, rectangle, triangle).
   regularity: number;
+  // The brush of the pen, how much paint it puts (from light to 1) and the angle of the nib in degrees.
+  brush: BrushKind;
+  flow: number;
+  brushAngle: number;
   // Rounded edges for lines and arrows, and the heads of arrows.
   rounded: boolean;
   startHead: Head;
@@ -58,7 +63,7 @@ const PLAIN_EFFECTS = { opacity: 1, shadow: false, shadowDistance: DEFAULT_SHADO
 
 // Returns the style of a new drawing: a thin hand drawn line in the ink colour of the page, with no fill.
 export function defaultStyle(ink: string): ToolStyle {
-  return { stroke: isSafeColor(ink) ? ink : `#000000`, fill: null, fillStyle: `solid`, fillOpacity: 1, strokeWidth: STROKE_WIDTHS.thin, roughness: 1, regularity: 0, rounded: false, startHead: `none`, endHead: `arrow`, font: DEFAULT_FONT, fontSize: TEXT_SIZES.medium, align: `left`, ...PLAIN_EFFECTS };
+  return { stroke: isSafeColor(ink) ? ink : `#000000`, fill: null, fillStyle: `solid`, fillOpacity: 1, strokeWidth: STROKE_WIDTHS.thin, roughness: 1, regularity: 0, brush: `round`, flow: 1, brushAngle: DEFAULT_NIB_ANGLE, rounded: false, startHead: `none`, endHead: `arrow`, font: DEFAULT_FONT, fontSize: TEXT_SIZES.medium, align: `left`, ...PLAIN_EFFECTS };
 }
 
 // Returns a style patch with every value checked: unknown or invalid values are dropped.
@@ -69,6 +74,9 @@ export function cleanPatch(patch: StylePatch): StylePatch {
   if (patch.fillStyle !== undefined && FILL_STYLES.includes(patch.fillStyle)) out.fillStyle = patch.fillStyle;
   if (typeof patch.fillOpacity === `number` && Number.isFinite(patch.fillOpacity)) out.fillOpacity = Math.min(1, Math.max(MIN_FILL_OPACITY, Math.round(patch.fillOpacity * 100) / 100));
   if (typeof patch.strokeWidth === `number` && Number.isFinite(patch.strokeWidth)) out.strokeWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, patch.strokeWidth));
+  if (isBrush(patch.brush)) out.brush = patch.brush;
+  if (typeof patch.flow === `number` && Number.isFinite(patch.flow)) out.flow = cleanFlow(patch.flow);
+  if (typeof patch.brushAngle === `number` && Number.isFinite(patch.brushAngle)) out.brushAngle = Math.min(MAX_NIB_ANGLE, Math.max(0, Math.round(patch.brushAngle)));
   if (typeof patch.regularity === `number` && Number.isFinite(patch.regularity)) out.regularity = Math.min(MAX_REGULARITY, Math.max(0, Math.round(patch.regularity * 10) / 10));
   if (typeof patch.roughness === `number` && Number.isFinite(patch.roughness)) out.roughness = Math.min(MAX_ROUGHNESS, Math.max(0, Math.round(patch.roughness * 10) / 10));
   if (typeof patch.rounded === `boolean`) out.rounded = patch.rounded;
@@ -129,6 +137,23 @@ export function applyStyle(el: SketchElement, patch: StylePatch): SketchElement 
   if (p.stroke !== undefined) next.stroke = p.stroke;
   if (p.strokeWidth !== undefined) next.strokeWidth = p.strokeWidth;
   if (p.roughness !== undefined) next.roughness = p.roughness;
+  if (next.type === `freedraw`) {
+    if (p.brush !== undefined) {
+      const { brush: _b, ...rest } = next as FreedrawElement;
+      void _b;
+      next = (p.brush === `round` ? rest : { ...rest, brush: p.brush }) as typeof el;
+    }
+    if (p.flow !== undefined) {
+      const { flow: _f, ...rest } = next as FreedrawElement;
+      void _f;
+      next = (p.flow >= 1 ? rest : { ...rest, flow: p.flow }) as typeof el;
+    }
+    if (p.brushAngle !== undefined) {
+      const { nibAngle: _n, ...rest } = next as FreedrawElement;
+      void _n;
+      next = (p.brushAngle === DEFAULT_NIB_ANGLE ? rest : { ...rest, nibAngle: p.brushAngle }) as typeof el;
+    }
+  }
   if (next.type === `freedraw` && p.regularity !== undefined) {
     const { regularity: _g, ...rest } = next;
     void _g;
@@ -248,7 +273,7 @@ export function styleOf(el: SketchElement): ToolStyle | null {
   const rounded = linear && el.rounded === true;
   const startHead: Head = el.type === `arrow` ? headOf(el, `start`) : `none`;
   const endHead: Head = el.type === `arrow` ? headOf(el, `end`) : `none`;
-  return { stroke: el.stroke, fill, fillStyle, fillOpacity, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0, regularity: el.type === `freedraw` ? el.regularity ?? 0 : 0, rounded, startHead, endHead, taper: el.type === `line` || el.type === `arrow` ? el.taper ?? 0 : 0, font: labelOf(el) ? labelOf(el)?.font ?? DEFAULT_FONT : DEFAULT_FONT, fontSize: labelOf(el)?.size ?? TEXT_SIZES.medium, align: labelOf(el) ? labelOf(el)?.align ?? `center` : `left`, ...effectsOfElement(el), lineStyle: el.type === `freedraw` ? `solid` : el.lineStyle ?? `solid`, border: isShape(el) ? el.border ?? `simple` : `simple`, radius: el.type === `rect` ? el.radius ?? 0 : 0 };
+  return { stroke: el.stroke, fill, fillStyle, fillOpacity, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0, regularity: el.type === `freedraw` ? el.regularity ?? 0 : 0, brush: el.type === `freedraw` ? el.brush ?? `round` : `round`, flow: el.type === `freedraw` ? el.flow ?? 1 : 1, brushAngle: el.type === `freedraw` ? el.nibAngle ?? DEFAULT_NIB_ANGLE : DEFAULT_NIB_ANGLE, rounded, startHead, endHead, taper: el.type === `line` || el.type === `arrow` ? el.taper ?? 0 : 0, font: labelOf(el) ? labelOf(el)?.font ?? DEFAULT_FONT : DEFAULT_FONT, fontSize: labelOf(el)?.size ?? TEXT_SIZES.medium, align: labelOf(el) ? labelOf(el)?.align ?? `center` : `left`, ...effectsOfElement(el), lineStyle: el.type === `freedraw` ? `solid` : el.lineStyle ?? `solid`, border: isShape(el) ? el.border ?? `simple` : `simple`, radius: el.type === `rect` ? el.radius ?? 0 : 0 };
 }
 
 // Returns the text written in a shape or in the middle of a line, or undefined.

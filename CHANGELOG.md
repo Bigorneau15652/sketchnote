@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.19.0
+
+English
+
+Brushes for the pen. A new Brush section (shown with the pen tool, or for a selected pen stroke) has one drop-down menu with four brushes: the round brush, which is the pen as it always was (strokes of the previous versions are round and do not change), the spray, the square brush and the nib. The thickness is the Thickness slider of the panel, and a Flow slider goes from a light stroke to a full one: for the round, square and nib brushes it is the opacity of the stroke, and for the spray it is the number of dots. The spray scatters fine dots of two sizes around the path (always the same dots for a stroke, at most a few thousand so that a long stroke stays light). The square brush leaves a band as wide as its square, in every direction. The nib is a flat tip: a slider sets its angle (from 0 to 180 degrees), and the stroke is thick across the tip and thin along it, like a pen of calligraphy; it only shows for the nib. The choice of the brush, the flow and the angle apply to the selected strokes and are kept for the next strokes (like the regularity); the regularity of the stroke, which straightens it into a line, a circle, a rectangle or a triangle, works with every brush, and so does the fill of a closed stroke. Files of the previous versions open without change.
+
+Français
+
+Des pinceaux pour le crayon. Une nouvelle section Pinceau (visible avec l'outil crayon, ou pour un tracé au crayon sélectionné) contient un menu déroulant de quatre pinceaux : le pinceau rond, qui est le crayon tel qu'il a toujours été (les tracés des versions précédentes sont ronds et ne changent pas), l'aérosol, le pinceau carré et la plume. L'épaisseur est la réglette Épaisseur du panneau, et une réglette Flux va d'un tracé léger à un tracé plein : pour les pinceaux rond, carré et la plume c'est l'opacité du tracé, et pour l'aérosol c'est le nombre de points. L'aérosol disperse de fins points de deux tailles autour du chemin (toujours les mêmes pour un tracé, au plus quelques milliers pour qu'un long tracé reste léger). Le pinceau carré laisse une bande aussi large que son carré, dans tous les sens. La plume est une pointe plate : une réglette règle son angle (de 0 à 180 degrés), et le tracé est épais en travers de la pointe et fin dans son sens, comme une plume de calligraphie ; elle n'apparaît que pour la plume. Le choix du pinceau, le flux et l'angle s'appliquent aux tracés sélectionnés et sont conservés pour les prochains tracés (comme la régularité) ; la régularité du tracé, qui le redresse en droite, cercle, rectangle ou triangle, fonctionne avec tous les pinceaux, ainsi que le remplissage d'un tracé fermé. Les fichiers des versions précédentes s'ouvrent sans changement.
+
 ## 0.18.0
 
 English
