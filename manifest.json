@@ -1,0 +1,9 @@
+{
+  "id": "sketchnote",
+  "name": "Sketchnote",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Draw sketchnotes: one page that mixes hand-drawn pictures and handwritten text.",
+  "author": "Bigorneau",
+  "isDesktopOnly": false
+}

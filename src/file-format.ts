@@ -1,0 +1,93 @@
+// The .sketchnote file format: one JSON document that holds the page, its structure and all its elements.
+// This file has no dependency on Obsidian, so it is tested without the application.
+import { t } from "./i18n";
+
+export const FORMAT_NAME = `sketchnote`;
+export const FORMAT_VERSION = 1;
+// Largest file read, in characters. A bigger file is refused instead of freezing the application.
+export const MAX_FILE_CHARS = 50 * 1024 * 1024;
+export const MIN_PAGE_SIZE = 100;
+export const MAX_PAGE_SIZE = 20000;
+
+export type Orientation = `portrait` | `landscape`;
+export type Pattern = `blank` | `lines` | `grid` | `dots`;
+
+export interface PageSettings {
+  width: number;
+  height: number;
+  orientation: Orientation;
+  background: string;
+  pattern: Pattern;
+}
+
+export interface SketchnoteDoc {
+  format: typeof FORMAT_NAME;
+  version: number;
+  page: PageSettings;
+  // Structure of the page (linear, radial...). Filled from version 0.3.0.
+  layout: null;
+  // Elements of the page. Filled from version 0.4.0.
+  elements: unknown[];
+}
+
+export type ParseResult = { ok: true; doc: SketchnoteDoc } | { ok: false; error: string };
+
+// Returns a new document with an A4 portrait white page and no element.
+export function createEmptyDoc(): SketchnoteDoc {
+  return {
+    format: FORMAT_NAME,
+    version: FORMAT_VERSION,
+    page: { width: 794, height: 1123, orientation: `portrait`, background: `#ffffff`, pattern: `blank` },
+    layout: null,
+    elements: [],
+  };
+}
+
+// Tells whether a value is a plain object (not null, not an array).
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === `object` && value !== null && !Array.isArray(value);
+}
+
+// Tells whether a value is a CSS colour written as #rgb, #rrggbb or #rrggbbaa. Nothing else is accepted, so a colour can never carry code.
+export function isSafeColor(value: unknown): value is string {
+  return typeof value === `string` && /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(value);
+}
+
+// Tells whether a value is a page dimension in the allowed range.
+function isPageSize(value: unknown): value is number {
+  return typeof value === `number` && Number.isFinite(value) && value >= MIN_PAGE_SIZE && value <= MAX_PAGE_SIZE;
+}
+
+// Validates the page block and returns it, or null when a field is missing or out of range.
+function readPage(value: unknown): PageSettings | null {
+  if (!isRecord(value)) return null;
+  const { width, height, orientation, background, pattern } = value;
+  if (!isPageSize(width) || !isPageSize(height)) return null;
+  if (orientation !== `portrait` && orientation !== `landscape`) return null;
+  if (!isSafeColor(background)) return null;
+  if (pattern !== `blank` && pattern !== `lines` && pattern !== `grid` && pattern !== `dots`) return null;
+  return { width, height, orientation, background, pattern };
+}
+
+// Reads the text of a .sketchnote file. Every field is checked and copied, so nothing unchecked from the file reaches the rest of the plugin.
+export function parseSketchnote(text: string): ParseResult {
+  if (text.length > MAX_FILE_CHARS) return { ok: false, error: t(`Le fichier est trop volumineux.`) };
+  if (text.trim() === ``) return { ok: false, error: t(`Le fichier est vide ou n'est pas du JSON valide.`) };
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return { ok: false, error: t(`Le fichier est vide ou n'est pas du JSON valide.`) };
+  }
+  if (!isRecord(raw) || raw.format !== FORMAT_NAME) return { ok: false, error: t(`Le fichier n'est pas un sketchnote.`) };
+  if (raw.version !== FORMAT_VERSION) return { ok: false, error: t(`Version de fichier non prise en charge : {0}.`, String(raw.version)) };
+  const page = readPage(raw.page);
+  if (page === null) return { ok: false, error: t(`La page du sketchnote est invalide.`) };
+  const elements = Array.isArray(raw.elements) ? raw.elements : [];
+  return { ok: true, doc: { format: FORMAT_NAME, version: FORMAT_VERSION, page, layout: null, elements } };
+}
+
+// Writes a document as the text of a .sketchnote file.
+export function serializeSketchnote(doc: SketchnoteDoc): string {
+  return JSON.stringify(doc, null, 2) + `\n`;
+}
