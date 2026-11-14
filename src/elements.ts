@@ -3,7 +3,9 @@
 import { isSafeColor } from "./color";
 
 export type Point = [number, number];
-export type FillStyle = `solid` | `hachure`;
+// How a fill is drawn: solid, with hatching lines, with dots or with a grid (crossed hatching).
+export type FillStyle = `solid` | `hachure` | `dots` | `grid`;
+export const FILL_STYLES: FillStyle[] = [`solid`, `hachure`, `dots`, `grid`];
 // The shape at an end of an arrow: nothing, an open arrow head, a filled triangle, a dot, a bar or a diamond.
 export type Head = `none` | `arrow` | `triangle` | `dot` | `bar` | `diamond`;
 export const HEADS: Head[] = [`none`, `arrow`, `triangle`, `dot`, `bar`, `diamond`];
@@ -268,8 +270,8 @@ function readFill(value: Record<string, unknown>): { fill?: string; fillStyle?: 
     out.fill = value.fill;
   }
   if (value.fillStyle !== undefined) {
-    if (value.fillStyle !== `solid` && value.fillStyle !== `hachure`) return null;
-    out.fillStyle = value.fillStyle;
+    if (!FILL_STYLES.includes(value.fillStyle as FillStyle)) return null;
+    out.fillStyle = value.fillStyle as FillStyle;
   }
   return out;
 }

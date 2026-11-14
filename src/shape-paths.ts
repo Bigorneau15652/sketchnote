@@ -48,7 +48,8 @@ function roughOptions(el: StrokedElement): Record<string, unknown> {
   };
   if (`fill` in el && el.fill !== undefined) {
     opts.fill = el.fill;
-    opts.fillStyle = el.fillStyle ?? `solid`;
+    // The grid is the crossed hatching of roughjs.
+    opts.fillStyle = el.fillStyle === `grid` ? `cross-hatch` : el.fillStyle ?? `solid`;
   }
   return opts;
 }

@@ -2,7 +2,8 @@
 // the engine (zoom, selection, undo...) is in CanvasView.
 import { Menu, setIcon, WorkspaceLeaf } from "obsidian";
 import { CanvasView, Tool } from "./canvas-view";
-import { addCustomPastille } from "./color-modal";
+import { ColorChoice, ColorModal } from "./color-modal";
+import { defaultFillPalette, FillSwatch, swatchBackground, swatchMatches } from "./swatches";
 import { toHex6 } from "./page-background";
 import { CANVAS_HEIGHT, CANVAS_WIDTH, contentBox, createEmptyDrawing, guideBox, parseSketchdraw, serializeSketchdraw, SketchdrawDoc } from "./drawing-file";
 import { drawElements, PLAIN } from "./element-render";
@@ -34,8 +35,6 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   private readonly panelButtons: { el: HTMLElement; test: (s: ToolStyle) => boolean }[] = [];
   private widthInput: HTMLInputElement | null = null;
   private transparencyInput: HTMLInputElement | null = null;
-  private strokeCustom: { sync: (color: string | null) => void } | null = null;
-  private fillCustom: { sync: (color: string | null) => void } | null = null;
   private lockButton: HTMLElement | null = null;
   // The text being written (hidden while the text area is over it) and the function that ends the writing.
   private editingText: string | null = null;
@@ -283,10 +282,6 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
 
     const fillSec = this.section(props, `fill`);
     this.sectionIcon(fillSec, `paint-bucket`, t(`Remplissage`));
-    const fillKinds = fillSec.createDiv({ cls: `sketchdraw-row` });
-    this.panelButton(fillKinds, `sketchnote-fill-none`, t(`Aucun remplissage`), (s) => s.fill === null, () => this.change({ fill: null }));
-    this.panelButton(fillKinds, `sketchnote-fill-solid`, t(`Remplissage uni`), (s) => s.fill !== null && s.fillStyle === `solid`, () => this.change({ fill: this.style?.fill ?? this.doc.palette[1], fillStyle: `solid` }));
-    this.panelButton(fillKinds, `sketchnote-fill-hachure`, t(`Remplissage hachuré`), (s) => s.fill !== null && s.fillStyle === `hachure`, () => this.change({ fill: this.style?.fill ?? this.doc.palette[1], fillStyle: `hachure` }));
     const fillRow = fillSec.createDiv({ cls: `sketchdraw-swatches` });
     // The transparency of the fill: 0 is opaque, the line keeps its colour and stays opaque.
     const alpha = fillSec.createEl(`input`, { cls: `sketchdraw-range sketchdraw-alpha`, type: `range` });
@@ -471,28 +466,79 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.panelButtons.push({ el: b, test });
   }
 
-  // Draws the swatches of the palette of the drawing, for the stroke and for the fill.
+  // Returns the five fill swatches of the drawing.
+  private fillSwatchList(): (FillSwatch | null)[] {
+    return this.doc.fillPalette ?? defaultFillPalette(this.doc.ink);
+  }
+
+  // Draws the five round swatches of the stroke and the five of the fill. A click chooses a swatch, a double click opens the colour window to change it.
   private refreshSwatches(): void {
     if (!this.swatchRows) return;
-    const fill = (row: HTMLElement, list: HTMLElement[], pick: (c: string) => void): void => {
-      row.empty();
-      list.length = 0;
-      for (const color of this.doc.palette) {
-        const b = row.createEl(`button`, { cls: `sketchdraw-swatch` });
-        b.setAttribute(`aria-label`, color);
-        b.setAttribute(`style`, `background:${toHex6(color)}`);
-        b.dataset.color = toHex6(color);
-        b.addEventListener(`click`, () => pick(color));
-        list.push(b);
-      }
+    const make = (row: HTMLElement, index: number, label: string, background: string, empty: boolean, pick: () => void, edit: () => void): HTMLElement => {
+      const b = row.createEl(`button`, { cls: `sketchdraw-swatch` });
+      b.setAttribute(`aria-label`, label);
+      b.setAttribute(`title`, `${label} : ${t(`double clic pour changer`)}`);
+      b.style.background = background;
+      b.dataset.index = String(index);
+      b.toggleClass(`is-empty`, empty);
+      b.addEventListener(`click`, () => {
+        pick();
+        this.contentEl.focus({ preventScroll: true });
+      });
+      b.addEventListener(`dblclick`, edit);
+      return b;
     };
-    fill(this.swatchRows.stroke, this.strokeSwatches, (c) => this.change({ stroke: c }));
-    fill(this.swatchRows.fill, this.fillSwatches, (c) => this.change({ fill: c }));
-    // The multicolour pastille at the end of each row opens the colour window.
-    this.strokeCustom = addCustomPastille(this.swatchRows.stroke, this.app, t(`Autre couleur`), () => this.currentStyle().stroke, (c) => this.change({ stroke: c }));
-    this.fillCustom = addCustomPastille(this.swatchRows.fill, this.app, t(`Autre couleur`), () => this.currentStyle().fill ?? this.doc.palette[1] ?? `#ffffff`, (c) => this.change({ fill: c }));
+    this.swatchRows.stroke.empty();
+    this.strokeSwatches.length = 0;
+    this.doc.palette.forEach((color, i) => {
+      this.strokeSwatches.push(make(this.swatchRows!.stroke, i, t(`Couleur du trait`), toHex6(color), false, () => this.change({ stroke: color }), () => this.editStrokeSwatch(i)));
+    });
+    this.swatchRows.fill.empty();
+    this.fillSwatches.length = 0;
+    this.fillSwatchList().forEach((entry, i) => {
+      const pick = (): void => this.change(entry === null ? { fill: null } : { fill: entry.color, fillStyle: entry.style });
+      this.fillSwatches.push(make(this.swatchRows!.fill, i, entry === null ? t(`Sans couleur`) : t(`Couleur du remplissage`), swatchBackground(entry), entry === null, pick, () => this.editFillSwatch(i)));
+    });
     this.lastPanel = ``;
     this.syncPanel();
+  }
+
+  // Opens the colour window for a swatch of the stroke. The new colour replaces the swatch and is applied to the selection.
+  private editStrokeSwatch(index: number): void {
+    new ColorModal(this.app, this.doc.palette[index] ?? `#000000`, (choice: ColorChoice) => {
+      if (choice.color === null) return;
+      const palette = this.doc.palette.map((c, i) => (i === index ? choice.color as string : c));
+      this.changePalettes({ palette });
+      this.change({ stroke: choice.color });
+    }).open();
+  }
+
+  // Opens the colour window for a swatch of the fill, with the patterns and the button for no colour. The colour and its pattern (or no colour) replace the swatch and are
+  // applied to the selection.
+  private editFillSwatch(index: number): void {
+    const entry = this.fillSwatchList()[index] ?? null;
+    new ColorModal(
+      this.app,
+      entry?.color ?? this.doc.palette[1] ?? `#c0392b`,
+      (choice: ColorChoice) => {
+        const next: FillSwatch | null = choice.color === null ? null : { color: choice.color, style: choice.style };
+        this.changePalettes({ fillPalette: this.fillSwatchList().map((e, i) => (i === index ? next : e)) });
+        this.change(next === null ? { fill: null } : { fill: next.color, fillStyle: next.style });
+      },
+      { fill: true, style: entry?.style ?? `solid`, none: entry === null },
+    ).open();
+  }
+
+  // Changes the swatches of the drawing and saves it. This is not an undoable change of the drawing: the swatches are kept when something is undone.
+  private changePalettes(change: { palette?: string[]; fillPalette?: (FillSwatch | null)[] }): void {
+    this.doc = { ...this.doc, ...change };
+    this.requestSave();
+    this.refreshSwatches();
+  }
+
+  // Keeps the swatches of the drawing when an undo or a redo brings back an older state of its elements.
+  protected restoreFrom(restored: SketchdrawDoc, current: SketchdrawDoc): SketchdrawDoc {
+    return { ...restored, palette: current.palette, ...(current.fillPalette ? { fillPalette: current.fillPalette } : {}) };
   }
 
   // The style shown in the panel: the one of the selected element when there is exactly one, otherwise the style of new elements.
@@ -534,14 +580,13 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       d.el.setAttribute(`aria-label`, d.name(s));
       d.el.setAttribute(`title`, d.name(s));
     }
-    for (const sw of this.strokeSwatches) sw.toggleClass(`is-active`, sw.dataset.color === toHex6(s.stroke));
-    for (const sw of this.fillSwatches) sw.toggleClass(`is-active`, s.fill !== null && sw.dataset.color === toHex6(s.fill));
+    for (const sw of this.strokeSwatches) sw.toggleClass(`is-active`, this.doc.palette[Number(sw.dataset.index)] !== undefined && toHex6(this.doc.palette[Number(sw.dataset.index)]) === toHex6(s.stroke));
+    const fills = this.fillSwatchList();
+    for (const sw of this.fillSwatches) sw.toggleClass(`is-active`, swatchMatches(fills[Number(sw.dataset.index)] ?? null, s.fill, s.fillStyle));
     if (this.widthInput) this.widthInput.value = String(Math.round(s.strokeWidth));
     if (this.fontSelect) this.fontSelect.value = s.font;
     if (this.opacityInput) this.opacityInput.value = String(Math.round(s.opacity * 100));
     if (this.transparencyInput) this.transparencyInput.value = String(Math.round((1 - s.fillOpacity) * 20) * 5);
-    this.strokeCustom?.sync(s.stroke);
-    this.fillCustom?.sync(s.fill);
   }
 }
 

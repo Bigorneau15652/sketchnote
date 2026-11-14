@@ -1,6 +1,6 @@
 // Creation of elements from a gesture (a drag from one point to another, or the points of a pen stroke), with the same keys as Excalidraw:
 // Shift for a square, a circle or a line at a multiple of 15 degrees, Alt to start from the centre. Pure module.
-import type { ArrowElement, DiamondElement, EllipseElement, FreedrawElement, LineElement, Point, RectElement, SketchElement, TextElement } from "./elements";
+import type { ArrowElement, DiamondElement, FillStyle, EllipseElement, FreedrawElement, LineElement, Point, RectElement, SketchElement, TextElement } from "./elements";
 import type { ToolStyle } from "./style";
 import { effectFields, lineStyleField } from "./effects";
 import { refitText } from "./text-layout";
@@ -50,7 +50,7 @@ function borderOf(style: ToolStyle, rect: boolean): { border?: Exclude<ToolStyle
 }
 
 // Returns the fill fields of a new shape: nothing when the style has no fill.
-function fillOf(style: ToolStyle): { fill?: string; fillStyle?: `solid` | `hachure`; fillOpacity?: number } {
+function fillOf(style: ToolStyle): { fill?: string; fillStyle?: FillStyle; fillOpacity?: number } {
   if (style.fill === null) return {};
   return { fill: style.fill, fillStyle: style.fillStyle, ...(style.fillOpacity < 1 ? { fillOpacity: style.fillOpacity } : {}) };
 }

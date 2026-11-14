@@ -17,6 +17,8 @@ const ICONS: Record<string, string> = {
   "sketchnote-fill-none": FRAME,
   "sketchnote-fill-solid": tag(`rect`, { x: 18, y: 18, width: 64, height: 64, rx: 6, fill: `currentColor`, stroke: `currentColor`, "stroke-width": 7 }),
   "sketchnote-fill-hachure": FRAME + tag(`path`, { d: `M30 66L66 30M30 46L46 30M54 70L70 54`, ...line, "stroke-width": 6 }),
+  "sketchnote-fill-dots": FRAME + tag(`path`, { d: `M34 34h.1M50 34h.1M66 34h.1M34 50h.1M50 50h.1M66 50h.1M34 66h.1M50 66h.1M66 66h.1`, ...line, "stroke-width": 9 }),
+  "sketchnote-fill-grid": FRAME + tag(`path`, { d: `M18 38H82M18 62H82M38 18V82M62 18V82`, ...line, "stroke-width": 5 }),
   "sketchnote-width-thin": tag(`path`, { d: `M14 50H86`, ...line, "stroke-width": 5 }),
   "sketchnote-width-medium": tag(`path`, { d: `M14 50H86`, ...line, "stroke-width": 11 }),
   "sketchnote-width-thick": tag(`path`, { d: `M14 50H86`, ...line, "stroke-width": 20 }),

@@ -2,6 +2,7 @@
 import { defaultPaletteFor, isPalette, isSafeColor, MAX_PALETTE, MIN_PALETTE } from "./color";
 import { ElementsResult, readElements, SketchElement } from "./elements";
 import { Box, elementBounds, unionBox } from "./geometry";
+import { defaultFillPalette, FillSwatch, padPalette, readFillPalette } from "./swatches";
 import { t } from "./i18n";
 
 export const DRAW_FORMAT_NAME = `sketchdraw`;
@@ -10,7 +11,7 @@ export const MAX_DRAW_FILE_CHARS = 50 * 1024 * 1024;
 // Size of the drawing surface, in pixels. A drawing is drawn anywhere on it; the part that holds elements is what a page shows.
 export const CANVAS_WIDTH = 2400;
 export const CANVAS_HEIGHT = 1800;
-export { MAX_PALETTE, MIN_PALETTE };
+export { defaultFillPalette, MAX_PALETTE, MIN_PALETTE };
 
 // A dotted guide shown in the middle of the drawing surface, with the proportions (and the shape) of the zone of the page that the drawing belongs to.
 // It only helps to draw: it is never printed, and the drawing may go outside of it.
@@ -28,7 +29,10 @@ export interface SketchdrawDoc {
   // Default ink colour of the drawing (white when it was made on a chalkboard page).
   ink: string;
   // Colours offered first in the tools, copied from the page at creation.
+  // Always five colours for the stroke (the palette of the page, completed when it has fewer).
   palette: string[];
+  // The five swatches of the fill: a colour with its pattern, or null for no colour. Absent means the usual ones.
+  fillPalette?: (FillSwatch | null)[];
   elements: SketchElement[];
 }
 
@@ -36,7 +40,7 @@ export type DrawParseResult = { ok: true; doc: SketchdrawDoc } | { ok: false; er
 
 // Returns a new empty drawing.
 export function createEmptyDrawing(ink = `#000000`, palette: string[] = defaultPaletteFor(ink), guide?: DrawingGuide): SketchdrawDoc {
-  return { format: DRAW_FORMAT_NAME, version: DRAW_FORMAT_VERSION, ...(guide ? { guide } : {}), ink, palette: [...palette], elements: [] };
+  return { format: DRAW_FORMAT_NAME, version: DRAW_FORMAT_VERSION, ...(guide ? { guide } : {}), ink, palette: padPalette(palette, ink), elements: [] };
 }
 
 // Largest area, on the drawing surface, that the guide may take.
@@ -83,6 +87,8 @@ export function parseSketchdraw(text: string): DrawParseResult {
   if (!isSafeColor(ink)) return { ok: false, error: t(`Le dessin est invalide.`) };
   const palette = r.palette === undefined ? defaultPaletteFor(ink) : r.palette;
   if (!isPalette(palette)) return { ok: false, error: t(`Le dessin est invalide.`) };
+  const fillPalette = readFillPalette(r.fillPalette);
+  if (fillPalette === null) return { ok: false, error: t(`Le dessin est invalide.`) };
   const guide = readGuide(r.guide);
   if (guide === null) return { ok: false, error: t(`Le dessin est invalide.`) };
   const elements: ElementsResult = readElements(r.elements);
@@ -90,7 +96,7 @@ export function parseSketchdraw(text: string): DrawParseResult {
   // A drawing cannot hold a frame of a drawing: that would allow a drawing to contain itself.
   const bad = elements.elements.findIndex((e) => e.type === `drawing`);
   if (bad >= 0) return { ok: false, error: t(`Élément {0} invalide.`, bad + 1) };
-  return { ok: true, doc: { format: DRAW_FORMAT_NAME, version: DRAW_FORMAT_VERSION, ...(guide ? { guide } : {}), ink, palette: [...palette], elements: elements.elements } };
+  return { ok: true, doc: { format: DRAW_FORMAT_NAME, version: DRAW_FORMAT_VERSION, ...(guide ? { guide } : {}), ink, palette: padPalette(palette, ink), ...(fillPalette ? { fillPalette } : {}), elements: elements.elements } };
 }
 
 // Writes a drawing as the text of a .sketchdraw file.
