@@ -1,9 +1,10 @@
 // The text written inside a shape: the part of the shape that holds it, its colour and its lines. Pure module: the width of a piece of text is given by the caller (the browser
 // measures it), so this is tested without a page.
-import type { DiamondElement, EllipseElement, RectElement, ShapeLabel } from "./elements";
+import { drawnPoints } from "./curves";
+import type { ArrowElement, DiamondElement, EllipseElement, LineElement, Point, RectElement, ShapeLabel } from "./elements";
 import { hexToRgb } from "./hsl";
 import { Box } from "./geometry";
-import { LINE_HEIGHT, wrapLines } from "./text-layout";
+import { LINE_HEIGHT, textLines, wrapLines } from "./text-layout";
 
 export type LabeledShape = RectElement | EllipseElement | DiamondElement;
 
@@ -56,4 +57,51 @@ export function labelLayout(el: LabeledShape, label: ShapeLabel, measure: (line:
   const align = label.align ?? `center`;
   const anchorX = align === `left` ? box.x : align === `right` ? box.x + box.w : box.x + box.w / 2;
   return { lines, box, top: box.y + (box.h - lines.length * lineHeight) / 2, size: label.size, lineHeight, align, anchorX };
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------- the text of a line
+
+// The room kept around the text of a line, in page units: the line is cut over the text and this margin.
+export const LINE_LABEL_PAD = 6;
+
+// Returns the point in the middle of a line or an arrow, measured along its path (the curve itself when its edges are rounded), and the angle of the path there in degrees.
+export function pathMiddle(el: LineElement | ArrowElement): { point: Point; angle: number } {
+  const pts = drawnPoints(el);
+  let total = 0;
+  for (let i = 0; i + 1 < pts.length; i++) total += Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+  let remaining = total / 2;
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const length = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+    if (remaining <= length || i + 2 === pts.length) {
+      const k = length === 0 ? 0 : Math.min(1, remaining / length);
+      return { point: [pts[i][0] + (pts[i + 1][0] - pts[i][0]) * k, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * k], angle: (Math.atan2(pts[i + 1][1] - pts[i][1], pts[i + 1][0] - pts[i][0]) * 180) / Math.PI };
+    }
+    remaining -= length;
+  }
+  return { point: pts[0] ?? [0, 0], angle: 0 };
+}
+
+// The layout of the text in the middle of a line: its lines (as typed, they are not wrapped), the box that they fill, and the box that is cut out of the line around them.
+export interface LineLabelLayout {
+  lines: string[];
+  // The top of the first line and the anchor of the lines, for the alignment.
+  top: number;
+  anchorX: number;
+  align: `left` | `center` | `right`;
+  lineHeight: number;
+  size: number;
+  // The box of the text with its margin: the line is cut under it.
+  cut: Box;
+}
+
+export function lineLabelLayout(el: LineElement | ArrowElement, label: ShapeLabel, measure: (line: string, font: string, size: number) => number): LineLabelLayout {
+  const { point } = pathMiddle(el);
+  const lines = textLines(label.text);
+  const lineHeight = label.size * LINE_HEIGHT;
+  const width = Math.max(label.size * 0.5, ...lines.map((l) => measure(l, label.font, label.size)));
+  const height = lines.length * lineHeight;
+  const align = label.align ?? `center`;
+  const left = point[0] - width / 2;
+  const anchorX = align === `left` ? left : align === `right` ? left + width : point[0];
+  return { lines, top: point[1] - height / 2, anchorX, align, lineHeight, size: label.size, cut: { x: left - LINE_LABEL_PAD, y: point[1] - height / 2 - LINE_LABEL_PAD, w: width + 2 * LINE_LABEL_PAD, h: height + 2 * LINE_LABEL_PAD } };
 }

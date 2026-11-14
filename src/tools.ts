@@ -1,9 +1,10 @@
 // Creation of elements from a gesture (a drag from one point to another, or the points of a pen stroke), with the same keys as Excalidraw:
 // Shift for a square, a circle or a line at a multiple of 15 degrees, Alt to start from the centre. Pure module.
+import { MAX_FONT_SIZE, MIN_FONT_SIZE } from "./elements";
 import type { ArrowElement, DiamondElement, FillStyle, EllipseElement, FreedrawElement, LineElement, Point, RectElement, SketchElement, TextElement } from "./elements";
 import type { ToolStyle } from "./style";
 import { effectFields, lineStyleField } from "./effects";
-import { refitText } from "./text-layout";
+import { LINE_HEIGHT, refitText } from "./text-layout";
 
 export type CreationTool = `rect` | `diamond` | `ellipse` | `line` | `arrow` | `pen` | `point`;
 export const CREATION_TOOLS: CreationTool[] = [`rect`, `diamond`, `ellipse`, `line`, `arrow`, `pen`, `point`];
@@ -121,7 +122,13 @@ export function textElement(at: Point, text: string, style: ToolStyle, id: strin
   return refitText(base, measure);
 }
 
-// Returns a text zone: a text in the box that the user dragged, wrapped to the width of the box, with the font, the size, the alignment and the colour of the style.
+// Returns the size of the letters for a text zone that was dragged: one line fills the height of the box, so the height of the box gives the height of the text.
+export function zoneFontSize(boxHeight: number): number {
+  return Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, Math.round((boxHeight / LINE_HEIGHT) * 10) / 10));
+}
+
+// Returns a text zone: a text in the box that the user dragged. The size of the letters comes from the height of the box (see zoneFontSize), the text wraps to the width of the box
+// and the height of the zone then follows the lines (the caller measures it again).
 export function zoneElement(box: { x: number; y: number; w: number; h: number }, text: string, style: ToolStyle, id: string): TextElement {
   return {
     id,
@@ -132,7 +139,7 @@ export function zoneElement(box: { x: number; y: number; w: number; h: number },
     height: r2(box.h),
     text,
     font: style.font,
-    size: style.fontSize,
+    size: zoneFontSize(box.h),
     stroke: style.stroke,
     zone: true,
     ...(style.align === `left` ? {} : { align: style.align }),

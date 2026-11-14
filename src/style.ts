@@ -83,7 +83,7 @@ export function applyStyle(el: SketchElement, patch: StylePatch): SketchElement 
     void _l;
     next = (p.lineStyle === `solid` ? rest : { ...rest, lineStyle: p.lineStyle }) as typeof el;
   }
-  if (isShape(next) && next.label && (p.font !== undefined || p.fontSize !== undefined || p.align !== undefined)) {
+  if ((isShape(next) || next.type === `line` || next.type === `arrow`) && next.label && (p.font !== undefined || p.fontSize !== undefined || p.align !== undefined)) {
     // The font, the size and the alignment of the panel apply to the text written inside a shape.
     const { align: _a, ...label } = next.label;
     void _a;
@@ -193,7 +193,12 @@ export function styleOf(el: SketchElement): ToolStyle | null {
   const rounded = linear && el.rounded === true;
   const startHead: Head = el.type === `arrow` ? headOf(el, `start`) : `none`;
   const endHead: Head = el.type === `arrow` ? headOf(el, `end`) : `none`;
-  return { stroke: el.stroke, fill, fillStyle, fillOpacity, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0, rounded, startHead, endHead, font: isShape(el) && el.label ? el.label.font : DEFAULT_FONT, fontSize: isShape(el) && el.label ? el.label.size : TEXT_SIZES.medium, align: isShape(el) && el.label ? el.label.align ?? `center` : `left`, ...effectsOfElement(el), lineStyle: el.type === `freedraw` ? `solid` : el.lineStyle ?? `solid`, border: isShape(el) ? el.border ?? `simple` : `simple`, radius: el.type === `rect` ? el.radius ?? 0 : 0 };
+  return { stroke: el.stroke, fill, fillStyle, fillOpacity, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0, rounded, startHead, endHead, font: labelOf(el) ? labelOf(el)?.font ?? DEFAULT_FONT : DEFAULT_FONT, fontSize: labelOf(el)?.size ?? TEXT_SIZES.medium, align: labelOf(el) ? labelOf(el)?.align ?? `center` : `left`, ...effectsOfElement(el), lineStyle: el.type === `freedraw` ? `solid` : el.lineStyle ?? `solid`, border: isShape(el) ? el.border ?? `simple` : `simple`, radius: el.type === `rect` ? el.radius ?? 0 : 0 };
+}
+
+// Returns the text written in a shape or in the middle of a line, or undefined.
+function labelOf(el: SketchElement): { font: string; size: number; align?: TextAlign } | undefined {
+  return el.type === `rect` || el.type === `ellipse` || el.type === `diamond` || el.type === `line` || el.type === `arrow` ? el.label : undefined;
 }
 
 // Returns the effects an element has, as the panel shows them.

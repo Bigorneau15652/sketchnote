@@ -324,20 +324,31 @@
   box-sizing: border-box;
 }
 
-.sketchnote-text-editor {
+/* The theme of Obsidian gives a background, a border and a shadow to every text area: they are taken away here, and the rule is strong enough to win. */
+textarea.sketchnote-text-editor {
   position: fixed;
   z-index: var(--layer-popover, 100);
   margin: 0;
   padding: 0;
-  border: 1px dashed var(--interactive-accent);
-  border-radius: 0;
-  outline: none;
-  background: transparent;
-  box-shadow: none;
+  border: 1px dashed var(--interactive-accent) !important;
+  border-radius: 0 !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
   resize: none;
   overflow: hidden;
   white-space: pre;
   min-width: 1ch;
+}
+
+/* The text of a line: it has the colour of the page behind it, since the line is cut under the text. */
+textarea.sketchnote-text-editor.is-around {
+  box-sizing: content-box;
+}
+
+/* The text of a shape: only the cursor, no frame and no background. */
+textarea.sketchnote-text-editor.is-label {
+  border: none !important;
 }
 
 .sketchnote-text-editor.is-zone {

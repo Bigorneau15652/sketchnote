@@ -8,7 +8,7 @@ import { toHex6 } from "./page-background";
 import { CANVAS_HEIGHT, CANVAS_WIDTH, contentBox, createEmptyDrawing, guideBox, parseSketchdraw, serializeSketchdraw, SketchdrawDoc } from "./drawing-file";
 import { drawElements, PLAIN } from "./element-render";
 import { BORDER_KINDS, BorderKind, CORNER_RADII, SHADOW_KINDS, ShadowKind } from "./effects";
-import { Head, HEADS, Point, SketchElement, TextElement } from "./elements";
+import { ArrowElement, Head, HEADS, LineElement, Point, SketchElement, TextElement } from "./elements";
 import { fontStack } from "./fonts";
 import { openTextEditor } from "./text-editor";
 import { refitText, wrapLines } from "./text-layout";
@@ -19,8 +19,8 @@ import { panelKinds, PanelSection, sectionShown } from "./panel-kinds";
 import { PluginApi } from "./plugin-api";
 import { renderCanvas, RenderedPage } from "./page-render";
 import { applyStyleToIds, cleanPatch, defaultStyle, MAX_WIDTH, MIN_WIDTH, StylePatch, STROKE_WIDTHS, styleOf, TEXT_SIZES, ToolStyle } from "./style";
-import { CreationTool, textElement, zoneElement } from "./tools";
-import { labelBox, labelColor, LabeledShape } from "./labels";
+import { CreationTool, textElement, zoneElement, zoneFontSize } from "./tools";
+import { labelBox, labelColor, LabeledShape, pathMiddle } from "./labels";
 import { hitTop } from "./geometry";
 import { newId } from "./elements";
 import { VIEW_TYPE as PAGE_VIEW_TYPE } from "./view";
@@ -141,7 +141,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     return this.doc.elements
       .filter((e) => e.id !== this.editingText)
       .map((e) => {
-        if (e.id !== this.editingLabel || !(e.type === `rect` || e.type === `ellipse` || e.type === `diamond`)) return e;
+        if (e.id !== this.editingLabel || !(e.type === `rect` || e.type === `ellipse` || e.type === `diamond` || e.type === `line` || e.type === `arrow`)) return e;
         const { label: _l, ...rest } = e;
         void _l;
         return rest as SketchElement;
@@ -167,6 +167,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   protected onActivate(el: SketchElement): void {
     if (el.type === `text`) this.editText(el, [el.x, el.y]);
     else if (el.type === `rect` || el.type === `ellipse` || el.type === `diamond`) this.editLabel(el);
+    else if (el.type === `line` || el.type === `arrow`) this.editLineLabel(el);
   }
 
   // Opens the writing of a text over the surface: a new one at a point (or in a zone that was dragged), or the text of an element, which is hidden while it is written. The writing
@@ -176,7 +177,8 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.finishEditor?.();
     const style = this.currentStyle();
     const font = el ? el.font : style.font;
-    const size = el ? el.size : style.fontSize;
+    // The height of a box that was dragged gives the size of the letters: one line fills it.
+    const size = el ? el.size : dragged ? zoneFontSize(dragged.h) : style.fontSize;
     const color = el ? el.stroke : style.stroke;
     const align = el ? el.align ?? `left` : style.align;
     // A text zone is written in its own box; any other text starts at the point (the click is in the middle of the first line).
@@ -198,7 +200,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       align,
       initial: el ? el.text : ``,
       measure: (line) => this.api.fonts.measure(line, font, size),
-      zone: zoneBox ? { width: zoneBox.w, height: zoneBox.h, centered: false, lineCount: (text) => wrapLines(text, zoneBox.w, (line) => this.api.fonts.measure(line, font, size)).length } : undefined,
+      zone: zoneBox ? { width: zoneBox.w, height: zoneBox.h, centered: false, autoHeight: true, lineCount: (text) => wrapLines(text, zoneBox.w, (line) => this.api.fonts.measure(line, font, size)).length } : undefined,
       onDone: (text) => this.endText(el, [x, y], text, style, dragged),
     });
   }
@@ -216,7 +218,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       } else if (clean !== el.text) this.commitElements(this.doc.elements.map((e) => (e.id === el.id ? refitText({ ...el, text: clean }, measure) : e)));
       else this.renderContent();
     } else if (clean !== ``) {
-      const made = dragged ? zoneElement(dragged, clean, style, newId(this.doc.elements)) : textElement(at, clean, style, newId(this.doc.elements), measure);
+      const made = dragged ? refitText(zoneElement(dragged, clean, style, newId(this.doc.elements)), measure) : textElement(at, clean, style, newId(this.doc.elements), measure);
       this.commitElements([...this.doc.elements, made]);
       this.selected = new Set([made.id]);
       if (!this.toolLocked) this.tool = `select`;
@@ -257,13 +259,44 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     });
   }
 
+  // Opens the writing of the text in the middle of a line or an arrow: the text area is centred on the middle of the line and takes the colour of the drawing, so that the line
+  // seems cut under it. The text of the line is hidden while it is written.
+  private editLineLabel(line: LineElement | ArrowElement): void {
+    if (!this.svg) return;
+    this.finishEditor?.();
+    const base = this.style ?? this.currentStyle();
+    const label = line.label;
+    const font = label ? label.font : base.font;
+    const size = label ? label.size : base.fontSize;
+    const align = label ? label.align ?? `center` : `center`;
+    const { point } = pathMiddle(line);
+    const origin = this.svg.getBoundingClientRect();
+    this.editingLabel = line.id;
+    this.selected = new Set([line.id]);
+    this.renderContent();
+    this.renderUi();
+    this.finishEditor = openTextEditor(this.contentEl.ownerDocument, {
+      left: origin.left + point[0] * this.zoom,
+      top: origin.top + point[1] * this.zoom,
+      zoom: this.zoom,
+      font: fontStack(font),
+      size,
+      color: line.stroke,
+      align,
+      initial: label ? label.text : ``,
+      measure: (l) => this.api.fonts.measure(l, font, size),
+      around: { background: brightness(this.doc.ink) > 0.5 ? `#2a3631` : `#ffffff` },
+      onDone: (text) => this.endLabel(line.id, text, font, size),
+    });
+  }
+
   // Keeps the result of the writing of the text inside a shape.
   private endLabel(id: string, text: string, font: string, size: number): void {
     this.finishEditor = null;
     this.editingLabel = null;
     const clean = text.replace(/\s+$/, ``);
     const current = this.doc.elements.find((e) => e.id === id);
-    if (current && (current.type === `rect` || current.type === `ellipse` || current.type === `diamond`)) {
+    if (current && (current.type === `rect` || current.type === `ellipse` || current.type === `diamond` || current.type === `line` || current.type === `arrow`)) {
       const old = current.label;
       if (clean === `` && old) {
         const { label: _l, ...rest } = current;

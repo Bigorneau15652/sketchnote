@@ -22,8 +22,11 @@ export function layoutText(text: string, size: number, measure: (line: string) =
 
 // Returns a text with the size of its box measured again (after a change of its text, its font or its size). Its top left corner stays where it is.
 export function refitText(el: TextElement, measure: (line: string, font: string, size: number) => number): TextElement {
-  // A text zone keeps the size that the user gave it: only its lines wrap again.
-  if (el.zone === true) return el;
+  // A text zone keeps its width: the text wraps to it, and the height of the zone follows the lines (it grows when the text wraps to one more line).
+  if (el.zone === true) {
+    const rows = wrapLines(el.text, el.width, (line) => measure(line, el.font, el.size)).length;
+    return { ...el, height: Math.round(Math.max(1, rows) * el.size * LINE_HEIGHT * 100) / 100 };
+  }
   const box = layoutText(el.text, el.size, (line) => measure(line, el.font, el.size));
   return { ...el, width: box.width, height: box.height };
 }
