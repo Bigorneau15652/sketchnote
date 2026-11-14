@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.2
+
+English
+
+The colour wheel is a single disc: the separate outer ring of pure hues is gone. The hue is shown by a small triangle that turns around the edge of the disc and points to the centre; a press on the colours sets the hue and the saturation, a press in the margin where the triangle turns sets the hue only. Versions 0.10.1 and 0.10.2 were published together. Files of the previous versions open without change.
+
+Français
+
+Le cercle chromatique est un disque unique : l'anneau extérieur séparé des teintes pures a disparu. La teinte est montrée par un petit triangle qui tourne autour du bord du disque et pointe vers le centre ; un appui sur les couleurs règle la teinte et la saturation, un appui dans la marge où tourne le triangle règle la teinte seule. Les versions 0.10.1 et 0.10.2 ont été publiées ensemble. Les fichiers des versions précédentes s'ouvrent sans changement.
+
 ## 0.10.1
 
 English
