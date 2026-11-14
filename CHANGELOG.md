@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.0
+
+English
+
+The colour swatches work in a new way. The rectangle next to the swatches is gone, and so are the three buttons under Fill. The stroke and the fill each have five round swatches. A click on a swatch chooses it; a double click opens the colour window to change that swatch (the colour then replaces the swatch and is applied to the selection). For the fill, the window also has four buttons for the pattern (solid, hatching, dots, grid) and a button for no colour: a swatch keeps its colour together with its pattern, shows the pattern on its colour, and a swatch that is given no colour turns white crossed by a red line (a click on it removes the fill). A new drawing starts with a red, a blue, a green, a black and a no colour swatch for the fill; the stroke starts from the palette of the page, completed to five colours when it has fewer. The swatches are kept in the drawing and are not undone by Ctrl+Z. The fill is opaque by default again (the transparency slider stays). The fill patterns dots and grid are new (they are drawn like the hatching, in the colour of the fill). Files of the previous versions open without change.
+
+Français
+
+Les pastilles de couleur fonctionnent d'une nouvelle façon. Le rectangle à côté des pastilles a disparu, ainsi que les trois boutons sous Remplissage. Le trait et le remplissage ont chacun cinq pastilles rondes. Un clic sur une pastille la choisit ; un double clic ouvre la fenêtre de couleur pour changer cette pastille (la couleur remplace alors la pastille et s'applique à la sélection). Pour le remplissage, la fenêtre a aussi quatre boutons de motif (plein, hachures, points, quadrillage) et un bouton sans couleur : une pastille garde sa couleur avec son motif, montre le motif sur sa couleur, et une pastille à laquelle on retire la couleur devient blanche barrée d'un trait rouge (un clic dessus retire le remplissage). Un nouveau dessin commence avec une pastille rouge, une bleue, une verte, une noire et une sans couleur pour le remplissage ; le trait part de la palette de la page, complétée à cinq couleurs quand elle en a moins. Les pastilles sont gardées dans le dessin et ne sont pas défaites par Ctrl+Z. Le remplissage est de nouveau opaque par défaut (la réglette de transparence reste). Les motifs de remplissage points et quadrillage sont nouveaux (ils se dessinent comme les hachures, dans la couleur du remplissage). Les fichiers des versions précédentes s'ouvrent sans changement.
+
 ## 0.11.2
 
 English

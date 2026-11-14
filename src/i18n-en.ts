@@ -1,6 +1,10 @@
 // English translations: the French text is the key. Every text passed to t() in the code must be listed here (a test checks it).
 // Variable values are written {0}, {1}... as in the French text.
 const PAIRS: [string, string][] = [
+  [`double clic pour changer`, `double click to change`],
+  [`Hachures`, `Hatching`],
+  [`Sans couleur`, `No colour`],
+  [`Couleur du remplissage`, `Fill colour`],
   [`Type de trait`, `Line type`],
   [`Trait continu`, `Continuous line`],
   [`Tirets`, `Dashes`],
@@ -164,9 +168,7 @@ const PAIRS: [string, string][] = [
   [`Ajuster à la fenêtre`, `Fit to the window`],
   [`Confirmer`, `Confirm`],
   [`Couleur du trait`, `Stroke colour`],
-  [`Aucun remplissage`, `No fill`],
   [`Remplissage uni`, `Solid fill`],
-  [`Remplissage hachuré`, `Hatched fill`],
   [`Trait fin`, `Thin stroke`],
   [`Trait moyen`, `Medium stroke`],
   [`Trait épais`, `Thick stroke`],

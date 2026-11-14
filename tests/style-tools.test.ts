@@ -9,7 +9,7 @@ const none = { shift: false, alt: false };
 const rect: SketchElement = { id: `r`, type: `rect`, x: 0, y: 0, width: 10, height: 10, stroke: `#000000`, strokeWidth: 3 };
 
 test(`le style par defaut est un trait fin noir a main levee sans remplissage`, () => {
-  assert.deepEqual(style, { stroke: `#000000`, fill: null, fillStyle: `solid`, fillOpacity: 0.5, strokeWidth: STROKE_WIDTHS.thin, roughness: 1, rounded: false, startHead: `none`, endHead: `arrow`, font: `caveat`, fontSize: 32, align: `left`, opacity: 1, shadow: `none`, reflection: false, lineStyle: `solid`, border: `simple`, radius: 0 });
+  assert.deepEqual(style, { stroke: `#000000`, fill: null, fillStyle: `solid`, fillOpacity: 1, strokeWidth: STROKE_WIDTHS.thin, roughness: 1, rounded: false, startHead: `none`, endHead: `arrow`, font: `caveat`, fontSize: 32, align: `left`, opacity: 1, shadow: `none`, reflection: false, lineStyle: `solid`, border: `simple`, radius: 0 });
   assert.equal(defaultStyle(`#ffffff`).stroke, `#ffffff`);
   assert.equal(defaultStyle(`red`).stroke, `#000000`);
 });
@@ -200,20 +200,12 @@ test(`une ligne ou une fleche creee prend les bords et les pointes du style`, ()
   assert.equal(`rounded` in plain || `startHead` in plain || `endHead` in plain, false, `the defaults are not written`);
 });
 
-test(`un remplissage neuf est a moitie transparent et un remplissage existant garde son opacite`, () => {
-  const filled = applyStyle(rect, { fill: `#00ff00` }) as { fill?: string; fillOpacity?: number };
-  assert.equal(filled.fillOpacity, 0.5);
-  // Changing the colour of a fill keeps its opacity, whatever it is.
-  const red = applyStyle(filled as SketchElement, { fill: `#ff0000` }) as { fill?: string; fillOpacity?: number };
-  assert.deepEqual([red.fill, red.fillOpacity], [`#ff0000`, 0.5]);
-  const opaque = applyStyle(filled as SketchElement, { fillOpacity: 1 });
-  assert.equal(`fillOpacity` in opaque, false);
-  const blue = applyStyle(opaque, { fill: `#0000ff` }) as { fillOpacity?: number };
-  assert.equal(blue.fillOpacity, undefined);
-  // The patch can give its own opacity.
-  assert.equal((applyStyle(rect, { fill: `#00ff00`, fillOpacity: 0.8 }) as { fillOpacity?: number }).fillOpacity, 0.8);
-  // A new shape drawn with a fill takes it; the point tool keeps its opaque disc.
-  const made = elementFromDrag(`rect`, [0, 0], [50, 50], { shift: false, alt: false }, { ...defaultStyle(`#000000`), fill: `#ff0000` }, `n1`, 3) as { fillOpacity?: number };
-  assert.equal(made.fillOpacity, 0.5);
-  assert.equal((pointElement([5, 5], { ...defaultStyle(`#000000`), fill: `#ff0000` }, `p1`, 3) as { fillOpacity?: number }).fillOpacity, undefined);
+test(`les motifs de remplissage sont quatre et un motif inconnu est refuse`, () => {
+  for (const fillStyle of [`solid`, `hachure`, `dots`, `grid`] as const) assert.deepEqual(cleanPatch({ fillStyle }), { fillStyle });
+  assert.deepEqual(cleanPatch({ fillStyle: `wavy` as never }), {});
+  const filled = applyStyle(rect, { fill: `#00ff00`, fillStyle: `dots` }) as { fill?: string; fillStyle?: string; fillOpacity?: number };
+  assert.deepEqual([filled.fill, filled.fillStyle, filled.fillOpacity], [`#00ff00`, `dots`, undefined]);
+  // A new colour with another pattern replaces the pattern of the fill.
+  const grid = applyStyle(filled as SketchElement, { fill: `#0000ff`, fillStyle: `grid` }) as { fillStyle?: string };
+  assert.equal(grid.fillStyle, `grid`);
 });

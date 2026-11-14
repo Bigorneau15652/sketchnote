@@ -1,5 +1,5 @@
 // The look of the lines and fills that the user chooses, and how a choice is applied to elements. Pure module.
-import { FillStyle, Head, HEADS, headOf, isFontId, isShape, isStroked, LineStyle, MAX_FONT_SIZE, MIN_FILL_OPACITY, MIN_FONT_SIZE, SketchElement, TEXT_ALIGNS, TextAlign } from "./elements";
+import { FILL_STYLES, FillStyle, Head, HEADS, headOf, isFontId, isShape, isStroked, LineStyle, MAX_FONT_SIZE, MIN_FILL_OPACITY, MIN_FONT_SIZE, SketchElement, TEXT_ALIGNS, TextAlign } from "./elements";
 import { DEFAULT_FONT } from "./fonts";
 import { BORDER_KINDS, BorderKind, cleanOpacity, CORNER_RADII, kindOfShadow, SHADOW_KINDS, shadowOf, ShadowKind } from "./effects";
 import { isSafeColor } from "./color";
@@ -35,8 +35,6 @@ export type StylePatch = Partial<ToolStyle>;
 
 // Widths proposed by the buttons: thin, medium and thick.
 export const STROKE_WIDTHS = { thin: 3, medium: 5, thick: 9 };
-// A new fill is half transparent: the shapes behind it show through, and the user can make it opaque with the slider.
-export const DEFAULT_FILL_OPACITY = 0.5;
 export const MIN_WIDTH = 1;
 export const MAX_WIDTH = 24;
 // Sizes of text proposed by the buttons: small, medium, large and very large.
@@ -47,7 +45,7 @@ const PLAIN_EFFECTS = { opacity: 1, shadow: `none` as ShadowKind, reflection: fa
 
 // Returns the style of a new drawing: a thin hand drawn line in the ink colour of the page, with no fill.
 export function defaultStyle(ink: string): ToolStyle {
-  return { stroke: isSafeColor(ink) ? ink : `#000000`, fill: null, fillStyle: `solid`, fillOpacity: DEFAULT_FILL_OPACITY, strokeWidth: STROKE_WIDTHS.thin, roughness: 1, rounded: false, startHead: `none`, endHead: `arrow`, font: DEFAULT_FONT, fontSize: TEXT_SIZES.medium, align: `left`, ...PLAIN_EFFECTS };
+  return { stroke: isSafeColor(ink) ? ink : `#000000`, fill: null, fillStyle: `solid`, fillOpacity: 1, strokeWidth: STROKE_WIDTHS.thin, roughness: 1, rounded: false, startHead: `none`, endHead: `arrow`, font: DEFAULT_FONT, fontSize: TEXT_SIZES.medium, align: `left`, ...PLAIN_EFFECTS };
 }
 
 // Returns a style patch with every value checked: unknown or invalid values are dropped.
@@ -55,7 +53,7 @@ export function cleanPatch(patch: StylePatch): StylePatch {
   const out: StylePatch = {};
   if (patch.stroke !== undefined && isSafeColor(patch.stroke)) out.stroke = patch.stroke;
   if (patch.fill !== undefined && (patch.fill === null || isSafeColor(patch.fill))) out.fill = patch.fill;
-  if (patch.fillStyle === `solid` || patch.fillStyle === `hachure`) out.fillStyle = patch.fillStyle;
+  if (patch.fillStyle !== undefined && FILL_STYLES.includes(patch.fillStyle)) out.fillStyle = patch.fillStyle;
   if (typeof patch.fillOpacity === `number` && Number.isFinite(patch.fillOpacity)) out.fillOpacity = Math.min(1, Math.max(MIN_FILL_OPACITY, Math.round(patch.fillOpacity * 100) / 100));
   if (typeof patch.strokeWidth === `number` && Number.isFinite(patch.strokeWidth)) out.strokeWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, patch.strokeWidth));
   if (typeof patch.roughness === `number` && Number.isFinite(patch.roughness)) out.roughness = patch.roughness <= 0 ? 0 : 1;
@@ -120,9 +118,7 @@ export function applyStyle(el: SketchElement, patch: StylePatch): SketchElement 
       void _f;
       next = rest as typeof el;
     } else if (p.fill !== undefined) {
-      // A fill put on a shape that had none is half transparent, unless the patch gives its own opacity.
-      const first = next.fill === undefined && p.fillOpacity === undefined && next.fillOpacity === undefined;
-      next = { ...next, fill: p.fill, fillStyle: next.fillStyle ?? p.fillStyle ?? `solid`, ...(first ? { fillOpacity: DEFAULT_FILL_OPACITY } : {}) } as typeof el;
+      next = { ...next, fill: p.fill, fillStyle: next.fillStyle ?? p.fillStyle ?? `solid` } as typeof el;
     }
     if (p.fillStyle !== undefined && isShape(next) && next.fill !== undefined) next = { ...next, fillStyle: p.fillStyle } as typeof el;
     if (p.fillOpacity !== undefined && isShape(next)) {

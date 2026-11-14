@@ -228,18 +228,9 @@
   border: 2px solid var(--background-modifier-border);
 }
 
-/* The small rectangle that shows the colour in use and opens the colour window. */
-.sketchdraw-swatch.sketchdraw-swatch-custom {
-  flex: 0 1 38px;
-  min-width: 22px;
-  aspect-ratio: auto;
-  height: 26px;
-  border-radius: 5px;
-  border: 2px solid var(--text-muted);
-}
-
-.sketchdraw-swatch.sketchdraw-swatch-custom.is-empty {
-  background: linear-gradient(to top right, transparent 44%, var(--text-muted) 44%, var(--text-muted) 56%, transparent 56%), var(--background-primary);
+/* A swatch that has no colour is white crossed by a red line (its background is written by the code, with the patterns of the fills). */
+.sketchdraw-swatch.is-empty {
+  border-color: var(--text-muted);
 }
 
 .sketchdraw-swatch.is-active {
@@ -481,4 +472,13 @@
 .sketchnote-color-new {
   width: 24px;
   height: 28px;
+}
+
+.sketchnote-color-patterns {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.sketchnote-color-patterns .sketchdraw-chip {
+  flex: 0 0 auto;
 }

@@ -20,7 +20,7 @@ test(`un losange, un trait libre et un cadre de dessin valides sont lus`, () => 
 
 test(`les champs de style invalides refusent l'element`, () => {
   const rect = (extra: Record<string, unknown>): unknown[] => [{ id: `r`, type: `rect`, x: 0, y: 0, width: 5, height: 5, ...base, ...extra }];
-  for (const bad of [{ roughness: -1 }, { roughness: 9 }, { roughness: `1` }, { seed: 0 }, { seed: 1.5 }, { seed: 3e9 }, { fill: `red` }, { fill: `url(x)` }, { fillStyle: `dots` }]) {
+  for (const bad of [{ roughness: -1 }, { roughness: 9 }, { roughness: `1` }, { seed: 0 }, { seed: 1.5 }, { seed: 3e9 }, { fill: `red` }, { fill: `url(x)` }, { fillStyle: `wavy` }]) {
     assert.equal(readElements(rect(bad)).ok, false, JSON.stringify(bad));
   }
   assert.equal(readElements(rect({ roughness: 2, seed: 77, fill: `#abc`, fillStyle: `solid` })).ok, true);

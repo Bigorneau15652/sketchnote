@@ -5,6 +5,8 @@ import { App, Modal, setIcon, Setting } from "obsidian";
 import { t } from "./i18n";
 import { Hsl, hexToHsl, hslToHex, hslToRgb, hsToWheel, luminanceToSlider, normalizeHex, sliderToLuminance, wheelToHs } from "./hsl";
 import { toHex6 } from "./page-background";
+import { FILL_STYLES, FillStyle } from "./elements";
+import { swatchBackground } from "./swatches";
 
 // Size of the wheel in pixels, and the part of its radius that the colours fill: the margin around is where the triangle of the hue turns.
 const SIZE = 240;
@@ -15,10 +17,28 @@ const DISC = 0.88;
 type EyeDropperCtor = new () => { open(): Promise<{ sRGBHex: string }> };
 const eyeDropper = (): EyeDropperCtor | undefined => (window as unknown as { EyeDropper?: EyeDropperCtor }).EyeDropper;
 
+// What the window gives back: the colour (null for no colour) and the pattern of a fill.
+export interface ColorChoice {
+  color: string | null;
+  style: FillStyle;
+}
+
+// What the window offers besides the colour: the patterns of a fill (solid, hatching, dots, grid) and a button for no colour, and the choice it starts from.
+export interface ColorOptions {
+  fill?: boolean;
+  style?: FillStyle;
+  none?: boolean;
+}
+
 export class ColorModal extends Modal {
   private hsl: Hsl;
   private readonly initial: string;
-  private readonly onPick: (hex: string) => void;
+  private readonly onPick: (choice: ColorChoice) => void;
+  private readonly options: ColorOptions;
+  private style: FillStyle;
+  private none: boolean;
+  private patternButtons: { style: FillStyle; el: HTMLElement }[] = [];
+  private noneButton: HTMLElement | null = null;
   private wheel: HTMLCanvasElement | null = null;
   private handle: HTMLElement | null = null;
   private tick: HTMLElement | null = null;
@@ -28,12 +48,15 @@ export class ColorModal extends Modal {
   private readonly numbers: { hue: HTMLInputElement | null; sat: HTMLInputElement | null; lum: HTMLInputElement | null } = { hue: null, sat: null, lum: null };
   private drawnLuminance = -1;
 
-  // Creates the window with the colour to start from and the function called with the chosen colour (#rrggbb) when the check mark is used.
-  constructor(app: App, initial: string, onPick: (hex: string) => void) {
+  // Creates the window with the colour to start from, the function called with the choice when the check mark is used, and what the window offers besides the colour.
+  constructor(app: App, initial: string, onPick: (choice: ColorChoice) => void, options: ColorOptions = {}) {
     super(app);
     this.initial = toHex6(initial);
     this.hsl = hexToHsl(this.initial);
     this.onPick = onPick;
+    this.options = options;
+    this.style = options.style ?? `solid`;
+    this.none = options.none === true;
   }
 
   // Draws the window.
@@ -82,6 +105,8 @@ export class ColorModal extends Modal {
     this.fresh = preview.createDiv({ cls: `sketchnote-color-new` });
     this.fresh.setAttribute(`title`, t(`Nouvelle couleur`));
 
+    if (this.options.fill) this.buildFillRow(el);
+
     new Setting(el)
       .addButton((b) => b.setIcon(`x`).setTooltip(t(`Annuler`)).onClick(() => this.close()))
       .addButton((b) =>
@@ -90,12 +115,39 @@ export class ColorModal extends Modal {
           .setTooltip(t(`Confirmer`))
           .setCta()
           .onClick(() => {
-            const hexValue = hslToHex(this.hsl);
+            const choice: ColorChoice = { color: this.none ? null : hslToHex(this.hsl), style: this.style };
             this.close();
-            this.onPick(hexValue);
+            this.onPick(choice);
           }),
       );
     this.refresh();
+  }
+
+  // Adds the row of the fill: the four patterns and the button that takes the colour away.
+  private buildFillRow(parent: HTMLElement): void {
+    const row = parent.createDiv({ cls: `sketchnote-color-row sketchnote-color-patterns` });
+    const names: Record<FillStyle, string> = { solid: t(`Remplissage uni`), hachure: t(`Hachures`), dots: t(`Points`), grid: t(`Quadrillage`) };
+    for (const style of FILL_STYLES) {
+      const b = row.createEl(`button`, { cls: `sketchdraw-chip` });
+      setIcon(b, `sketchnote-fill-${style}`);
+      b.setAttribute(`aria-label`, names[style]);
+      b.setAttribute(`title`, names[style]);
+      b.addEventListener(`click`, () => {
+        this.style = style;
+        this.none = false;
+        this.refresh();
+      });
+      this.patternButtons.push({ style, el: b });
+    }
+    const none = row.createEl(`button`, { cls: `sketchdraw-chip sketchnote-color-none` });
+    setIcon(none, `ban`);
+    none.setAttribute(`aria-label`, t(`Sans couleur`));
+    none.setAttribute(`title`, t(`Sans couleur`));
+    none.addEventListener(`click`, () => {
+      this.none = true;
+      this.refresh();
+    });
+    this.noneButton = none;
   }
 
   // Empties the window when it closes.
@@ -169,6 +221,7 @@ export class ColorModal extends Modal {
 
   // Takes a new colour and shows it everywhere. `updateHex` is false while the user types in the hexadecimal field, so that the field is not rewritten under the cursor.
   private set(hsl: Hsl, updateHex = true): void {
+    this.none = false;
     this.hsl = { h: ((hsl.h % 360) + 360) % 360, s: Math.min(100, Math.max(0, hsl.s)), l: Math.min(100, Math.max(0, hsl.l)) };
     this.refresh(updateHex);
   }
@@ -208,7 +261,9 @@ export class ColorModal extends Modal {
       this.hex.value = hex;
       this.hex.removeClass(`mod-error`);
     }
-    if (this.fresh) this.fresh.style.background = hex;
+    if (this.fresh) this.fresh.style.background = this.options.fill ? swatchBackground(this.none ? null : { color: hex, style: this.style }) : hex;
+    for (const b of this.patternButtons) b.el.toggleClass(`is-active`, !this.none && b.style === this.style);
+    this.noneButton?.toggleClass(`is-active`, this.none);
   }
 
   // Draws the colour wheel at a luminance: the hue (angle) and the saturation (distance) at that luminance.
@@ -249,24 +304,11 @@ export function addColorSwatch(parent: HTMLElement, app: App, value: string, lab
   };
   show(value);
   el.addEventListener(`click`, () =>
-    new ColorModal(app, current, (hex) => {
-      show(hex);
-      onPick(hex);
+    new ColorModal(app, current, (choice) => {
+      if (choice.color === null) return;
+      show(choice.color);
+      onPick(choice.color);
     }).open(),
   );
   return { el, show };
-}
-
-// Adds a small rectangle at the end of a row of round colour swatches. It shows the colour in use (a crossed rectangle when there is none) and opens the colour window when it
-// is used, so that the colours in the row and the one in use sit on the same line.
-export function addCustomPastille(parent: HTMLElement, app: App, label: string, startColor: () => string, onPick: (hex: string) => void): { el: HTMLButtonElement; sync: (color: string | null) => void } {
-  const el = parent.createEl(`button`, { cls: `sketchdraw-swatch sketchdraw-swatch-custom` });
-  el.setAttribute(`aria-label`, label);
-  el.setAttribute(`title`, label);
-  el.addEventListener(`click`, () => new ColorModal(app, startColor(), onPick).open());
-  const sync = (color: string | null): void => {
-    el.toggleClass(`is-empty`, color === null);
-    el.style.background = color === null ? `` : toHex6(color);
-  };
-  return { el, sync };
 }

@@ -154,6 +154,12 @@ export abstract class CanvasView<D> extends TextFileView {
   // Called after the elements of the document changed, so that a subclass can follow (for example to load drawings).
   protected onElementsChanged(): void {}
 
+  // Gives the document that an undo or a redo brings back. By default it is the one of the history; a view that keeps settings in its document outside of the history (the
+  // swatches of a drawing) keeps them from the current document.
+  protected restoreFrom(restored: D, _current: D): D {
+    return restored;
+  }
+
   // Called after a file was read and drawn. By default it does what a change of the elements does.
   protected onLoaded(): void {
     this.onElementsChanged();
@@ -456,7 +462,7 @@ export abstract class CanvasView<D> extends TextFileView {
     this.cancelGesture();
     const previous = this.history.undo(this.doc);
     if (!previous) return;
-    this.doc = previous;
+    this.doc = this.restoreFrom(previous, this.doc);
     this.afterChange(true);
   }
 
@@ -465,7 +471,7 @@ export abstract class CanvasView<D> extends TextFileView {
     this.cancelGesture();
     const next = this.history.redo(this.doc);
     if (!next) return;
-    this.doc = next;
+    this.doc = this.restoreFrom(next, this.doc);
     this.afterChange(true);
   }
 
