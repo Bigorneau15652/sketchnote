@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.1
+
+English
+
+Corrections of the properties panel. The sections that do not concern the selection are now really hidden: a rule of the style sheet showed them again, so a rectangle still showed the arrow heads, the edges and the font. The title of each section now carries a word (Fill, Width, Border, Heads...) next to its pictogram. The large coloured rectangle of the stroke and of the fill is gone: a small rectangular multicolour pastille at the end of each row of colours opens the colour window. When the colour in use was chosen in that window (it is not one of the palette), the pastille shows it inside its multicolour edge and is marked as active. A test now guards the rule that hides the sections. Files of the previous versions open without change.
+
+Français
+
+Corrections du panneau des propriétés. Les sections qui ne concernent pas la sélection sont maintenant vraiment masquées : une règle de la feuille de style les réaffichait, si bien qu'un rectangle montrait encore les pointes de flèche, les bords et la police. Le titre de chaque section porte maintenant un mot (Remplissage, Épaisseur, Bordure, Pointes...) à côté de son pictogramme. Le grand rectangle de couleur du trait et du remplissage a disparu : une petite pastille rectangulaire multicolore, au bout de chaque rangée de couleurs, ouvre la fenêtre de couleur. Quand la couleur utilisée a été choisie dans cette fenêtre (elle n'est pas dans la palette), la pastille l'affiche dans son bord multicolore et est marquée comme active. Un test garde désormais la règle qui masque les sections. Les fichiers des versions précédentes s'ouvrent sans changement.
+
 ## 0.11.0
 
 English
