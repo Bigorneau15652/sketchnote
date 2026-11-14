@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.17.0
+
+English
+
+The pen gets a working setting, and a closed stroke can be filled. The slider of the pen (the one called imperfection, which did nothing on a freehand stroke) is replaced by a slider of the regularity of the stroke, from 0 (the stroke as drawn) to 5: the more it is, the smoother the stroke is, and it is pulled onto the clean shape it was meant to be (a straight line, which is exactly horizontal or vertical when it nearly is, a circle, an ellipse, a square, a rectangle, even a tilted one, or a triangle). At the maximum the stroke is exactly that shape, with a constant width. A stroke that is no shape (a scribble, a curve) is only smoothed. The slider works before drawing (the next strokes take it, and it is the only choice made before drawing that is kept) and on the selected strokes, and 0 gives the stroke back as it was drawn. A stroke that comes back to its start (the gap between its ends is small) is a closed stroke: when it is selected, the Fill section appears (colours, hatching, dots and grid, transparency) and so do the effects, as for a square or a circle, and the inside of a filled stroke selects it with a click. An open stroke has no fill. Files of the previous versions open without change (a stroke without regularity is drawn as before).
+
+Français
+
+Le crayon a enfin un réglage qui fonctionne, et un tracé fermé peut être rempli. La réglette du crayon (celle de l'imperfection, qui ne faisait rien sur un tracé libre) est remplacée par une réglette de régularité du tracé, de 0 (le tracé tel qu'il a été fait) à 5 : plus elle est haute, plus le tracé est lissé, et il est ramené à la forme parfaite qu'il voulait être (une droite, exactement horizontale ou verticale quand elle l'est presque, un cercle, une ellipse, un carré, un rectangle, même penché, ou un triangle). Au maximum, le tracé est exactement cette forme, d'une épaisseur constante. Un tracé qui n'est aucune forme (un gribouillis, une courbe) est seulement lissé. La réglette agit avant de dessiner (les prochains tracés la prennent, et c'est le seul choix fait avant de dessiner qui est conservé) et sur les tracés sélectionnés, et 0 rend le tracé tel qu'il avait été fait. Un tracé qui revient à son départ (l'écart entre ses bouts est petit) est un tracé fermé : quand il est sélectionné, la section Remplissage apparaît (couleurs, hachures, points et quadrillage, transparence) et les effets aussi, comme pour un carré ou un rond, et un clic à l'intérieur d'un tracé rempli le sélectionne. Un tracé ouvert n'a pas de remplissage. Les fichiers des versions précédentes s'ouvrent sans changement (un tracé sans régularité est dessiné comme avant).
+
 ## 0.16.0
 
 English

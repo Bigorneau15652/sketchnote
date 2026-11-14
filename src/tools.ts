@@ -139,7 +139,7 @@ export function penElement(points: Point[], style: ToolStyle, id: string, seed: 
   const pts: Point[] = points.length === 1 ? [points[0], [r2(points[0][0] + 0.1), r2(points[0][1])]] : points.slice(0, maxPoints);
   const { lineStyle: _l, ...rest } = look(style, seed);
   void _l;
-  return { id, type: `freedraw`, points: pts, ...rest };
+  return { id, type: `freedraw`, points: pts, ...rest, ...(style.regularity > 0 ? { regularity: style.regularity } : {}) };
 }
 
 // Returns a text whose top left corner is at a point, in the font, the size, the alignment and the colour of the style. `measure` gives the width of a line of text.

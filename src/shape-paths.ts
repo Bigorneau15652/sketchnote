@@ -5,6 +5,7 @@ import { RoughGenerator } from "roughjs/bin/generator";
 import { drawnPoints } from "./curves";
 import { ArrowElement, Border, DiamondElement, EllipseElement, headOf, LineElement, LineStyle, Point, RectElement, StrokedElement, TriangleElement } from "./elements";
 import { arrowHeadShapes, HeadShape } from "./linear";
+import { isClosedStroke, tidyStroke } from "./tidy";
 
 // One path to draw: its data, its line colour and width and its fill colour (`none` for no fill).
 export interface PathPiece {
@@ -257,9 +258,18 @@ function compute(el: StrokedElement): ElementPaths {
   if (el.type === `ellipse`) return { pieces: shapePieces(el, opts), transform: turn(el.angle, el.cx, el.cy) };
   if (el.type === `diamond` || el.type === `triangle`) return { pieces: shapePieces(el, opts), transform: turn(el.angle, el.x + el.width / 2, el.y + el.height / 2) };
   if (el.type === `freedraw`) {
-    const outline = getStroke(el.points, { size: el.strokeWidth * 1.6, thinning: 0.5, smoothing: 0.5, streamline: 0.5 });
+    // The stroke as tidied by its regularity (as drawn when it is 0). A stroke that comes back to its start can have a fill, drawn under the line.
+    const pts = tidyStroke(el.points, el.regularity ?? 0, el.strokeWidth);
+    const pieces: PathPiece[] = [];
+    if (el.fill !== undefined && isClosedStroke(el.points, el.strokeWidth) && pts.length >= 3) {
+      const poly = resample(pts, 4);
+      pieces.push(...piecesOf(generator.polygon(poly, { ...opts, strokeWidth: 0.01, disableMultiStroke: true }), el.fillOpacity, `solid`).filter((p) => p.outline !== true));
+    }
+    const closedLook = (el.regularity ?? 0) >= 5;
+    const outline = getStroke(pts, { size: el.strokeWidth * 1.6, thinning: closedLook ? 0 : 0.5, smoothing: 0.5, streamline: closedLook ? 0 : 0.5 });
     const d = pathFromOutline(outline);
-    return { pieces: SAFE_PATH.test(d) && d !== `` ? [{ d, stroke: `none`, strokeWidth: 0, fill: el.stroke, opacity: 1 }] : [], transform: null };
+    if (SAFE_PATH.test(d) && d !== ``) pieces.push({ d, stroke: `none`, strokeWidth: 0, fill: el.stroke, opacity: 1 });
+    return { pieces, transform: null };
   }
   // A line or an arrow: straight segments, or a smooth curve through the points when the edges are rounded.
   const drawable = el.rounded === true && el.points.length >= 3 ? generator.curve(el.points, opts) : generator.linearPath(el.points, opts);

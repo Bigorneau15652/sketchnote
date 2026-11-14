@@ -1,8 +1,9 @@
 // The look of the lines and fills that the user chooses, and how a choice is applied to elements. Pure module.
-import { FILL_STYLES, FillStyle, MAX_ROUGHNESS, Head, HEADS, headOf, isFontId, isShape, isStroked, LineStyle, MAX_FONT_SIZE, MIN_FILL_OPACITY, MIN_FONT_SIZE, SketchElement, TEXT_ALIGNS, TextAlign } from "./elements";
+import { canFill, FILL_STYLES, FillStyle, MAX_ROUGHNESS, Head, HEADS, headOf, isFontId, isShape, isStroked, LineStyle, MAX_FONT_SIZE, MIN_FILL_OPACITY, MIN_FONT_SIZE, SketchElement, TEXT_ALIGNS, TextAlign } from "./elements";
 import { DEFAULT_FONT } from "./fonts";
 import { BORDER_KINDS, BorderKind, cleanOpacity, CORNER_RADII, DEFAULT_REFLECT_DEPTH, DEFAULT_REFLECT_FADE, DEFAULT_REFLECT_GAP, DEFAULT_SHADOW, SHADOW_MAX_BLUR, SHADOW_MAX_DISTANCE, shadowFrom, shadowSettingsOf } from "./effects";
 import { isSafeColor } from "./color";
+import { MAX_REGULARITY } from "./tidy";
 
 export interface ToolStyle {
   stroke: string;
@@ -14,6 +15,8 @@ export interface ToolStyle {
   strokeWidth: number;
   // 0 for clean lines, 1 for the hand drawn look.
   roughness: number;
+  // How much a pen stroke is tidied, from 0 (as drawn) to MAX_REGULARITY (the clean shape: line, circle, rectangle, triangle).
+  regularity: number;
   // Rounded edges for lines and arrows, and the heads of arrows.
   rounded: boolean;
   startHead: Head;
@@ -55,7 +58,7 @@ const PLAIN_EFFECTS = { opacity: 1, shadow: false, shadowDistance: DEFAULT_SHADO
 
 // Returns the style of a new drawing: a thin hand drawn line in the ink colour of the page, with no fill.
 export function defaultStyle(ink: string): ToolStyle {
-  return { stroke: isSafeColor(ink) ? ink : `#000000`, fill: null, fillStyle: `solid`, fillOpacity: 1, strokeWidth: STROKE_WIDTHS.thin, roughness: 1, rounded: false, startHead: `none`, endHead: `arrow`, font: DEFAULT_FONT, fontSize: TEXT_SIZES.medium, align: `left`, ...PLAIN_EFFECTS };
+  return { stroke: isSafeColor(ink) ? ink : `#000000`, fill: null, fillStyle: `solid`, fillOpacity: 1, strokeWidth: STROKE_WIDTHS.thin, roughness: 1, regularity: 0, rounded: false, startHead: `none`, endHead: `arrow`, font: DEFAULT_FONT, fontSize: TEXT_SIZES.medium, align: `left`, ...PLAIN_EFFECTS };
 }
 
 // Returns a style patch with every value checked: unknown or invalid values are dropped.
@@ -66,6 +69,7 @@ export function cleanPatch(patch: StylePatch): StylePatch {
   if (patch.fillStyle !== undefined && FILL_STYLES.includes(patch.fillStyle)) out.fillStyle = patch.fillStyle;
   if (typeof patch.fillOpacity === `number` && Number.isFinite(patch.fillOpacity)) out.fillOpacity = Math.min(1, Math.max(MIN_FILL_OPACITY, Math.round(patch.fillOpacity * 100) / 100));
   if (typeof patch.strokeWidth === `number` && Number.isFinite(patch.strokeWidth)) out.strokeWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, patch.strokeWidth));
+  if (typeof patch.regularity === `number` && Number.isFinite(patch.regularity)) out.regularity = Math.min(MAX_REGULARITY, Math.max(0, Math.round(patch.regularity * 10) / 10));
   if (typeof patch.roughness === `number` && Number.isFinite(patch.roughness)) out.roughness = Math.min(MAX_ROUGHNESS, Math.max(0, Math.round(patch.roughness * 10) / 10));
   if (typeof patch.rounded === `boolean`) out.rounded = patch.rounded;
   if (patch.startHead !== undefined && HEADS.includes(patch.startHead)) out.startHead = patch.startHead;
@@ -123,6 +127,11 @@ export function applyStyle(el: SketchElement, patch: StylePatch): SketchElement 
   if (p.stroke !== undefined) next.stroke = p.stroke;
   if (p.strokeWidth !== undefined) next.strokeWidth = p.strokeWidth;
   if (p.roughness !== undefined) next.roughness = p.roughness;
+  if (next.type === `freedraw` && p.regularity !== undefined) {
+    const { regularity: _g, ...rest } = next;
+    void _g;
+    next = (p.regularity > 0 ? { ...rest, regularity: p.regularity } : rest) as typeof el;
+  }
   if ((next.type === `line` || next.type === `arrow`) && p.taper !== undefined) {
     const { taper: _t, ...rest } = next;
     void _t;
@@ -142,7 +151,7 @@ export function applyStyle(el: SketchElement, patch: StylePatch): SketchElement 
     if (p.startHead !== undefined) next = { ...next, startHead: p.startHead } as typeof el;
     if (p.endHead !== undefined) next = { ...next, endHead: p.endHead } as typeof el;
   }
-  if (isShape(next)) {
+  if (canFill(next)) {
     if (p.fill === null) {
       const { fill: _f, ...rest } = next;
       void _f;
@@ -150,8 +159,8 @@ export function applyStyle(el: SketchElement, patch: StylePatch): SketchElement 
     } else if (p.fill !== undefined) {
       next = { ...next, fill: p.fill, fillStyle: next.fillStyle ?? p.fillStyle ?? `solid` } as typeof el;
     }
-    if (p.fillStyle !== undefined && isShape(next) && next.fill !== undefined) next = { ...next, fillStyle: p.fillStyle } as typeof el;
-    if (p.fillOpacity !== undefined && isShape(next)) {
+    if (p.fillStyle !== undefined && canFill(next) && next.fill !== undefined) next = { ...next, fillStyle: p.fillStyle } as typeof el;
+    if (p.fillOpacity !== undefined && canFill(next)) {
       if (p.fillOpacity >= 1) {
         const { fillOpacity: _o, ...rest } = next;
         void _o;
@@ -230,14 +239,14 @@ export function applyStyleToIds(elements: SketchElement[], ids: Set<string>, pat
 export function styleOf(el: SketchElement): ToolStyle | null {
   if (el.type === `text`) return { ...defaultStyle(el.stroke), font: el.font, fontSize: el.size, align: el.align ?? `left`, ...effectsOfElement(el) };
   if (!isStroked(el)) return null;
-  const fill = isShape(el) && el.fill !== undefined ? el.fill : null;
-  const fillStyle: FillStyle = isShape(el) && el.fillStyle ? el.fillStyle : `solid`;
-  const fillOpacity = isShape(el) && el.fillOpacity !== undefined ? el.fillOpacity : 1;
+  const fill = canFill(el) && el.fill !== undefined ? el.fill : null;
+  const fillStyle: FillStyle = canFill(el) && el.fillStyle ? el.fillStyle : `solid`;
+  const fillOpacity = canFill(el) && el.fillOpacity !== undefined ? el.fillOpacity : 1;
   const linear = el.type === `line` || el.type === `arrow`;
   const rounded = linear && el.rounded === true;
   const startHead: Head = el.type === `arrow` ? headOf(el, `start`) : `none`;
   const endHead: Head = el.type === `arrow` ? headOf(el, `end`) : `none`;
-  return { stroke: el.stroke, fill, fillStyle, fillOpacity, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0, rounded, startHead, endHead, taper: el.type === `line` || el.type === `arrow` ? el.taper ?? 0 : 0, font: labelOf(el) ? labelOf(el)?.font ?? DEFAULT_FONT : DEFAULT_FONT, fontSize: labelOf(el)?.size ?? TEXT_SIZES.medium, align: labelOf(el) ? labelOf(el)?.align ?? `center` : `left`, ...effectsOfElement(el), lineStyle: el.type === `freedraw` ? `solid` : el.lineStyle ?? `solid`, border: isShape(el) ? el.border ?? `simple` : `simple`, radius: el.type === `rect` ? el.radius ?? 0 : 0 };
+  return { stroke: el.stroke, fill, fillStyle, fillOpacity, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0, regularity: el.type === `freedraw` ? el.regularity ?? 0 : 0, rounded, startHead, endHead, taper: el.type === `line` || el.type === `arrow` ? el.taper ?? 0 : 0, font: labelOf(el) ? labelOf(el)?.font ?? DEFAULT_FONT : DEFAULT_FONT, fontSize: labelOf(el)?.size ?? TEXT_SIZES.medium, align: labelOf(el) ? labelOf(el)?.align ?? `center` : `left`, ...effectsOfElement(el), lineStyle: el.type === `freedraw` ? `solid` : el.lineStyle ?? `solid`, border: isShape(el) ? el.border ?? `simple` : `simple`, radius: el.type === `rect` ? el.radius ?? 0 : 0 };
 }
 
 // Returns the text written in a shape or in the middle of a line, or undefined.

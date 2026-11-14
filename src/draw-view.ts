@@ -16,6 +16,7 @@ import { Box, unionBox as unionBoxes } from "./geometry";
 import { brightness } from "./page-background";
 import { t } from "./i18n";
 import { panelKinds, PanelSection, sectionShown } from "./panel-kinds";
+import { MAX_REGULARITY } from "./tidy";
 import { PluginApi } from "./plugin-api";
 import { renderCanvas, RenderedPage } from "./page-render";
 import { applyStyleToIds, cleanPatch, defaultStyle, MAX_WIDTH, MIN_WIDTH, StylePatch, styleOf, TEXT_SIZES, ToolStyle } from "./style";
@@ -407,6 +408,11 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     // From 0 (a clean line) to the most imperfect: the more it is, the less straight the lines are.
     this.slider(lookSec, ``, t(`Imperfection du tracé : 0 pour un trait net`), 0, MAX_ROUGHNESS * 10, 1, (s) => Math.round(s.roughness * 10), (v) => ({ roughness: v / 10 }));
 
+    // The pen: from a stroke as drawn (0) to the clean shape it was meant to be (a line, a circle, a rectangle, a triangle). It is the only choice made before drawing that is kept.
+    const regularSec = this.section(props, `regularity`);
+    this.sectionIcon(regularSec, `pencil-ruler`, t(`Régularité du tracé`));
+    this.slider(regularSec, ``, t(`Régularité du tracé : 0 pour un tracé à main levée, 5 pour une forme parfaite`), 0, MAX_REGULARITY * 10, 1, (s) => Math.round(s.regularity * 10), (v) => ({ regularity: v / 10 }));
+
     // The border of the shapes: one drop-down menu, then the corners of a rectangle.
     const borderSec = this.section(props, `border`);
     this.sectionIcon(borderSec, `sketchnote-border-double`, t(`Bordure`));
@@ -580,7 +586,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     for (const sec of this.sections) {
       sec.el.toggleClass(`sketchdraw-hidden`, !sectionShown(sec.name, kinds));
       // With nothing selected the choices of the panel have nothing to apply to (a new shape is always standard): they are dimmed, except the settings of a text.
-      sec.el.toggleClass(`sketchdraw-idle`, this.selected.size === 0 && sec.name !== `text`);
+      sec.el.toggleClass(`sketchdraw-idle`, this.selected.size === 0 && sec.name !== `text` && sec.name !== `regularity`);
     }
   }
 
@@ -704,6 +710,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       if (clean.font !== undefined) keep.font = clean.font;
       if (clean.fontSize !== undefined) keep.fontSize = clean.fontSize;
       if (clean.align !== undefined) keep.align = clean.align;
+      if (clean.regularity !== undefined) keep.regularity = clean.regularity;
       this.style = { ...this.style, ...keep };
     }
     if (this.selected.size > 0) {
