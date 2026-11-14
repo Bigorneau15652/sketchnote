@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { hexToHsl, hexToRgb, hslToHex, hsToWheel, luminanceToSlider, normalizeHex, rgbToHex, rgbToHsl, sliderToLuminance, wheelToHs } from "../src/hsl";
+import { hexToHsl, hexToRgb, hslToHex, hsToWheel, luminanceToSlider, normalizeHex, rgbToHex, rgbToHsl, sliderToLuminance, usableLuminance, wheelToHs } from "../src/hsl";
 
 test(`une couleur hexadecimale est lue avec ou sans diese, en 3, 6 ou 8 chiffres`, () => {
   assert.deepEqual(hexToRgb(`#ff8000`), [255, 128, 0]);
@@ -50,4 +50,15 @@ test(`le curseur de luminance va de -100 a 100 avec 0 pour la couleur pure`, () 
   assert.equal(luminanceToSlider(50), 0);
   assert.equal(luminanceToSlider(0), -100);
   assert.equal(luminanceToSlider(75), 50);
+});
+
+test(`choisir une teinte ou une saturation depuis le noir ou le blanc remet la luminance au milieu`, () => {
+  assert.equal(usableLuminance(0), 50);
+  assert.equal(usableLuminance(3.9), 50);
+  assert.equal(usableLuminance(100), 50);
+  assert.equal(usableLuminance(96.5), 50);
+  for (const l of [4, 20, 50, 80, 96]) assert.equal(usableLuminance(l), l);
+  // From black, a point of the wheel then gives a real colour.
+  const { h, s } = wheelToHs(60, 0, 100);
+  assert.notEqual(hslToHex({ h, s, l: usableLuminance(0) }), `#000000`);
 });

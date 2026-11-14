@@ -3,7 +3,7 @@
 // given back only when the check mark is used.
 import { App, Modal, setIcon, Setting } from "obsidian";
 import { t } from "./i18n";
-import { Hsl, hexToHsl, hslToHex, hslToRgb, hsToWheel, luminanceToSlider, normalizeHex, sliderToLuminance, wheelToHs } from "./hsl";
+import { Hsl, hexToHsl, hslToHex, hslToRgb, hsToWheel, luminanceToSlider, normalizeHex, sliderToLuminance, usableLuminance, wheelToHs } from "./hsl";
 import { toHex6 } from "./page-background";
 import { FILL_STYLES, FillStyle } from "./elements";
 import { swatchBackground } from "./swatches";
@@ -37,6 +37,7 @@ export class ColorModal extends Modal {
   private readonly options: ColorOptions;
   private style: FillStyle;
   private none: boolean;
+  private wheelDrawn = false;
   private patternButtons: { style: FillStyle; el: HTMLElement }[] = [];
   private noneButton: HTMLElement | null = null;
   private wheel: HTMLCanvasElement | null = null;
@@ -46,7 +47,6 @@ export class ColorModal extends Modal {
   private fresh: HTMLElement | null = null;
   private readonly sliders: { hue: HTMLInputElement | null; sat: HTMLInputElement | null; lum: HTMLInputElement | null } = { hue: null, sat: null, lum: null };
   private readonly numbers: { hue: HTMLInputElement | null; sat: HTMLInputElement | null; lum: HTMLInputElement | null } = { hue: null, sat: null, lum: null };
-  private drawnLuminance = -1;
 
   // Creates the window with the colour to start from, the function called with the choice when the check mark is used, and what the window offers besides the colour.
   constructor(app: App, initial: string, onPick: (choice: ColorChoice) => void, options: ColorOptions = {}) {
@@ -74,8 +74,8 @@ export class ColorModal extends Modal {
     this.handle = stage.createDiv({ cls: `sketchnote-wheel-handle` });
     this.listenWheel(canvas);
 
-    this.slider(el, `hue`, t(`Teinte`), 0, 359, (v) => this.set({ ...this.hsl, h: v }));
-    this.slider(el, `sat`, t(`Saturation`), 0, 100, (v) => this.set({ ...this.hsl, s: v }));
+    this.slider(el, `hue`, t(`Teinte`), 0, 359, (v) => this.set({ ...this.hsl, h: v, l: usableLuminance(this.hsl.l) }));
+    this.slider(el, `sat`, t(`Saturation`), 0, 100, (v) => this.set({ ...this.hsl, s: v, l: usableLuminance(this.hsl.l) }));
     this.slider(el, `lum`, t(`Luminance`), -100, 100, (v) => this.set({ ...this.hsl, l: sliderToLuminance(v) }));
 
     const row = el.createDiv({ cls: `sketchnote-color-row` });
@@ -187,8 +187,9 @@ export class ColorModal extends Modal {
       const dx = (e.clientX - box.left) * k - RADIUS;
       const dy = (e.clientY - box.top) * k - RADIUS;
       const { h, s } = wheelToHs(dx, dy, RADIUS * DISC);
-      if (mode === `ring`) this.set({ ...this.hsl, h });
-      else this.set({ ...this.hsl, h, s });
+      const l = usableLuminance(this.hsl.l);
+      if (mode === `ring`) this.set({ ...this.hsl, h, l });
+      else this.set({ ...this.hsl, h, s, l });
     };
     canvas.addEventListener(`pointerdown`, (e) => {
       const box = canvas.getBoundingClientRect();
@@ -229,9 +230,11 @@ export class ColorModal extends Modal {
   // Draws the wheel when the luminance changed, then places the marks, the sliders, the fields and the preview.
   private refresh(updateHex = true): void {
     const { h, s, l } = this.hsl;
-    if (this.wheel && Math.round(l) !== this.drawnLuminance) {
-      this.drawnLuminance = Math.round(l);
-      this.drawWheel(this.wheel, l);
+    // The wheel is always drawn in full colour (at the middle luminance), whatever the luminance slider says: the colour in use is shown by the round mark, the preview and
+    // the hexadecimal code.
+    if (this.wheel && !this.wheelDrawn) {
+      this.wheelDrawn = true;
+      this.drawWheel(this.wheel, 50);
     }
     const [hx, hy] = hsToWheel(h, s, RADIUS * DISC);
     const hex = hslToHex(this.hsl);
@@ -254,8 +257,9 @@ export class ColorModal extends Modal {
       if (range) range.value = String(values[key]);
       if (number && document.activeElement !== number) number.value = String(values[key]);
     }
-    if (this.sliders.hue) this.sliders.hue.style.background = `linear-gradient(to right, hsl(0,${s}%,${l}%), hsl(60,${s}%,${l}%), hsl(120,${s}%,${l}%), hsl(180,${s}%,${l}%), hsl(240,${s}%,${l}%), hsl(300,${s}%,${l}%), hsl(360,${s}%,${l}%))`;
-    if (this.sliders.sat) this.sliders.sat.style.background = `linear-gradient(to right, hsl(${h},0%,${l}%), hsl(${h},100%,${l}%))`;
+    // The bars of the hue and of the saturation are always in full colour too, so that a black or a white colour is never a dead end.
+    if (this.sliders.hue) this.sliders.hue.style.background = `linear-gradient(to right, hsl(0,100%,50%), hsl(60,100%,50%), hsl(120,100%,50%), hsl(180,100%,50%), hsl(240,100%,50%), hsl(300,100%,50%), hsl(360,100%,50%))`;
+    if (this.sliders.sat) this.sliders.sat.style.background = `linear-gradient(to right, hsl(${h},0%,50%), hsl(${h},100%,50%))`;
     if (this.sliders.lum) this.sliders.lum.style.background = `linear-gradient(to right, #000000, hsl(${h},${s}%,50%), #ffffff)`;
     if (this.hex && updateHex) {
       this.hex.value = hex;
