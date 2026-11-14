@@ -337,6 +337,61 @@
   font-size: var(--font-ui-smaller);
 }
 
+/* The choice of the brush: the current brush shows a stroke drawn with it, wide, with its name; the list of the brushes does the same for each one. */
+.sketchdraw-side .sketchdraw-brushes {
+  display: block;
+  width: 100%;
+}
+
+.sketchdraw-side .sketchdraw-brush-current,
+.sketchdraw-side .sketchdraw-brush-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  width: 100%;
+  height: auto;
+  margin: 3px 0;
+  padding: 4px 6px;
+  border: 1px solid var(--background-modifier-border, #cccccc);
+  border-radius: 6px;
+  background: var(--background-secondary, #f2f2f2);
+  color: var(--text-normal, #222222);
+  box-shadow: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sketchdraw-side .sketchdraw-brush-row.is-active {
+  border-color: var(--interactive-accent, #7c5cff);
+  background: var(--background-modifier-hover, #e4e4e4);
+}
+
+.sketchdraw-side .sketchdraw-brush-preview {
+  display: block;
+  width: 100%;
+  height: 34px;
+  color: inherit;
+  overflow: hidden;
+}
+
+.sketchdraw-side .sketchdraw-brush-name {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--text-muted, #666666);
+  font-size: var(--font-ui-smaller, 12px);
+  line-height: 1.2;
+}
+
+.sketchdraw-side .sketchdraw-brush-list {
+  display: none;
+  width: 100%;
+}
+
+.sketchdraw-side .sketchdraw-brush-list.is-open {
+  display: block;
+}
+
 /* On a narrow window the properties are hidden until the Properties button is pressed, and the toolbar is narrower. */
 @media (max-width: 600px) {
   .sketchdraw-side {

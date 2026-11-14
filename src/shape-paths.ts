@@ -5,7 +5,7 @@ import { RoughGenerator } from "roughjs/bin/generator";
 import { drawnPoints } from "./curves";
 import { ArrowElement, Border, DiamondElement, EllipseElement, FreedrawElement, headOf, LineElement, LineStyle, Point, RectElement, StrokedElement, TriangleElement } from "./elements";
 import { arrowHeadShapes, HeadShape } from "./linear";
-import { DEFAULT_NIB_ANGLE, nibPath, sprayPath, squarePath } from "./brushes";
+import { brushPieces as makeBrush, paramsFromFields, paramsOf } from "./brushes";
 import { isClosedStroke, tidyStroke } from "./tidy";
 
 // One path to draw: its data, its line colour and width and its fill colour (`none` for no fill).
@@ -253,21 +253,17 @@ function taperedPiece(el: LineElement | ArrowElement): PathPiece[] {
 }
 
 // Returns the pieces of the stroke of a pen: what the brush of the stroke leaves along the points. The round brush is the pen as it always was (a stroke that is thicker where the
-// hand is slower); the others have a constant width. The flow of a brush that has a body is its opacity, and the flow of the spray is how many dots it makes.
+// hand is slower, with the opacity of its flow when one was stored by version 0.19.0); the other brushes are made of tips put along the stroke (see brushes.ts).
 function brushPieces(el: FreedrawElement, pts: Point[]): PathPiece[] {
-  const flow = el.flow ?? 1;
-  const solid = (d: string): PathPiece[] => (d !== `` && SAFE_PATH.test(d) ? [{ d, stroke: el.stroke, strokeWidth: Math.max(0.5, el.strokeWidth * 0.1), fill: el.stroke, opacity: flow }] : []);
-  if (el.brush === `square`) return solid(squarePath(pts, el.strokeWidth * 1.6));
-  if (el.brush === `nib`) return solid(nibPath(pts, el.strokeWidth * 3, el.nibAngle ?? DEFAULT_NIB_ANGLE));
-  if (el.brush === `aerosol`) {
-    const spray = sprayPath(pts, el.strokeWidth * 2.2, flow, el.seed ?? 1);
-    const dot = (d: string, width: number): PathPiece[] => (d !== `` && SAFE_PATH.test(d) ? [{ d, stroke: el.stroke, strokeWidth: width, fill: `none`, opacity: 0.85 }] : []);
-    return [...dot(spray.small, Math.max(0.9, el.strokeWidth * 0.2)), ...dot(spray.large, Math.max(1.6, el.strokeWidth * 0.4))];
+  const brush = el.brush ?? `round`;
+  if (brush !== `round`) {
+    const made = makeBrush({ brush, points: pts, width: el.strokeWidth, color: el.stroke, seed: el.seed ?? 1, params: paramsOf(brush, paramsFromFields(el)), dynamic: (el.regularity ?? 0) === 0 });
+    return made.filter((p) => SAFE_PATH.test(p.d)).map((p): PathPiece => ({ d: p.d, stroke: p.stroke, strokeWidth: p.strokeWidth, fill: p.fill, opacity: p.opacity }));
   }
   const closedLook = (el.regularity ?? 0) >= 5;
   const outline = getStroke(pts, { size: el.strokeWidth * 1.6, thinning: closedLook ? 0 : 0.5, smoothing: 0.5, streamline: closedLook ? 0 : 0.5 });
   const d = pathFromOutline(outline);
-  return SAFE_PATH.test(d) && d !== `` ? [{ d, stroke: `none`, strokeWidth: 0, fill: el.stroke, opacity: flow }] : [];
+  return SAFE_PATH.test(d) && d !== `` ? [{ d, stroke: `none`, strokeWidth: 0, fill: el.stroke, opacity: el.flow ?? 1 }] : [];
 }
 
 // Computes the paths of an element.

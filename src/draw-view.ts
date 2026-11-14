@@ -16,12 +16,13 @@ import { Box, unionBox as unionBoxes } from "./geometry";
 import { brightness } from "./page-background";
 import { t } from "./i18n";
 import { panelKinds, PanelSection, sectionShown } from "./panel-kinds";
-import { BRUSH_KINDS, BrushKind, MAX_NIB_ANGLE, MIN_FLOW } from "./brushes";
+import { BRUSH_DEFS, BRUSH_KINDS, BrushKind, BrushParam, brushPieces, paramsOf, previewPoints } from "./brushes";
 import { allLocked, isLocked } from "./lock";
 import { MAX_REGULARITY } from "./tidy";
 import { PluginApi } from "./plugin-api";
 import { renderCanvas, RenderedPage } from "./page-render";
-import { applyStyleToIds, cleanPatch, defaultStyle, MAX_WIDTH, MIN_WIDTH, StylePatch, styleOf, TEXT_SIZES, ToolStyle } from "./style";
+import { svgEl } from "./svg";
+import { applyStyleToIds, brushDefaultsPatch, cleanPatch, defaultStyle, MAX_WIDTH, MIN_WIDTH, StylePatch, styleOf, TEXT_SIZES, ToolStyle } from "./style";
 import { CreationTool, textElement, zoneElement, zoneFontSize } from "./tools";
 import { isLabeledShape, labelBox, labelColor, LabeledShape, pathMiddle } from "./labels";
 import { hitTop } from "./geometry";
@@ -30,12 +31,52 @@ import { VIEW_TYPE as PAGE_VIEW_TYPE } from "./view";
 
 export const DRAW_VIEW_TYPE = `sketchdraw-view`;
 
-// The pictogram and the name of every brush of the pen.
-const BRUSH_ICONS: Record<BrushKind, string> = { round: `circle`, aerosol: `spray-can`, square: `square`, nib: `pen-tool` };
-
 // Returns the name of a brush in the language of the user.
 function brushName(brush: BrushKind): string {
-  return brush === `round` ? t(`Pinceau rond`) : brush === `aerosol` ? t(`Aérosol`) : brush === `square` ? t(`Pinceau carré`) : t(`Plume`);
+  const names: Record<BrushKind, string> = {
+    round: t(`Pinceau rond`),
+    soft: t(`Pinceau rond souple`),
+    pencil: t(`Crayon à grain`),
+    felt: t(`Feutre`),
+    square: t(`Marqueur carré`),
+    ink: t(`Stylo encre BD`),
+    nib: t(`Plume de calligraphie`),
+    lino: t(`Pointe de linogravure`),
+    airbrush: t(`Aérographe`),
+    aerosol: t(`Aérosol`),
+  };
+  return names[brush];
+}
+
+// The settings that the panel offers for the brushes: their name, their help, the range and the step of their slider (in percent, or in degrees for the rotation).
+const BRUSH_SLIDERS: { param: BrushParam; field: `flow` | `hardness` | `spacing` | `form` | `brushAngle` | `grain` | `dynamics`; min: number; max: number; step: number; scale: number }[] = [
+  { param: `flow`, field: `flow`, min: 5, max: 100, step: 5, scale: 100 },
+  { param: `hardness`, field: `hardness`, min: 0, max: 100, step: 5, scale: 100 },
+  { param: `spacing`, field: `spacing`, min: 5, max: 200, step: 5, scale: 100 },
+  { param: `form`, field: `form`, min: 10, max: 100, step: 5, scale: 100 },
+  { param: `rotation`, field: `brushAngle`, min: 0, max: 180, step: 5, scale: 1 },
+  { param: `grain`, field: `grain`, min: 0, max: 100, step: 5, scale: 100 },
+  { param: `dynamics`, field: `dynamics`, min: 0, max: 100, step: 5, scale: 100 },
+];
+
+// Returns the label (a word above the slider, with its help as the tooltip) of a setting of the brushes.
+function brushSliderLabel(param: BrushParam): string {
+  switch (param) {
+    case `flow`:
+      return t(`Flux : la peinture déposée à chaque touche, qui se renforce quand les touches se recouvrent (l'opacité des effets, elle, éclaircit tout le tracé)`);
+    case `hardness`:
+      return t(`Dureté : d'un bord flou à un bord net`);
+    case `spacing`:
+      return t(`Espacement : la distance entre deux touches du pinceau`);
+    case `form`:
+      return t(`Forme : d'une pointe plate à une pointe ronde`);
+    case `rotation`:
+      return t(`Rotation de la pointe`);
+    case `grain`:
+      return t(`Grain : de lisse à granuleux`);
+    case `dynamics`:
+      return t(`Dynamique : le trait s'amincit quand la souris va vite`);
+  }
 }
 
 export class SketchdrawView extends CanvasView<SketchdrawDoc> {
@@ -408,10 +449,10 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     // The brush of the pen: one menu, then how much paint it puts and, for the nib, its angle. The thickness is the one of every line.
     const brushSec = this.section(props, `brush`);
     this.sectionIcon(brushSec, `paintbrush`, t(`Pinceau`));
-    const brushRow = brushSec.createDiv({ cls: `sketchdraw-row` });
-    this.dropdown(brushRow, t(`Pinceau`), [...BRUSH_KINDS], (v) => BRUSH_ICONS[v], brushName, (s) => s.brush, (v) => ({ brush: v }), true);
-    this.slider(brushSec, ``, t(`Flux du pinceau : de léger à plein`), Math.round(MIN_FLOW * 100), 100, 5, (s) => Math.round(s.flow * 100), (v) => ({ flow: v / 100 }));
-    this.slider(brushSec, ``, t(`Angle de la plume`), 0, MAX_NIB_ANGLE, 5, (s) => Math.round(s.brushAngle), (v) => ({ brushAngle: v }), (s) => s.brush === `nib`);
+    this.brushPicker(brushSec);
+    for (const def of BRUSH_SLIDERS) {
+      this.slider(brushSec, ``, brushSliderLabel(def.param), def.min, def.max, def.step, (s) => Math.round(s[def.field] * def.scale), (v) => ({ [def.field]: v / def.scale }), (s) => BRUSH_DEFS[s.brush].params.includes(def.param));
+    }
 
     const widthSec = this.section(props, `width`);
     this.sectionIcon(widthSec, `sketchnote-width-medium`, t(`Épaisseur`));
@@ -505,6 +546,8 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
 
   // The sections of the panel, each with the test that tells for which kind of element it is shown.
   private readonly sections: { el: HTMLElement; name: PanelSection }[] = [];
+  // Functions that show the current style in parts of the panel that are drawn by hand.
+  private readonly syncers: ((s: ToolStyle) => void)[] = [];
   private readonly dropdowns: { el: HTMLElement; label: string; icon: (s: ToolStyle) => string; name: (s: ToolStyle) => string; shown?: (s: ToolStyle) => string }[] = [];
   private fontSelect: HTMLSelectElement | null = null;
 
@@ -561,6 +604,49 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     input.setAttribute(`title`, help);
     input.addEventListener(`input`, () => this.change(write(Number(input.value))));
     this.sliders.push({ wrap, input, read, visible });
+  }
+
+  // Adds the choice of the brush: a button that shows the pictogram of the brush (a stroke drawn with it, wide) and its name, which opens the list of the brushes, each with a stroke
+  // drawn with it. The pictograms are drawn with the same code as the brushes themselves, so that they look like what the brush makes.
+  private brushPicker(parent: HTMLElement): void {
+    const wrap = parent.createDiv({ cls: `sketchdraw-brushes` });
+    const button = wrap.createEl(`button`, { cls: `sketchdraw-brush-current` });
+    button.setAttribute(`aria-label`, t(`Pinceau`));
+    const list = wrap.createDiv({ cls: `sketchdraw-brush-list` });
+    const rows: { brush: BrushKind; el: HTMLElement }[] = [];
+    // Draws a stroke made with a brush in a small picture, in the colour of the text.
+    const preview = (host: HTMLElement, brush: BrushKind): void => {
+      const svg = svgEl(`svg`, { viewBox: `0 0 100 40`, class: `sketchdraw-brush-preview`, preserveAspectRatio: `xMidYMid meet` }, host);
+      const params = paramsOf(brush, {});
+      if (brush === `round`) {
+        const pts = previewPoints();
+        svgEl(`path`, { d: `M${pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(` L`)}`, fill: `none`, stroke: `currentColor`, "stroke-width": 3.2, "stroke-linecap": `round`, "stroke-linejoin": `round` }, svg);
+        return;
+      }
+      for (const piece of brushPieces({ brush, points: previewPoints(), width: 3, color: `currentColor`, seed: 7, params, dynamic: true })) {
+        svgEl(`path`, { d: piece.d, stroke: piece.stroke, "stroke-width": piece.strokeWidth, fill: piece.fill, opacity: piece.opacity, "stroke-linecap": `round` }, svg);
+      }
+    };
+    for (const brush of BRUSH_KINDS) {
+      const row = list.createEl(`button`, { cls: `sketchdraw-brush-row` });
+      preview(row, brush);
+      row.createSpan({ cls: `sketchdraw-brush-name`, text: brushName(brush) });
+      row.setAttribute(`aria-label`, brushName(brush));
+      row.addEventListener(`click`, () => {
+        list.removeClass(`is-open`);
+        this.change({ brush });
+        this.contentEl.focus({ preventScroll: true });
+      });
+      rows.push({ brush, el: row });
+    }
+    button.addEventListener(`click`, () => list.toggleClass(`is-open`, !list.classList.contains(`is-open`)));
+    this.syncers.push((s) => {
+      button.empty();
+      preview(button, s.brush);
+      button.createSpan({ cls: `sketchdraw-brush-name`, text: brushName(s.brush) });
+      button.setAttribute(`title`, `${t(`Pinceau`)} : ${brushName(s.brush)}`);
+      for (const r of rows) r.el.toggleClass(`is-active`, r.brush === s.brush);
+    });
   }
 
   // Adds a drop-down menu: a button that shows the choice that is made (its pictogram, its name as the tooltip) and opens the list of choices, each with its pictogram. The
@@ -726,6 +812,8 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   // standard look (a black line, no fill, a normal border, no effect). Only the settings of a text (font, size, alignment) are kept for the next texts.
   private change(patch: StylePatch): void {
     const clean = cleanPatch(patch);
+    // A new brush starts from its own usual settings.
+    if (clean.brush !== undefined) Object.assign(clean, { ...brushDefaultsPatch(clean.brush), ...clean });
     if (this.style) {
       const keep: StylePatch = {};
       if (clean.font !== undefined) keep.font = clean.font;
@@ -733,8 +821,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       if (clean.align !== undefined) keep.align = clean.align;
       if (clean.regularity !== undefined) keep.regularity = clean.regularity;
       if (clean.brush !== undefined) keep.brush = clean.brush;
-      if (clean.flow !== undefined) keep.flow = clean.flow;
-      if (clean.brushAngle !== undefined) keep.brushAngle = clean.brushAngle;
+      for (const key of [`flow`, `hardness`, `spacing`, `form`, `brushAngle`, `grain`, `dynamics`] as const) if (clean[key] !== undefined) Object.assign(keep, { [key]: clean[key] });
       this.style = { ...this.style, ...keep };
     }
     if (this.selected.size > 0) {
@@ -768,6 +855,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       d.el.setAttribute(`aria-label`, d.name(s));
       d.el.setAttribute(`title`, d.name(s));
     }
+    for (const f of this.syncers) f(s);
     for (const sw of this.strokeSwatches) sw.toggleClass(`is-active`, this.doc.palette[Number(sw.dataset.index)] !== undefined && toHex6(this.doc.palette[Number(sw.dataset.index)]) === toHex6(s.stroke));
     const fills = this.fillSwatchList();
     for (const sw of this.fillSwatches) sw.toggleClass(`is-active`, swatchMatches(fills[Number(sw.dataset.index)] ?? null, s.fill, s.fillStyle));
