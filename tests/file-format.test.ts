@@ -60,3 +60,30 @@ test(`les champs inconnus du fichier ne sont pas recopies`, () => {
 test(`un fichier trop volumineux est refuse`, () => {
   assert.equal(parseSketchnote(` `.repeat(MAX_FILE_CHARS + 1)).ok, false);
 });
+
+test(`un fichier de la version 0.1.0 sans couleur de trait se relit avec le trait par defaut`, () => {
+  const result = parseSketchnote(fileWith((d) => delete (d.page as Record<string, unknown>).ink));
+  assert.equal(result.ok, true);
+  if (result.ok) assert.equal(result.doc.page.ink, `#000000`);
+  const board = parseSketchnote(
+    fileWith((d) => {
+      const page = d.page as Record<string, unknown>;
+      delete page.ink;
+      page.pattern = `chalkboard`;
+    }),
+  );
+  assert.equal(board.ok, true);
+  if (board.ok) assert.equal(board.doc.page.ink, `#ffffff`);
+});
+
+test(`le papier craft et le tableau noir sont des fonds valides`, () => {
+  for (const pattern of [`craft`, `chalkboard`]) {
+    assert.equal(parseSketchnote(fileWith((d) => ((d.page as Record<string, unknown>).pattern = pattern))).ok, true, pattern);
+  }
+});
+
+test(`une couleur de trait invalide est refusee`, () => {
+  for (const bad of [`black`, `url(x)`, `#12`, 5, null]) {
+    assert.equal(parseSketchnote(fileWith((d) => ((d.page as Record<string, unknown>).ink = bad))).ok, false, String(bad));
+  }
+});
