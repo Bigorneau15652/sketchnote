@@ -96,6 +96,8 @@ export function cleanPatch(patch: StylePatch): StylePatch {
 
 // Applies a style patch to one element. A drawing frame has no style and is returned as it is. The fill only applies to shapes; a line keeps its stroke only.
 export function applyStyle(el: SketchElement, patch: StylePatch): SketchElement {
+  // A locked element keeps its look.
+  if (el.locked === true) return el;
   if (el.type === `text`) return applyEffects(applyTextStyle(el, cleanPatch(patch)), cleanPatch(patch));
   if (!isStroked(el)) return el;
   const p = cleanPatch(patch);

@@ -34,13 +34,33 @@ function padded(box: Box, pad: number): Box {
   return { x: box.x - pad, y: box.y - pad, w: box.w + 2 * pad, h: box.h + 2 * pad };
 }
 
+// Draws a small padlock next to a point (the top right corner of a locked element). It does not scale with the zoom.
+function lockMark(ui: Element, at: [number, number], z: number): void {
+  const g = svgEl(`g`, { class: `sketchnote-lock-mark`, transform: `translate(${at[0] + 3 / z} ${at[1] - 17 / z}) scale(${1 / z})` }, ui);
+  svgEl(`path`, { class: `sketchnote-lock-shackle`, d: `M3 7 V4.5 a3.5 3.5 0 0 1 7 0 V7` }, g);
+  svgEl(`rect`, { class: `sketchnote-lock-body`, x: 0, y: 6, width: 13, height: 10, rx: 2 }, g);
+}
+
+// Returns the top right corner of the frame of an element (turned with it).
+function cornerOf(el: SketchElement): [number, number] {
+  const { box, angle } = boxOf(el);
+  return boxCorners(el.type === `line` || el.type === `arrow` ? padded(box, 3) : box, el.type === `line` || el.type === `arrow` ? 0 : angle)[1];
+}
+
 // Draws the overlay into the group. One selected element gets its frame, four corner handles and a rotation handle; several get one frame around all of them.
 export function drawUi(ui: Element, st: UiState): void {
   clear(ui);
   const z = st.zoom;
   for (const x of st.guideX) svgEl(`line`, { class: `sketchnote-snap-guide`, x1: x, y1: 0, x2: x, y2: st.pageHeight }, ui);
   for (const y of st.guideY) svgEl(`line`, { class: `sketchnote-snap-guide`, x1: 0, y1: y, x2: st.pageWidth, y2: y }, ui);
-  if (st.selected.length === 1) {
+  if (st.selected.length === 1 && st.selected[0].locked === true) {
+    // A locked element has a frame and a padlock but no handle: nothing can be done to it until it is unlocked.
+    const el = st.selected[0];
+    const { box, angle } = boxOf(el);
+    const linear = el.type === `line` || el.type === `arrow`;
+    svgEl(`polygon`, { class: `sketchnote-sel-outline`, points: pointsText(boxCorners(linear ? padded(box, 3 / z) : box, linear ? 0 : angle)) }, ui);
+    lockMark(ui, cornerOf(el), z);
+  } else if (st.selected.length === 1) {
     const el = st.selected[0];
     if (el.type === `line` || el.type === `arrow`) {
       // A line has no frame: only its points (square handles) and the middle of its segments (small round handles) are shown.
@@ -79,7 +99,9 @@ export function drawUi(ui: Element, st: UiState): void {
       const { box, angle } = boxOf(el);
       svgEl(`polygon`, { class: `sketchnote-sel-outline sketchnote-sel-thin`, points: pointsText(boxCorners(padded(box, el.type === `line` || el.type === `arrow` ? 3 / z : 0), el.type === `line` || el.type === `arrow` ? 0 : angle)) }, ui);
     }
-    const b = blockBox(st.selected, z);
+    for (const el of st.selected) if (el.locked === true) lockMark(ui, cornerOf(el), z);
+    // The block handles only exist when every selected element is free.
+    const b = st.selected.some((x) => x.locked === true) ? null : blockBox(st.selected, z);
     if (b) {
       // One frame around all the selected elements, with four corner handles and a rotation handle: they are moved, resized and turned as one block.
       svgEl(`rect`, { class: `sketchnote-sel-outline`, x: b.x, y: b.y, width: b.w, height: b.h }, ui);

@@ -1,5 +1,6 @@
 // Mirrors elements horizontally or vertically, as a block about the middle of the selection (like Excalidraw). A line, an arrow and a pen stroke have their points mirrored;
 // the other elements move to their mirror place, turn the other way and take a mirror flag, so that their content is mirrored too. Pure module.
+import { isLocked } from "./lock";
 import type { Point, SketchElement } from "./elements";
 import { elementBounds, unionBox } from "./geometry";
 
@@ -7,6 +8,7 @@ const r2 = (n: number): number => Math.round(n * 100) / 100;
 
 // Tells whether an element can be mirrored: the strokes of a page structure and the frames of its zones belong to the structure and stay where they are.
 export function canFlip(el: SketchElement): boolean {
+  if (isLocked(el)) return false;
   if (el.group === `structure`) return false;
   return !(el.type === `drawing` && el.slot !== undefined);
 }

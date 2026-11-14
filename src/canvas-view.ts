@@ -5,6 +5,7 @@ import { newId, SketchElement } from "./elements";
 import { blockBox, Box, Side, boxesIntersect, boxOf, centerOf, elementBounds, hitBoxHandle, hitHandle, hitTop, insideShape, unionBox } from "./geometry";
 import { canUngroup, expandToGroups, groupAction, groupElements, topGroupId, ungroupElements } from "./groups";
 import { flipElements } from "./flip";
+import { anyLocked, freeIds, isLocked, lockAction, lockElements } from "./lock";
 import { measureLine } from "./measure";
 import { refitText } from "./text-layout";
 import { insertPointAt, lockAngle, midpointIndexAt, movePointTo, pointIndexAt, removePointAt } from "./linear";
@@ -83,6 +84,8 @@ export abstract class CanvasView<D> extends TextFileView {
   private selectionActions: HTMLElement | null = null;
   private groupButton: HTMLButtonElement | null = null;
   private groupIcon = ``;
+  private lockSelectionButton: HTMLButtonElement | null = null;
+  private lockIcon = ``;
   private readonly pointers = new Map<number, { x: number; y: number }>();
   private pinch: { distance: number; zoom: number } | null = null;
   private lastClick: { id: string; time: number; x: number; y: number } | null = null;
@@ -276,6 +279,7 @@ export abstract class CanvasView<D> extends TextFileView {
 
     const actions = bar.createDiv({ cls: `sketchnote-selection-actions` });
     this.groupButton = this.button(actions, `group`, t(`Grouper`), () => this.toggleGroup());
+    this.lockSelectionButton = this.button(actions, `lock`, t(`Verrouiller`), () => this.toggleLock());
     this.button(actions, `copy`, t(`Dupliquer`), () => void this.duplicateSelection());
     this.button(actions, `flip-horizontal`, t(`Retourner horizontalement`), () => this.flipSelection(`x`));
     this.button(actions, `flip-vertical`, t(`Retourner verticalement`), () => this.flipSelection(`y`));
@@ -293,6 +297,7 @@ export abstract class CanvasView<D> extends TextFileView {
     if (this.redoButton) this.redoButton.disabled = !this.history.canRedo();
     this.selectionActions?.toggleClass(`is-visible`, this.selected.size > 0);
     this.updateGroupButton();
+    this.updateLockButton();
     this.updateCursor();
     this.onSelectionChanged();
   }
@@ -312,6 +317,32 @@ export abstract class CanvasView<D> extends TextFileView {
     const label = action === `ungroup` ? t(`Dégrouper`) : t(`Grouper`);
     b.setAttribute(`aria-label`, label);
     b.setAttribute(`title`, label);
+  }
+
+  // Shows what the lock button does for the selection: the closed padlock to lock, the open one to unlock when every selected element is locked.
+  private updateLockButton(): void {
+    const b = this.lockSelectionButton;
+    if (!b) return;
+    const action = lockAction(this.elementsOf(this.doc), this.selected);
+    b.disabled = action === null;
+    const icon = action === `unlock` ? `lock-open` : `lock`;
+    if (icon !== this.lockIcon) {
+      this.lockIcon = icon;
+      setIcon(b, icon);
+    }
+    const label = action === `unlock` ? t(`Déverrouiller`) : t(`Verrouiller`);
+    b.setAttribute(`aria-label`, label);
+    b.setAttribute(`title`, label);
+    b.toggleClass(`is-active`, action === `unlock`);
+  }
+
+  // Locks the selected elements (or unlocks them when all of them are locked), as one change that can be undone. A locked element cannot be moved, resized, turned, mirrored,
+  // deleted, written in or given another look. Public: the command of the palette calls it.
+  toggleLock(): void {
+    const elements = this.elementsOf(this.doc);
+    const action = lockAction(elements, this.selected);
+    if (action === null) return;
+    this.commitElements(lockElements(elements, this.selected, action === `lock`));
   }
 
   // Groups two or more selected elements (or groups) into a new group. Public: the command of the palette calls it, so that the user can give it a keyboard shortcut.
@@ -357,6 +388,11 @@ export abstract class CanvasView<D> extends TextFileView {
   // Returns the cursor for a point of the surface (an empty string for the usual one).
   private cursorAt(p: Point): string {
     const corner = (c: number): string => (c === 0 || c === 2 ? `nwse-resize` : `nesw-resize`);
+    if (anyLocked(this.elementsOf(this.doc), this.selected)) {
+      // A locked element cannot be grabbed: the usual cursor over it.
+      const over = this.hitAt(p, false);
+      return over && !isLocked(over) ? `grab` : ``;
+    }
     if (this.selected.size === 1) {
       const el = this.selectedElements()[0];
       if (el && (el.type === `line` || el.type === `arrow`)) {
@@ -371,7 +407,8 @@ export abstract class CanvasView<D> extends TextFileView {
       const handle = frame ? hitBoxHandle(frame, 0, p, this.zoom, 10) : null;
       if (handle && handle.kind !== `side`) return handle.kind === `rotate` ? `grab` : corner(handle.corner);
     }
-    return this.hitAt(p, false) ? `grab` : ``;
+    const over = this.hitAt(p, false);
+    return over && !isLocked(over) ? `grab` : ``;
   }
 
   // Returns the element under a point: the one on top that is touched on its line (or inside, when it has a fill), or else the shape that is selected when the point is
@@ -501,7 +538,12 @@ export abstract class CanvasView<D> extends TextFileView {
   // Deletes the selected elements.
   protected deleteSelection(): void {
     if (this.selected.size === 0) return;
-    this.commitElements(removeElements(this.elementsOf(this.doc), this.selected));
+    const elements = this.elementsOf(this.doc);
+    const next = removeElements(elements, this.selected);
+    if (next.length === elements.length) return;
+    // What stays selected is what could not be deleted (the locked elements).
+    this.selected = new Set([...this.selected].filter((id) => next.some((e) => e.id === id)));
+    this.commitElements(next);
   }
 
   // Duplicates the selected elements, a little lower and to the right, and selects the copies. Public: the command of the palette calls it.
@@ -543,12 +585,15 @@ export abstract class CanvasView<D> extends TextFileView {
   // Brings the selection to the front or sends it to the back.
   protected reorderSelection(where: `front` | `back`): void {
     if (this.selected.size === 0) return;
-    this.commitElements(reorder(this.elementsOf(this.doc), this.selected, where));
+    const elements = this.elementsOf(this.doc);
+    const next = reorder(elements, this.selected, where);
+    if (next.every((e, i) => e === elements[i])) return;
+    this.commitElements(next);
   }
 
   // Moves the selection by a distance (arrow keys).
   private nudge(dx: number, dy: number): void {
-    if (this.selected.size === 0) return;
+    if (this.selected.size === 0 || freeIds(this.elementsOf(this.doc), this.selected).size === 0) return;
     this.commitElements(moveElements(this.elementsOf(this.doc), this.selected, dx, dy));
   }
 
@@ -582,7 +627,7 @@ export abstract class CanvasView<D> extends TextFileView {
     const single = this.selected.size === 1 ? this.selectedElements()[0] : undefined;
     if (this.multi && (key === `enter` || key === `escape`)) {
       this.finishMulti();
-    } else if (key === `enter` && !mod && single && (single.type === `text` || single.type === `rect` || single.type === `ellipse` || single.type === `diamond` || single.type === `triangle` || single.type === `line` || single.type === `arrow`)) {
+    } else if (key === `enter` && !mod && single && !isLocked(single) && (single.type === `text` || single.type === `rect` || single.type === `ellipse` || single.type === `diamond` || single.type === `triangle` || single.type === `line` || single.type === `arrow`)) {
       this.onActivate(single);
     } else if (key === ` `) {
       this.spaceDown = true;
@@ -594,6 +639,7 @@ export abstract class CanvasView<D> extends TextFileView {
     else if (mod && key === `c`) this.copySelection();
     else if (mod && key === `v`) void this.pasteClipboard();
     else if (mod && key === `d`) void this.duplicateSelection();
+    else if (mod && key === `l`) this.toggleLock();
     else if (mod && key === `a`) {
       this.selected = new Set(this.elementsOf(this.doc).map((x) => x.id));
       this.renderUi();
@@ -741,9 +787,11 @@ export abstract class CanvasView<D> extends TextFileView {
   // Starts a selection gesture: a handle of the selected element, an element to select and move, or the empty surface (rectangle on a mouse, pan on a finger).
   private startSelection(e: PointerEvent, p: Point): void {
     const touch = e.pointerType === `touch`;
-    if (this.selected.size === 1 && this.startPointGesture(e, p, touch)) return;
-    if (this.selected.size >= 2 && this.startBlockGesture(e, p, touch)) return;
-    if (this.selected.size === 1) {
+    // The handles of a locked element (or of a block that holds one) do nothing: they are not shown, so a click there is a click on the surface.
+    const frozen = anyLocked(this.elementsOf(this.doc), this.selected);
+    if (this.selected.size === 1 && !frozen && this.startPointGesture(e, p, touch)) return;
+    if (this.selected.size >= 2 && !frozen && this.startBlockGesture(e, p, touch)) return;
+    if (this.selected.size === 1 && !frozen) {
       const el = this.selectedElements()[0];
       const handle = el ? hitHandle(el, p, this.zoom, touch ? 18 : 10) : null;
       if (el && handle) {
@@ -774,8 +822,10 @@ export abstract class CanvasView<D> extends TextFileView {
         return;
       }
       if (!this.selected.has(hit.id)) this.selected = expandToGroups(this.elementsOf(this.doc), new Set([hit.id]), this.editingGroup);
-      const box = unionBox(this.selectedElements().map(elementBounds));
-      if (box) this.gesture = { kind: `move`, pointerId: e.pointerId, start: p, startClient: [e.clientX, e.clientY], ids: new Set(this.selected), hitId: hit.id, box, moved: false };
+      // Only the free elements follow the pointer: when everything selected is locked, the click only selects.
+      const movable = freeIds(this.elementsOf(this.doc), this.selected);
+      const box = unionBox(this.selectedElements().filter((x) => movable.has(x.id)).map(elementBounds));
+      if (box) this.gesture = { kind: `move`, pointerId: e.pointerId, start: p, startClient: [e.clientX, e.clientY], ids: movable, hitId: hit.id, box, moved: false };
       this.renderUi();
       this.updateBar();
       return;
@@ -848,7 +898,7 @@ export abstract class CanvasView<D> extends TextFileView {
     const a = this.activePoint;
     if (!a || this.selected.size !== 1 || !this.selected.has(a.id)) return false;
     const el = this.elementsOf(this.doc).find((x) => x.id === a.id);
-    if (!el || (el.type !== `line` && el.type !== `arrow`)) return false;
+    if (!el || isLocked(el) || (el.type !== `line` && el.type !== `arrow`)) return false;
     const next = removePointAt(el, a.index);
     if (!next) return false;
     this.activePoint = null;

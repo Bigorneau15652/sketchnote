@@ -16,6 +16,7 @@ import { Box, unionBox as unionBoxes } from "./geometry";
 import { brightness } from "./page-background";
 import { t } from "./i18n";
 import { panelKinds, PanelSection, sectionShown } from "./panel-kinds";
+import { allLocked, isLocked } from "./lock";
 import { MAX_REGULARITY } from "./tidy";
 import { PluginApi } from "./plugin-api";
 import { renderCanvas, RenderedPage } from "./page-render";
@@ -164,6 +165,8 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
 
   // A double click on a text or on a shape, or Enter on a selected one, writes in it: the text of a text, or the text inside a shape.
   protected onActivate(el: SketchElement): void {
+    // The text of a locked element cannot be changed.
+    if (isLocked(el)) return;
     if (el.type === `text`) this.editText(el, [el.x, el.y]);
     else if (isLabeledShape(el)) this.editLabel(el);
     else if (el.type === `line` || el.type === `arrow`) this.editLineLabel(el);
@@ -359,9 +362,10 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.toolButton(tools, `pen`, `pencil`, t(`Stylo libre`));
     this.toolButton(tools, `point`, `dot`, t(`Point`));
     this.toolButton(tools, `text`, `type`, t(`Texte`));
-    const lock = this.button(tools, `unlock`, t(`Garder l'outil actif après chaque tracé`), () => {
+    // The pin keeps the tool that is active after each stroke (it is not the lock of the elements, which is a button of the bar of the selection).
+    const lock = this.button(tools, `pin-off`, t(`Garder l'outil actif après chaque tracé`), () => {
       this.toolLocked = !this.toolLocked;
-      setIcon(lock, this.toolLocked ? `lock` : `unlock`);
+      setIcon(lock, this.toolLocked ? `pin` : `pin-off`);
       lock.toggleClass(`is-active`, this.toolLocked);
     });
     this.lockButton = lock;
@@ -586,7 +590,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     for (const sec of this.sections) {
       sec.el.toggleClass(`sketchdraw-hidden`, !sectionShown(sec.name, kinds));
       // With nothing selected the choices of the panel have nothing to apply to (a new shape is always standard): they are dimmed, except the settings of a text.
-      sec.el.toggleClass(`sketchdraw-idle`, this.selected.size === 0 && sec.name !== `text` && sec.name !== `regularity`);
+      sec.el.toggleClass(`sketchdraw-idle`, (this.selected.size === 0 && sec.name !== `text` && sec.name !== `regularity`) || allLocked(this.elementsOf(this.doc), this.selected));
     }
   }
 

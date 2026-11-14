@@ -59,6 +59,8 @@ interface BaseElement {
   reflectFade?: number;
   // How far the reflection is from the element, as a part of the height of the element (0, edge to edge, when absent).
   reflectGap?: number;
+  // A locked element cannot be moved, resized, turned, mirrored, deleted, written in or given another look. Absent means free.
+  locked?: true;
   // Elements made by a page structure carry the group `structure`: choosing another structure replaces them.
   group?: `structure`;
   // The groups the element belongs to, from the innermost to the outermost (a group can hold other groups). A group is selected, moved, resized and turned as one
@@ -396,7 +398,8 @@ function readElement(value: unknown): SketchElement | null {
   if (groups === null) return null;
   const effects = readEffects(value);
   if (effects === null) return null;
-  const head = { id, ...(value.group === `structure` ? { group: `structure` as const } : {}), ...(groups ? { groups } : {}), ...effects };
+  if (value.locked !== undefined && typeof value.locked !== `boolean`) return null;
+  const head = { id, ...(value.group === `structure` ? { group: `structure` as const } : {}), ...(groups ? { groups } : {}), ...(value.locked === true ? { locked: true as const } : {}), ...effects };
   if (type === `drawing`) {
     const { x, y, width, height } = value;
     if (!isCoord(x) || !isCoord(y) || !isSize(width) || !isSize(height)) return null;
