@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0
+
+English
+
+The seven page structures. The page settings window has a new Structure section: Linear, Radial, Vertical, Path, Modular or Skyscraper, with the number of columns, arrows, steps, items or bubbles (and rows for Modular). A structure draws its separators, arrows and links on the page: they are real parts of the drawing, printed with it. It also shows dotted frames where to place the contents (title, columns, cells, bubbles): they help while editing and are never printed. Changing the structure or the page size replaces what the structure drew; the page colour and the default stroke colour carry over to its strokes (white on the chalkboard). The file format now stores the structure and the elements of the page. Files of versions 0.1 and 0.2 open without change. Moving and deleting the separators comes with the selection tools in version 0.4.0.
+
+Français
+
+Les sept structures de page. La fenêtre des réglages de la page a une nouvelle section Structure : Linear, Radial, Vertical, Path, Modular ou Skyscraper, avec le nombre de colonnes, de flèches, d'étapes, d'éléments ou de bulles (et de lignes pour Modular). Une structure dessine ses séparations, ses flèches et ses liens sur la page : ce sont de vraies parties du dessin, imprimées avec lui. Elle montre aussi en pointillés où placer les contenus (titre, colonnes, cases, bulles) : ces cadres aident pendant l'édition et ne sont jamais imprimés. Changer la structure ou la taille de la page remplace ce que la structure avait dessiné ; la couleur de la page et la couleur de trait par défaut se reportent sur ses traits (blanc sur le tableau noir). Le format de fichier enregistre désormais la structure et les éléments de la page. Les fichiers des versions 0.1 et 0.2 s'ouvrent sans changement. Le déplacement et la suppression des séparations arrivent avec les outils de sélection en version 0.4.0.
+
 ## 0.2.1
 
 English

@@ -16,7 +16,7 @@ Bibliothèque de dessins : Lucide (ISC) et Tabler icons (MIT), passés dans le r
 
 Polices : 3 ou 4 polices manuscrites sous licence SIL Open Font License embarquées dans main.js. Les autres s'importent depuis un fichier .ttf ou .otf, sans téléchargement par le plugin.
 
-Structures : ce sont des guides. Les éléments s'aimantent aux emplacements et tout reste déplaçable. La structure Skyscraper crée aussi des séparations que l'on peut déplacer ou supprimer.
+Structures : une structure produit deux choses. Les séparations, flèches et traits de liaison sont de vrais éléments du dessin : imprimés, déplaçables et supprimables, sans option de masquage. Les emplacements (cadres en pointillés pour le titre, les colonnes, les cases, les bulles) sont seulement une aide au placement pendant l'édition : jamais imprimés. Changer de structure ou de taille de page remplace les éléments que la structure a dessinés (avertir avant de remplacer des éléments déplacés quand la sélection existera, version 0.4.0). Réglages : Linear 2 à 4 colonnes, Radial 3 à 12 éléments autour du centre, Vertical 2 à 5 flèches, Path 3 à 10 étapes, Modular 1 à 4 colonnes et 1 à 4 lignes avec un bandeau de titre, Skyscraper 2 à 6 colonnes, Popcorn 4 à 14 bulles. La structure se choisit dans la section Structure de la fenêtre Page.
 
 Palette : 3 à 5 couleurs choisies à la création de la page, proposées en premier dans les outils, à côté d'un sélecteur libre.
 
@@ -34,4 +34,4 @@ Version : manifest.json, package.json, package-lock.json (deux endroits) et vers
 
 ## Plan des versions
 
-0.1.0 squelette et installation par BRAT. 0.2.0 la page (taille, orientation, fond, style de fond). 0.3.0 les sept structures. 0.4.0 cœur du moteur de dessin (sélection, poignées, annuler). 0.5.0 outils de formes. 0.6.0 texte et polices. 0.7.0 élément graphique imbriqué par double clic. 0.8.0 bibliothèque et images. 0.9.0 exports et intégration dans les notes. 0.10.0 audit de performance et de sécurité. 1.0.0 publication dans le répertoire communautaire.
+0.1.0 squelette et installation par BRAT. 0.2.0 la page (taille, orientation, fond, style de fond). 0.3.0 les sept structures (faite). 0.4.0 cœur du moteur de dessin (sélection, poignées, annuler). 0.5.0 outils de formes. 0.6.0 texte et polices. 0.7.0 élément graphique imbriqué par double clic. 0.8.0 bibliothèque et images. 0.9.0 exports et intégration dans les notes. 0.10.0 audit de performance et de sécurité. 1.0.0 publication dans le répertoire communautaire.

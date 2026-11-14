@@ -35,6 +35,11 @@ export interface BackgroundSpec {
 
 const STEP = 32;
 
+// Returns the colours of the dotted frames that show the slots of a structure: blue on a light page, white on a dark page.
+export function slotStyle(background: string): { color: string; strokeOpacity: number; fillOpacity: number } {
+  return brightness(background) < 0.5 ? { color: `#ffffff`, strokeOpacity: 0.55, fillOpacity: 0.05 } : { color: `#3f78c0`, strokeOpacity: 0.7, fillOpacity: 0.05 };
+}
+
 // Reads a #rgb, #rrggbb or #rrggbbaa colour and returns its red, green and blue parts (0 to 255). Returns null for anything else.
 export function parseHex(color: string): [number, number, number] | null {
   const m = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.exec(color);

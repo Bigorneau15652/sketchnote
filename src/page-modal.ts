@@ -2,17 +2,20 @@
 import { App, Modal, Setting } from "obsidian";
 import { MAX_PAGE_SIZE, MIN_PAGE_SIZE, PageSettings, Pattern } from "./file-format";
 import { t } from "./i18n";
+import { defaultLayout, LAYOUT_LIMITS, LAYOUT_TYPES, LayoutSettings, LayoutType, normalizeLayout, ROW_LIMITS } from "./layout";
 import { toHex6 } from "./page-background";
 import { changeBackground, changeInk, changeOrientation, changePreset, changeSize, changeStyle, detectPreset, PresetId } from "./page-settings";
 
 export class PageModal extends Modal {
   private page: PageSettings;
-  private readonly onChange: (page: PageSettings) => void;
+  private layout: LayoutSettings | null;
+  private readonly onChange: (page: PageSettings, layout: LayoutSettings | null) => void;
 
-  // Creates the window with the current page settings and a function called after each change.
-  constructor(app: App, page: PageSettings, onChange: (page: PageSettings) => void) {
+  // Creates the window with the current page settings and structure, and a function called after each change.
+  constructor(app: App, page: PageSettings, layout: LayoutSettings | null, onChange: (page: PageSettings, layout: LayoutSettings | null) => void) {
     super(app);
     this.page = page;
+    this.layout = layout;
     this.onChange = onChange;
   }
 
@@ -27,9 +30,10 @@ export class PageModal extends Modal {
   }
 
   // Stores a new version of the page, tells the view and draws the window again so that every field shows the new values.
-  private apply(page: PageSettings): void {
+  private apply(page: PageSettings, layout: LayoutSettings | null = this.layout): void {
     this.page = page;
-    this.onChange(page);
+    this.layout = layout;
+    this.onChange(page, layout);
     this.build();
   }
 
@@ -84,6 +88,41 @@ export class PageModal extends Modal {
       .setName(t(`Couleur du trait par défaut`))
       .setDesc(t(`Couleur proposée pour écrire et dessiner. Sur le tableau noir, elle passe au blanc.`))
       .addColorPicker((c) => c.setValue(toHex6(this.page.ink)).onChange((v) => this.apply(changeInk(this.page, v))));
+
+    this.buildLayoutFields(el);
+  }
+
+  // Builds the fields of the page structure: the type, then the number of columns, items, steps or bubbles (and rows for the modular structure).
+  private buildLayoutFields(el: HTMLElement): void {
+    new Setting(el)
+      .setName(t(`Structure`))
+      .setDesc(t(`Dessine les séparations, les flèches et les liens de la structure, et montre en pointillés où placer les contenus pendant l'édition (ces pointillés ne sont jamais imprimés). Changer la structure ou la taille de la page remplace ce qu'elle a dessiné.`))
+      .addDropdown((d) => {
+        d.addOption(`none`, t(`Aucune`));
+        const names: Record<LayoutType, string> = { linear: `Linear`, radial: `Radial`, vertical: `Vertical`, path: `Path`, modular: `Modular`, skyscraper: `Skyscraper`, popcorn: `Popcorn` };
+        for (const type of LAYOUT_TYPES) d.addOption(type, names[type]);
+        d.setValue(this.layout ? this.layout.type : `none`).onChange((v) => this.apply(this.page, v === `none` ? null : defaultLayout(v as LayoutType)));
+      });
+    const layout = this.layout;
+    if (layout === null) return;
+    const limits = LAYOUT_LIMITS[layout.type];
+    const labels: Record<LayoutType, string> = {
+      linear: t(`Nombre de colonnes`),
+      radial: t(`Nombre d'éléments autour du centre`),
+      vertical: t(`Nombre de flèches`),
+      path: t(`Nombre d'étapes`),
+      modular: t(`Nombre de colonnes`),
+      skyscraper: t(`Nombre de colonnes`),
+      popcorn: t(`Nombre de bulles`),
+    };
+    new Setting(el)
+      .setName(labels[layout.type])
+      .addSlider((s) => s.setLimits(limits.min, limits.max, 1).setValue(layout.count).setDynamicTooltip().onChange((v) => this.apply(this.page, normalizeLayout({ ...layout, count: v }))));
+    if (layout.type === `modular`) {
+      new Setting(el)
+        .setName(t(`Nombre de lignes`))
+        .addSlider((s) => s.setLimits(ROW_LIMITS.min, ROW_LIMITS.max, 1).setValue(layout.rows).setDynamicTooltip().onChange((v) => this.apply(this.page, normalizeLayout({ ...layout, rows: v }))));
+    }
   }
 
   // Fills a number field with a page dimension and applies the typed value when the field loses focus or Enter is pressed.

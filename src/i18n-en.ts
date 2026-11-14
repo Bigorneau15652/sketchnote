@@ -36,6 +36,18 @@ const PAIRS: [string, string][] = [
   [`Zoom arrière`, `Zoom out`],
   [`Zoom avant`, `Zoom in`],
   [`Ajuster la page à la fenêtre`, `Fit the page to the window`],
+  [`La structure du sketchnote est invalide.`, `The sketchnote structure is invalid.`],
+  [`Trop d'éléments sur la page.`, `Too many elements on the page.`],
+  [`Élément {0} invalide.`, `Element {0} is invalid.`],
+  [`Structure`, `Structure`],
+  [`Aucune`, `None`],
+  [`Dessine les séparations, les flèches et les liens de la structure, et montre en pointillés où placer les contenus pendant l'édition (ces pointillés ne sont jamais imprimés). Changer la structure ou la taille de la page remplace ce qu'elle a dessiné.`, `Draws the separators, arrows and links of the structure, and shows with dotted frames where to place the contents while editing (the dotted frames are never printed). Changing the structure or the page size replaces what it drew.`],
+  [`Nombre de colonnes`, `Number of columns`],
+  [`Nombre d'éléments autour du centre`, `Number of items around the centre`],
+  [`Nombre de flèches`, `Number of arrows`],
+  [`Nombre d'étapes`, `Number of steps`],
+  [`Nombre de bulles`, `Number of bubbles`],
+  [`Nombre de lignes`, `Number of rows`],
 ];
 
 export const EN: Record<string, string> = Object.fromEntries(PAIRS);
