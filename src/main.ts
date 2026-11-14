@@ -42,6 +42,7 @@ export default class SketchnotePlugin extends Plugin {
       },
     });
     this.addGroupCommand(`group-selection`, t(`Grouper la sélection`), (view) => view.groupSelection());
+    this.addGroupCommand(`lock-selection`, t(`Verrouiller ou déverrouiller la sélection`), (view) => view.toggleLock());
     this.addGroupCommand(`ungroup-selection`, t(`Dégrouper la sélection`), (view) => view.ungroupSelection());
     this.addRibbonIcon(`pencil`, t(`Créer un sketchnote`), () => void this.createSketchnote());
     this.addSettingTab(new SketchnoteSettingTab(this.app, this));

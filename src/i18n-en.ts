@@ -165,6 +165,8 @@ const PAIRS: [string, string][] = [
   [`Stylo libre`, `Pen`],
   [`Point`, `Dot`],
   [`Garder l'outil actif après chaque tracé`, `Keep the tool active after each stroke`],
+  [`Verrouiller`, `Lock`],
+  [`Déverrouiller`, `Unlock`],
   [`Propriétés`, `Properties`],
   [`Remplissage`, `Fill`],
   [`Épaisseur`, `Width`],
@@ -188,6 +190,7 @@ const PAIRS: [string, string][] = [
   [`Grouper`, `Group`],
   [`Dégrouper`, `Ungroup`],
   [`Grouper la sélection`, `Group the selection`],
+  [`Verrouiller ou déverrouiller la sélection`, `Lock or unlock the selection`],
   [`Dégrouper la sélection`, `Ungroup the selection`],
   [`Transparence du remplissage`, `Fill transparency`],
 ];

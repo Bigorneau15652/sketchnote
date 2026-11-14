@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.18.0
+
+English
+
+Locking of elements. A locked element stays as it is until it is unlocked: it cannot be moved (with the mouse or the arrow keys), resized, turned, mirrored, deleted, brought forward or backward, written in (no text by a double click or Enter, also on a line or a shape) or given another look (colours, fill, border, effects, regularity). Other elements stay free: in a selection that holds both, a move, a mirror or a deletion only concerns the free ones. A locked element can still be selected and copied (its copy is free). The lock is saved in the file: it is kept when Obsidian is left and opened again, and files of the previous versions open without change. A new button with a padlock in the bar of the selection locks the selected elements, or unlocks them when all of them are locked; Ctrl+L does the same in the drawing, and the command Lock or unlock the selection can be given a keyboard shortcut in the settings of Obsidian. A locked element is shown with its frame and a small padlock, without handles, the mouse cursor does not offer to grab it, and the settings of the panel are dimmed. A zone of a page can be locked too: Delete then no longer empties its drawing, and changing the structure of the page still moves it. The button that keeps the tool active after each stroke, which had a padlock, now has a pin, so that it is not mistaken for the lock.
+
+Français
+
+Le verrouillage des éléments. Un élément verrouillé reste tel qu'il est jusqu'à son déverrouillage : on ne peut ni le déplacer (à la souris ou avec les flèches du clavier), ni le redimensionner, ni le tourner, ni le retourner, ni le supprimer, ni le mettre devant ou derrière, ni écrire dedans (pas de texte par un double clic ou Entrée, y compris sur un trait ou une forme), ni lui donner un autre aspect (couleurs, remplissage, bordure, effets, régularité). Les autres éléments restent libres : dans une sélection qui contient les deux, un déplacement, un retournement ou une suppression ne concerne que les éléments libres. Un élément verrouillé peut toujours être sélectionné et copié (sa copie est libre). Le verrou est enregistré dans le fichier : il est conservé quand on quitte Obsidian et qu'on y revient, et les fichiers des versions précédentes s'ouvrent sans changement. Un nouveau bouton avec un cadenas dans la barre de la sélection verrouille les éléments sélectionnés, ou les déverrouille quand ils le sont tous ; Ctrl+L fait la même chose dans le dessin, et la commande Verrouiller ou déverrouiller la sélection peut recevoir un raccourci clavier dans les réglages d'Obsidian. Un élément verrouillé est montré avec son cadre et un petit cadenas, sans poignées, le curseur de la souris ne propose pas de le saisir, et les réglages du panneau sont estompés. Une zone d'une page peut aussi être verrouillée : Suppr ne vide alors plus son dessin, et un changement de structure de la page la déplace toujours. Le bouton qui garde l'outil actif après chaque tracé, qui avait un cadenas, a maintenant une épingle pour ne pas être confondu avec le verrouillage.
+
 ## 0.17.0
 
 English

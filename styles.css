@@ -131,6 +131,23 @@
   fill: var(--interactive-accent);
 }
 
+.sketchnote-lock-mark {
+  pointer-events: none;
+}
+
+.sketchnote-lock-body {
+  fill: var(--interactive-accent, #7c5cff);
+  stroke: var(--background-primary, #ffffff);
+  stroke-width: 1;
+}
+
+.sketchnote-lock-shackle {
+  fill: none;
+  stroke: var(--interactive-accent, #7c5cff);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
 .sketchnote-marquee {
   fill: var(--interactive-accent);
   fill-opacity: 0.12;

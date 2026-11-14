@@ -7,6 +7,7 @@ import { applySettings, ensureZoneFrames, structureEdited, zoneFrame } from "./d
 import { contentBox, DrawingGuide, fitInFrame, makeGuide } from "./drawing-file";
 import { drawElements } from "./element-render";
 import { DrawingElement, SketchElement } from "./elements";
+import { isLocked } from "./lock";
 import { createEmptyDoc, PageSettings, parseSketchnote, serializeSketchnote, SketchnoteDoc } from "./file-format";
 import { Box } from "./geometry";
 import { t } from "./i18n";
@@ -180,7 +181,7 @@ export class SketchnoteView extends CanvasView<SketchnoteDoc> {
     if (this.selected.size === 0) return;
     const elements: SketchElement[] = [];
     for (const el of this.doc.elements) {
-      if (!this.selected.has(el.id)) {
+      if (!this.selected.has(el.id) || isLocked(el)) {
         elements.push(el);
       } else if (el.type === `drawing` && el.slot !== undefined) {
         const zone = this.slots[el.slot];
