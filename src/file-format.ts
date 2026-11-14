@@ -1,6 +1,6 @@
 // The .sketchnote file format: one JSON document that holds the page, its structure and all its elements.
 // This file has no dependency on Obsidian, so it is tested without the application.
-import { isSafeColor } from "./color";
+import { defaultPaletteFor, isPalette, isSafeColor } from "./color";
 import { ElementsResult, readElements, SketchElement } from "./elements";
 import { t } from "./i18n";
 import { LayoutSettings, readLayout } from "./layout";
@@ -24,6 +24,8 @@ export interface PageSettings {
   pattern: Pattern;
   // Default colour of strokes and text on this page (white on a chalkboard).
   ink: string;
+  // 3 to 5 colours chosen for the page: they are offered first in the drawing tools.
+  palette: string[];
 }
 
 export interface SketchnoteDoc {
@@ -43,7 +45,7 @@ export function createEmptyDoc(): SketchnoteDoc {
   return {
     format: FORMAT_NAME,
     version: FORMAT_VERSION,
-    page: { width: 794, height: 1123, orientation: `portrait`, background: `#ffffff`, pattern: `blank`, ink: `#000000` },
+    page: { width: 794, height: 1123, orientation: `portrait`, background: `#ffffff`, pattern: `blank`, ink: `#000000`, palette: defaultPaletteFor(`#000000`) },
     layout: null,
     elements: [],
   };
@@ -77,7 +79,9 @@ function readPage(value: unknown): PageSettings | null {
   const style = pattern as Pattern;
   if (value.ink !== undefined && !isSafeColor(value.ink)) return null;
   const ink = value.ink === undefined ? defaultInk(style) : (value.ink as string);
-  return { width, height, orientation, background, pattern: style, ink };
+  if (value.palette !== undefined && !isPalette(value.palette)) return null;
+  const palette = value.palette === undefined ? defaultPaletteFor(ink) : [...(value.palette as string[])];
+  return { width, height, orientation, background, pattern: style, ink, palette };
 }
 
 // Reads the text of a .sketchnote file. Every field is checked and copied, so nothing unchecked from the file reaches the rest of the plugin.

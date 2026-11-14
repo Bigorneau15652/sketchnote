@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createEmptyDoc, MAX_PAGE_SIZE, MIN_PAGE_SIZE, PageSettings } from "../src/file-format";
-import { changeBackground, changeInk, changeOrientation, changePreset, changeSize, changeStyle, clampSize, detectPreset, presetSize } from "../src/page-settings";
+import { changeBackground, changeInk, changeOrientation, changePalette, changePreset, changeSize, changeStyle, clampSize, detectPreset, presetSize } from "../src/page-settings";
 
 // Returns a fresh A4 portrait page.
 const page = (): PageSettings => createEmptyDoc().page;
@@ -85,4 +85,16 @@ test(`les fonctions ne modifient pas la page recue`, () => {
   changeOrientation(p, `landscape`);
   changeSize(p, 300, 300);
   assert.equal(JSON.stringify(p), copy);
+});
+
+test(`la palette de la page est de 3 a 5 couleurs et suit le fond`, () => {
+  assert.equal(page().palette.length, 5);
+  const board = changeStyle(page(), `chalkboard`);
+  assert.equal(board.palette[0], `#ffffff`);
+  assert.equal(changeStyle(board, `grid`).palette[0], `#000000`);
+  const three = changePalette(page(), [`#111111`, `#222222`, `#333333`]);
+  assert.equal(three.palette.length, 3);
+  assert.deepEqual(changePalette(page(), [`#111111`, `#222222`]), page());
+  assert.deepEqual(changePalette(page(), [`#111111`, `#222222`, `#333333`, `#444444`, `#555555`, `#666666`]), page());
+  assert.deepEqual(changePalette(page(), [`#111111`, `#222222`, `rouge`]), page());
 });

@@ -1,3 +1,10 @@
-Sketchnote is published under the MIT licence (file LICENSE at the root of the repository). Version 0.1.0 bundles no third-party work.
+Sketchnote is published under the MIT licence (file LICENSE at the root of the repository).
+
+Since version 0.5.0, main.js bundles two works under the MIT licence, whose texts are in the folder licences/:
+
+roughjs 4.6.6, Copyright (c) 2019 Preet Shihn (licences/MIT-roughjs.txt), https://github.com/rough-stuff/rough. It draws the hand drawn look of the lines. It brings four small
+packages of the same author, also under the MIT licence: hachure-fill, path-data-parser, points-on-curve and points-on-path (licences/MIT-roughjs-dependencies.txt).
+
+perfect-freehand 1.2.3, Copyright (c) 2021 Stephen Ruiz Ltd (licences/MIT-perfect-freehand.txt), https://github.com/steveruizok/perfect-freehand. It draws the lines of the pen.
 
 Each dependency, font or data file added later is recorded here and in docs/DEPENDANCES.md, with its licence text in the folder licences/.

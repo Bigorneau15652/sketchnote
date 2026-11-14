@@ -1,4 +1,5 @@
 // Pure transformations of elements: move, resize from a corner and rotate. Each function returns a new element and never changes its argument.
+import { hasPoints } from "./elements";
 import type { Point, SketchElement } from "./elements";
 import { Box, boxOf, centerOf, rotatePoint } from "./geometry";
 
@@ -10,21 +11,21 @@ const r2 = (n: number): number => Math.round(n * 100) / 100;
 
 // Returns the element moved by a distance.
 export function translate(el: SketchElement, dx: number, dy: number): SketchElement {
-  if (el.type === `line` || el.type === `arrow`) return { ...el, points: el.points.map((p): Point => [r2(p[0] + dx), r2(p[1] + dy)]) };
-  if (el.type === `rect`) return { ...el, x: r2(el.x + dx), y: r2(el.y + dy) };
-  return { ...el, cx: r2(el.cx + dx), cy: r2(el.cy + dy) };
+  if (hasPoints(el)) return { ...el, points: el.points.map((p): Point => [r2(p[0] + dx), r2(p[1] + dy)]) };
+  if (el.type === `ellipse`) return { ...el, cx: r2(el.cx + dx), cy: r2(el.cy + dy) };
+  return { ...el, x: r2(el.x + dx), y: r2(el.y + dy) };
 }
 
 // Returns a rectangle or an ellipse with a new box, keeping everything else.
 function withBox(el: SketchElement, box: Box): SketchElement {
-  if (el.type === `rect`) return { ...el, x: r2(box.x), y: r2(box.y), width: r2(box.w), height: r2(box.h) };
+  if (el.type === `rect` || el.type === `diamond` || el.type === `drawing`) return { ...el, x: r2(box.x), y: r2(box.y), width: r2(box.w), height: r2(box.h) };
   if (el.type === `ellipse`) return { ...el, cx: r2(box.x + box.w / 2), cy: r2(box.y + box.h / 2), rx: r2(box.w / 2), ry: r2(box.h / 2) };
   return el;
 }
 
 // Resizes a line or an arrow by moving one corner of its box. The opposite corner stays where it is. An axis along which the box has no size is left alone.
 function resizeLine(el: SketchElement, corner: number, pointer: Point, keepRatio: boolean): SketchElement {
-  if (el.type !== `line` && el.type !== `arrow`) return el;
+  if (!hasPoints(el)) return el;
   const { box } = boxOf(el);
   const [sx, sy] = SIGNS[corner];
   const ox = sx === -1 ? box.x + box.w : box.x;
@@ -43,7 +44,9 @@ function resizeLine(el: SketchElement, corner: number, pointer: Point, keepRatio
 // Resizes an element by dragging one corner to a point. The opposite corner stays where it is on the page, even when the element is rotated.
 // With keepRatio the shape keeps its proportions.
 export function resizeElement(el: SketchElement, corner: 0 | 1 | 2 | 3, pointer: Point, keepRatio: boolean): SketchElement {
-  if (el.type === `line` || el.type === `arrow`) return resizeLine(el, corner, pointer, keepRatio);
+  if (hasPoints(el)) return resizeLine(el, corner, pointer, keepRatio);
+  // A drawing frame always keeps the proportions of its drawing, like a picture.
+  if (el.type === `drawing`) keepRatio = true;
   const { box, angle } = boxOf(el);
   const [sx, sy] = SIGNS[corner];
   const c = centerOf(box);
@@ -71,7 +74,7 @@ export function normalizeAngle(degrees: number): number {
 
 // Turns an element by an angle in degrees around its centre. A rectangle or an ellipse keeps its shape and takes a rotation; a line or an arrow has its points turned.
 export function rotateBy(el: SketchElement, degrees: number): SketchElement {
-  if (el.type === `line` || el.type === `arrow`) {
+  if (hasPoints(el)) {
     const c = centerOf(boxOf(el).box);
     return { ...el, points: el.points.map((p): Point => { const q = rotatePoint(p, c, degrees); return [r2(q[0]), r2(q[1])]; }) };
   }

@@ -5,7 +5,8 @@ import { MAX_PAGE_SIZE, MIN_PAGE_SIZE, PageSettings, Pattern } from "./file-form
 import { t } from "./i18n";
 import { defaultLayout, LAYOUT_LIMITS, LAYOUT_TYPES, LayoutSettings, LayoutType, normalizeLayout, ROW_LIMITS } from "./layout";
 import { toHex6 } from "./page-background";
-import { changeBackground, changeInk, changeOrientation, changePreset, changeSize, changeStyle, detectPreset, PresetId } from "./page-settings";
+import { changeBackground, changeInk, changeOrientation, changePalette, changePreset, changeSize, changeStyle, detectPreset, PresetId } from "./page-settings";
+import { MAX_PALETTE, MIN_PALETTE } from "./color";
 
 export class PageModal extends Modal {
   private page: PageSettings;
@@ -56,11 +57,11 @@ export class PageModal extends Modal {
   }
 
   // Applies a change: stores it, tells the view and draws the window again so that every field shows the new values.
-  private commitChange(page: PageSettings, layout: LayoutSettings | null): void {
+  private commitChange(page: PageSettings, layout: LayoutSettings | null, rebuild = true): void {
     this.page = page;
     this.layout = layout;
     this.onChange(page, layout);
-    this.build();
+    if (rebuild) this.build();
   }
 
   // Builds every field of the window.
@@ -115,7 +116,30 @@ export class PageModal extends Modal {
       .setDesc(t(`Couleur proposée pour écrire et dessiner. Sur le tableau noir, elle passe au blanc.`))
       .addColorPicker((c) => c.setValue(toHex6(this.page.ink)).onChange((v) => this.apply(changeInk(this.page, v))));
 
+    this.buildPaletteFields(el);
     this.buildLayoutFields(el);
+  }
+
+  // Builds the palette of the page: 3 to 5 colours, offered first in the drawing tools and copied into each new drawing. A colour picked in the window
+  // does not draw the window again, so that the picker stays open while the colour is chosen.
+  private buildPaletteFields(el: HTMLElement): void {
+    const setting = new Setting(el)
+      .setName(t(`Palette de la page`))
+      .setDesc(t(`De 3 à 5 couleurs proposées en premier dans les outils de dessin. Elles sont copiées dans chaque nouveau dessin.`));
+    this.page.palette.forEach((color, i) => {
+      setting.addColorPicker((c) =>
+        c.setValue(toHex6(color)).onChange((v) => {
+          const next = this.page.palette.map((x, j) => (j === i ? v : x));
+          this.commitChange(changePalette(this.page, next), this.layout, false);
+        }),
+      );
+    });
+    if (this.page.palette.length < MAX_PALETTE) {
+      setting.addExtraButton((b) => b.setIcon(`plus`).setTooltip(t(`Ajouter une couleur`)).onClick(() => this.commitChange(changePalette(this.page, [...this.page.palette, this.page.ink]), this.layout)));
+    }
+    if (this.page.palette.length > MIN_PALETTE) {
+      setting.addExtraButton((b) => b.setIcon(`minus`).setTooltip(t(`Retirer la dernière couleur`)).onClick(() => this.commitChange(changePalette(this.page, this.page.palette.slice(0, -1)), this.layout)));
+    }
   }
 
   // Builds the fields of the page structure: the type, then the number of columns, items, steps or bubbles (and rows for the modular structure).

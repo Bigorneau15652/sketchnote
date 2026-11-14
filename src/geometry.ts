@@ -1,4 +1,5 @@
 // Pure geometry of the elements: boxes, rotation, hit tests and the position of the handles of a selected element.
+import { hasPoints, isShape, isStroked } from "./elements";
 import type { Point, SketchElement } from "./elements";
 
 export interface Box {
@@ -32,7 +33,7 @@ export function centerOf(box: Box): Point {
 
 // Returns the box of an element before rotation and its rotation. A line or an arrow has no rotation of its own: its box is the one of its points.
 export function boxOf(el: SketchElement): { box: Box; angle: number } {
-  if (el.type === `rect`) return { box: { x: el.x, y: el.y, w: el.width, h: el.height }, angle: el.angle ?? 0 };
+  if (el.type === `rect` || el.type === `diamond` || el.type === `drawing`) return { box: { x: el.x, y: el.y, w: el.width, h: el.height }, angle: el.angle ?? 0 };
   if (el.type === `ellipse`) return { box: { x: el.cx - el.rx, y: el.cy - el.ry, w: 2 * el.rx, h: 2 * el.ry }, angle: el.angle ?? 0 };
   let minX = Infinity;
   let minY = Infinity;
@@ -94,10 +95,11 @@ export function distToSegment(p: Point, a: Point, b: Point): number {
   return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
 }
 
-// Tells whether a point touches the stroke of an element, with a tolerance in page units added to half the stroke width.
+// Tells whether a point touches an element, with a tolerance in page units. A line is touched on its stroke, a shape on its outline (and inside
+// when it has a fill), a drawing frame anywhere inside.
 export function hitElement(el: SketchElement, p: Point, tolerance: number): boolean {
-  const reach = el.strokeWidth / 2 + tolerance;
-  if (el.type === `line` || el.type === `arrow`) {
+  const reach = (isStroked(el) ? el.strokeWidth / 2 : 0) + tolerance;
+  if (hasPoints(el)) {
     for (let i = 0; i + 1 < el.points.length; i++) if (distToSegment(p, el.points[i], el.points[i + 1]) <= reach) return true;
     return false;
   }
@@ -106,13 +108,25 @@ export function hitElement(el: SketchElement, p: Point, tolerance: number): bool
   const q = rotatePoint(p, c, -angle);
   const lx = q[0] - c[0];
   const ly = q[1] - c[1];
-  if (el.type === `rect`) {
+  const filled = isShape(el) && el.fill !== undefined;
+  if (el.type === `rect` || el.type === `drawing`) {
     const dx = Math.abs(lx) - box.w / 2;
     const dy = Math.abs(ly) - box.h / 2;
+    if (el.type === `drawing`) return dx <= tolerance && dy <= tolerance;
+    if (filled && dx <= 0 && dy <= 0) return true;
     const dist = dx <= 0 && dy <= 0 ? Math.min(-dx, -dy) : Math.hypot(Math.max(dx, 0), Math.max(dy, 0));
     return dist <= reach;
   }
+  if (el.type === `diamond`) {
+    const hw = box.w / 2;
+    const hh = box.h / 2;
+    if (filled && Math.abs(lx) / hw + Math.abs(ly) / hh <= 1) return true;
+    const corners: Point[] = [[0, -hh], [hw, 0], [0, hh], [-hw, 0]];
+    for (let i = 0; i < 4; i++) if (distToSegment([lx, ly], corners[i], corners[(i + 1) % 4]) <= reach) return true;
+    return false;
+  }
   const r = Math.hypot(lx / (box.w / 2), ly / (box.h / 2));
+  if (filled && r <= 1) return true;
   return Math.abs(r - 1) * Math.min(box.w / 2, box.h / 2) <= reach;
 }
 

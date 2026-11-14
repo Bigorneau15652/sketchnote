@@ -36,6 +36,16 @@ Version : manifest.json, package.json, package-lock.json (deux endroits) et vers
 
 Déplacer la page : touche Espace maintenue avec glisser, bouton Main de la barre du bas (utile quand la page est très zoomée), clic molette, deux doigts sur écran tactile. Zoom : réglette dans la barre du bas, boutons, Ctrl ou Cmd avec la molette, pincement. Un clic sur un objet le sélectionne pour le déplacer ; poignées d'angle pour redimensionner ; poignée spécifique pour pivoter ; annuler et rétablir. Aimantation aux emplacements, aux bords de la page et aux autres éléments, active par défaut, suspendue avec Alt. La barre d'outils de dessin sera à droite dans le mode dessin (version 0.7.0), la barre du bas reste pour la page.
 
+## Décisions d'Olivier pour les dessins (version 0.5.0)
+
+Organisation comme dans Bigorneau : une page de travail et des pages de dessin. La page reste un fichier .sketchnote unique ; chaque élément graphique est un cadre qui renvoie vers une note de dessin séparée, un fichier .sketchdraw (JSON). Le cadre se crée sur la page (bouton Dessin de la barre du bas), un double clic crée la note et l'ouvre dans un autre onglet, avec la barre d'outils à droite. Le sketchnote est donc composé de plusieurs notes de dessin (cette décision remplace l'idée de départ de tout mettre dans un seul fichier).
+
+Dossier des notes de dessin : un réglage du plugin (par défaut Sketchnote dessins), un dossier unique où retrouver tous les dessins. Un nom de dessin est « Nom du sketchnote - dessin N ». Supprimer un cadre ne supprime pas la note de dessin.
+
+Dupliquer un cadre (Ctrl ou Cmd avec D, bouton Dupliquer de la barre du bas, commande de la palette Dupliquer la sélection à laquelle Olivier peut donner un raccourci) crée une copie indépendante de la note de dessin. Un cadre se redimensionne proportionnellement comme une image et prend les proportions du dessin après chaque modification (la largeur reste, la hauteur s'adapte).
+
+Lignes et flèches : le même fonctionnement qu'Excalidraw, sans inventer une autre façon de faire (points multiples, courbes, coudes, pointes : version 0.6.0). Style par défaut : trait fin noir à main levée. Propriétés : couleur du trait, remplissage (aucun, uni, hachuré), épaisseur, style (dessin ou net). La palette de la page (3 à 5 couleurs) est dans la fenêtre Page et copiée dans chaque nouveau dessin.
+
 ## Plan des versions
 
-0.1.0 squelette et installation par BRAT. 0.2.0 la page (taille, orientation, fond, style de fond). 0.3.0 les sept structures (faite). 0.4.0 cœur du moteur de dessin : sélection, poignées, annuler (faite). 0.5.0 outils de formes. 0.6.0 texte et polices. 0.7.0 élément graphique imbriqué par double clic. 0.8.0 bibliothèque et images. 0.9.0 exports et intégration dans les notes. 0.10.0 audit de performance et de sécurité. 1.0.0 publication dans le répertoire communautaire.
+0.1.0 squelette et installation par BRAT (faite). 0.2.0 la page (faite). 0.3.0 les sept structures (faite). 0.4.0 sélection, poignées, annuler (faite). 0.5.0 cadres de dessin, notes de dessin, éditeur avec outils de base, propriétés, palette (faite). 0.6.0 lignes et flèches comme sur Excalidraw (points multiples, courbes, coudes, pointes). 0.7.0 texte et polices manuscrites. 0.8.0 bibliothèque de dessins (Lucide et Tabler) et images. 0.9.0 exports (PNG, SVG, PDF) et intégration dans les notes. 0.10.0 audit de performance et de sécurité. 1.0.0 publication dans le répertoire communautaire.

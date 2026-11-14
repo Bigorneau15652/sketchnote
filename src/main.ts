@@ -1,17 +1,46 @@
-// Entry point of the plugin: registers the .sketchnote view and the command that creates a new sketchnote.
-import { Notice, Plugin, TFile, normalizePath } from "obsidian";
+// Entry point of the plugin: registers the views of a sketchnote and of a drawing, the commands, the settings and the follow-up of the drawing notes.
+import { Notice, Plugin, TFile, WorkspaceLeaf, normalizePath } from "obsidian";
+import { CanvasView } from "./canvas-view";
+import { DRAW_VIEW_TYPE, SketchdrawView } from "./draw-view";
+import { DrawingStore } from "./drawings";
 import { createEmptyDoc, serializeSketchnote } from "./file-format";
 import { setLanguage, t } from "./i18n";
+import { PluginApi } from "./plugin-api";
+import { DEFAULT_SETTINGS, readSettings, SketchnoteSettings } from "./settings";
+import { SketchnoteSettingTab } from "./settings-tab";
 import { SketchnoteView, VIEW_TYPE } from "./view";
 
 export default class SketchnotePlugin extends Plugin {
-  // Starts the plugin: language, view, file extension, command and ribbon button.
+  settingsData: SketchnoteSettings = { ...DEFAULT_SETTINGS };
+  private drawings!: DrawingStore;
+  private readonly origins = new Map<string, WorkspaceLeaf>();
+
+  // Starts the plugin: settings, language, views, file extensions, commands, settings page and vault events.
   async onload(): Promise<void> {
+    this.settingsData = readSettings(await this.loadData());
     setLanguage(`auto`);
-    this.registerView(VIEW_TYPE, (leaf) => new SketchnoteView(leaf));
+    this.drawings = new DrawingStore(this.app, () => this.settingsData.drawingsFolder);
+    const api: PluginApi = { drawings: this.drawings, settings: () => this.settingsData, origins: this.origins };
+    this.registerView(VIEW_TYPE, (leaf) => new SketchnoteView(leaf, api));
+    this.registerView(DRAW_VIEW_TYPE, (leaf) => new SketchdrawView(leaf, api));
     this.registerExtensions([`sketchnote`], VIEW_TYPE);
+    this.registerExtensions([`sketchdraw`], DRAW_VIEW_TYPE);
     this.addCommand({ id: `create-sketchnote`, name: t(`Créer un sketchnote`), callback: () => void this.createSketchnote() });
+    this.addCommand({
+      id: `duplicate-selection`,
+      name: t(`Dupliquer la sélection`),
+      checkCallback: (checking) => {
+        const view = this.app.workspace.getActiveViewOfType(SketchnoteView) ?? this.app.workspace.getActiveViewOfType(SketchdrawView);
+        if (!(view instanceof CanvasView)) return false;
+        if (!checking) void view.duplicateSelection();
+        return true;
+      },
+    });
     this.addRibbonIcon(`pencil`, t(`Créer un sketchnote`), () => void this.createSketchnote());
+    this.addSettingTab(new SketchnoteSettingTab(this.app, this));
+    this.registerEvent(this.app.vault.on(`modify`, (file) => this.drawings.handleModify(file)));
+    this.registerEvent(this.app.vault.on(`rename`, (file, oldPath) => void this.drawings.handleRename(file, oldPath)));
+    this.registerEvent(this.app.vault.on(`delete`, (file) => this.drawings.handleDelete(file)));
   }
 
   // Returns a free path for a new sketchnote, next to the active note or at the root of the vault.

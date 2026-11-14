@@ -1,5 +1,5 @@
-// Draws a page as an SVG element, from its settings. Built with the DOM only: no markup text is ever parsed.
-import { arrowHeadPoints, SketchElement } from "./elements";
+// Draws the surface of a page as an SVG element, from its settings: the page colour, the repeating tile of its style, the dotted frames of its structure.
+// The elements are drawn into the group `content` by the view. Built with the DOM only: no markup text is ever parsed.
 import { PageSettings } from "./file-format";
 import type { Slot } from "./layout";
 import { backgroundSpec, slotStyle, TileShape } from "./page-background";
@@ -22,32 +22,6 @@ function drawShape(shape: TileShape, parent: Element, prefix: string): void {
   svgEl(shape.tag, attrs, parent);
 }
 
-// Turns a list of points into the text of an SVG points attribute.
-function pointsText(points: [number, number][]): string {
-  return points.map((p) => `${p[0]},${p[1]}`).join(` `);
-}
-
-// Draws one element of the page into a parent. Strokes are round and clean (the hand-drawn style comes with the drawing tools).
-export function drawElement(el: SketchElement, parent: Element): void {
-  const look = { stroke: el.stroke, "stroke-width": el.strokeWidth, "stroke-linecap": `round`, "stroke-linejoin": `round`, fill: `none` };
-  if (el.type === `line` || el.type === `arrow`) {
-    svgEl(`polyline`, { points: pointsText(el.points), ...look }, parent);
-    const head = el.type === `arrow` ? arrowHeadPoints(el.points, el.strokeWidth) : null;
-    if (head) svgEl(`polyline`, { points: pointsText(head), ...look }, parent);
-  } else if (el.type === `rect`) {
-    const turn: Record<string, string | number> = el.angle ? { transform: `rotate(${el.angle} ${el.x + el.width / 2} ${el.y + el.height / 2})` } : {};
-    svgEl(`rect`, { x: el.x, y: el.y, width: el.width, height: el.height, ...look, ...turn }, parent);
-  } else {
-    const turn: Record<string, string | number> = el.angle ? { transform: `rotate(${el.angle} ${el.cx} ${el.cy})` } : {};
-    svgEl(`ellipse`, { cx: el.cx, cy: el.cy, rx: el.rx, ry: el.ry, ...look, ...turn }, parent);
-  }
-}
-
-// Draws a list of elements into a group, in order (the first one is at the back).
-export function drawElements(elements: SketchElement[], parent: Element): void {
-  for (const el of elements) drawElement(el, parent);
-}
-
 // Draws the slots of a structure as dotted frames in their own group. They help to place the contents while editing and are never part of the drawing.
 function drawSlots(slots: Slot[], background: string, parent: Element): void {
   const style = slotStyle(background);
@@ -59,8 +33,8 @@ function drawSlots(slots: Slot[], background: string, parent: Element): void {
   }
 }
 
-// Builds the SVG of a page at a given zoom: the page colour, the repeating tile of its style and an empty group for the elements.
-export function renderPage(page: PageSettings, zoom: number, elements: SketchElement[] = [], slots: Slot[] = []): RenderedPage {
+// Builds the SVG of a page at a given zoom: the page colour, the repeating tile of its style, an empty group for the elements, the slots and the editor overlay.
+export function renderPage(page: PageSettings, zoom: number, slots: Slot[] = []): RenderedPage {
   const { width, height } = page;
   const spec = backgroundSpec(page);
   const svg = svgEl(`svg`, { class: `sketchnote-page`, width: width * zoom, height: height * zoom, viewBox: `0 0 ${width} ${height}` });
@@ -80,8 +54,17 @@ export function renderPage(page: PageSettings, zoom: number, elements: SketchEle
   }
   for (const shape of spec.overlay) drawShape(shape, svg, prefix);
   const content = svgEl(`g`, { class: `sketchnote-content` }, svg);
-  drawElements(elements, content);
   if (slots.length > 0) drawSlots(slots, page.background, svg);
+  const ui = svgEl(`g`, { class: `sketchnote-ui`, "pointer-events": `none` }, svg);
+  return { svg, content, ui };
+}
+
+// Builds the SVG of the surface of a drawing: a plain colour and the groups for the elements and the editor overlay. The colour is dark when the ink is
+// light, so that a white drawing made for a chalkboard stays visible.
+export function renderCanvas(width: number, height: number, zoom: number, dark: boolean): RenderedPage {
+  const svg = svgEl(`svg`, { class: `sketchnote-page sketchnote-canvas`, width: width * zoom, height: height * zoom, viewBox: `0 0 ${width} ${height}` });
+  svgEl(`rect`, { x: 0, y: 0, width, height, fill: dark ? `#2a3631` : `#ffffff` }, svg);
+  const content = svgEl(`g`, { class: `sketchnote-content` }, svg);
   const ui = svgEl(`g`, { class: `sketchnote-ui`, "pointer-events": `none` }, svg);
   return { svg, content, ui };
 }

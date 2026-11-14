@@ -124,3 +124,32 @@ test(`tourner une ligne de 90 degres tourne ses points autour du centre de sa bo
     near(next.points[1][1], 100);
   }
 });
+
+test(`un losange se deplace, se redimensionne et pivote comme un rectangle`, () => {
+  const d: SketchElement = { id: `d`, type: `diamond`, x: 10, y: 10, width: 50, height: 40, ...base };
+  assert.deepEqual(translate(d, 5, 5), { ...d, x: 15, y: 15 });
+  const big = resizeElement(d, 2, [110, 90], false) as { width: number; height: number };
+  assert.equal(big.width, 100);
+  assert.equal(big.height, 80);
+  assert.equal((rotateBy(d, 30) as { angle?: number }).angle, 30);
+});
+
+test(`un trait libre se deplace, s'etire et pivote comme une ligne`, () => {
+  const f: SketchElement = { id: `f`, type: `freedraw`, points: [[0, 0], [50, 50], [100, 0]], ...base };
+  const moved = translate(f, 10, 20) as { points: number[][] };
+  assert.deepEqual(moved.points[1], [60, 70]);
+  const wide = resizeElement(f, 2, [200, 100], false) as { points: number[][] };
+  assert.deepEqual(wide.points[2], [200, 0]);
+  assert.deepEqual(wide.points[1], [100, 100]);
+  const turned = rotateBy(f, 90) as { points: number[][] };
+  assert.equal(turned.points.length, 3);
+});
+
+test(`un cadre de dessin garde toujours ses proportions quand on le redimensionne`, () => {
+  const frame: SketchElement = { id: `c`, type: `drawing`, x: 0, y: 0, width: 200, height: 100, path: null };
+  const r = resizeElement(frame, 2, [400, 120], false) as { width: number; height: number };
+  assert.ok(Math.abs(r.width / r.height - 2) < 0.01);
+  assert.ok(r.width >= 399);
+  const turned = rotateBy(frame, 45) as { angle?: number };
+  assert.equal(turned.angle, 45);
+});
