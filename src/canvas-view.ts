@@ -4,6 +4,7 @@ import { setIcon, TextFileView, WorkspaceLeaf } from "obsidian";
 import { newId, SketchElement } from "./elements";
 import { blockBox, Box, boxesIntersect, boxOf, centerOf, elementBounds, hitBoxHandle, hitHandle, hitTop, unionBox } from "./geometry";
 import { canUngroup, expandToGroups, groupAction, groupElements, topGroupId, ungroupElements } from "./groups";
+import { flipElements } from "./flip";
 import { insertPointAt, lockAngle, midpointIndexAt, movePointTo, nearestOnLine, pointIndexAt, removePointAt } from "./linear";
 import { History } from "./history";
 import { t } from "./i18n";
@@ -266,6 +267,8 @@ export abstract class CanvasView<D> extends TextFileView {
     const actions = bar.createDiv({ cls: `sketchnote-selection-actions` });
     this.groupButton = this.button(actions, `group`, t(`Grouper`), () => this.toggleGroup());
     this.button(actions, `copy`, t(`Dupliquer`), () => void this.duplicateSelection());
+    this.button(actions, `flip-horizontal`, t(`Retourner horizontalement`), () => this.flipSelection(`x`));
+    this.button(actions, `flip-vertical`, t(`Retourner verticalement`), () => this.flipSelection(`y`));
     this.button(actions, `bring-to-front`, t(`Mettre devant`), () => this.reorderSelection(`front`));
     this.button(actions, `send-to-back`, t(`Mettre derrière`), () => this.reorderSelection(`back`));
     this.button(actions, `trash-2`, t(`Supprimer`), () => this.deleteSelection());
@@ -521,7 +524,8 @@ export abstract class CanvasView<D> extends TextFileView {
     const mod = e.ctrlKey || e.metaKey;
     const key = e.key.toLowerCase();
     const step = e.shiftKey ? 10 : 1;
-    const letter = !mod && !e.altKey ? this.toolKeys()[key] : undefined;
+    const flipKey = e.shiftKey && !mod && !e.altKey ? ({ h: `x`, v: `y` } as Record<string, `x` | `y`>)[key] : undefined;
+    const letter = !mod && !e.altKey && !flipKey ? this.toolKeys()[key] : undefined;
     const single = this.selected.size === 1 ? this.selectedElements()[0] : undefined;
     if (this.multi && (key === `enter` || key === `escape`)) {
       this.finishMulti();
@@ -553,7 +557,8 @@ export abstract class CanvasView<D> extends TextFileView {
       this.tool = `select`;
       this.renderUi();
       this.updateBar();
-    } else if (letter) this.setTool(letter);
+    } else if (flipKey) this.flipSelection(flipKey);
+    else if (letter) this.setTool(letter);
     else if (key === `arrowleft`) this.nudge(-step, 0);
     else if (key === `arrowright`) this.nudge(step, 0);
     else if (key === `arrowup`) this.nudge(0, -step);
@@ -840,6 +845,14 @@ export abstract class CanvasView<D> extends TextFileView {
     this.renderContent();
     this.renderUi();
     this.updateBar();
+  }
+
+  // Mirrors the selection horizontally or vertically, as one change that can be undone.
+  protected flipSelection(axis: `x` | `y`): void {
+    if (this.selected.size === 0) return;
+    const elements = this.elementsOf(this.doc);
+    const next = flipElements(elements, this.selected, axis);
+    if (next.some((e, i) => e !== elements[i])) this.commitElements(next);
   }
 
   // Starts the resize or the rotation of several selected elements as one block, when the pointer is on a handle of their common frame. Returns true when it started.

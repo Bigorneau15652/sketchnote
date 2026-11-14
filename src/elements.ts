@@ -21,8 +21,34 @@ export const MIN_FILL_OPACITY = 0.05;
 const MAX_GROUPS = 8;
 const MAX_SLOT = 999;
 
+// A shadow under an element: the offset, the blur, the colour and the opacity.
+export interface Shadow {
+  x: number;
+  y: number;
+  blur: number;
+  color: string;
+  opacity: number;
+}
+
+// The look of the line of a shape, a line or an arrow: continuous, dashed or dotted.
+export type LineStyle = `solid` | `dashed` | `dotted`;
+// The border of a shape: none, a double border (a thick line and a thin one), a double border the other way round, a picture frame (a thick line between two thin ones) or a
+// wide mat with a thin line inside. Absent means a simple border.
+export type Border = `none` | `double` | `double-reverse` | `frame` | `mat`;
+export const BORDERS: Border[] = [`none`, `double`, `double-reverse`, `frame`, `mat`];
+export const MAX_RADIUS = 1000;
+export const MIN_OPACITY = 0.05;
+
 interface BaseElement {
   id: string;
+  // The opacity of the whole element (the line, the fill and the text), from MIN_OPACITY to 1. Absent means opaque.
+  opacity?: number;
+  shadow?: Shadow;
+  // Mirrored in its own frame, before its rotation. A line, an arrow and a pen stroke are mirrored by their points instead.
+  flipX?: boolean;
+  flipY?: boolean;
+  // A faded copy of the element, upside down, under it.
+  reflection?: boolean;
   // Elements made by a page structure carry the group `structure`: choosing another structure replaces them.
   group?: `structure`;
   // The groups the element belongs to, from the innermost to the outermost (a group can hold other groups). A group is selected, moved, resized and turned as one
@@ -37,6 +63,7 @@ interface Strokes {
   strokeWidth: number;
   roughness?: number;
   seed?: number;
+  lineStyle?: LineStyle;
 }
 
 // A fill, for the shapes that have an inside. The opacity goes from almost transparent to 1 (opaque, the default) and only concerns the fill, not the line.
@@ -76,6 +103,9 @@ export interface RectElement extends BaseElement, Strokes, Fills {
   height: number;
   // Rotation in degrees around the centre. Absent means 0.
   angle?: number;
+  // The radius of the corners. Absent means square corners.
+  radius?: number;
+  border?: Border;
 }
 
 export interface EllipseElement extends BaseElement, Strokes, Fills {
@@ -85,6 +115,7 @@ export interface EllipseElement extends BaseElement, Strokes, Fills {
   rx: number;
   ry: number;
   angle?: number;
+  border?: Border;
 }
 
 export interface DiamondElement extends BaseElement, Strokes, Fills {
@@ -94,6 +125,7 @@ export interface DiamondElement extends BaseElement, Strokes, Fills {
   width: number;
   height: number;
   angle?: number;
+  border?: Border;
 }
 
 // A frame on a page that shows a drawing kept in its own note. The path is the path of the drawing note in the vault, or null while the
@@ -242,6 +274,45 @@ function readFill(value: Record<string, unknown>): { fill?: string; fillStyle?: 
   return out;
 }
 
+// Reads the optional effects shared by every element (opacity, shadow, mirror, reflection). Returns null when a field is present and wrong, otherwise the fields present.
+function readEffects(value: Record<string, unknown>): Pick<BaseElement, `opacity` | `shadow` | `flipX` | `flipY` | `reflection`> | null {
+  const out: Pick<BaseElement, `opacity` | `shadow` | `flipX` | `flipY` | `reflection`> = {};
+  if (value.opacity !== undefined) {
+    if (typeof value.opacity !== `number` || !Number.isFinite(value.opacity) || value.opacity < MIN_OPACITY || value.opacity > 1) return null;
+    if (value.opacity < 1) out.opacity = value.opacity;
+  }
+  if (value.shadow !== undefined) {
+    const sh = value.shadow;
+    if (!isRecord(sh)) return null;
+    const { x, y, blur, color, opacity } = sh;
+    if (typeof x !== `number` || typeof y !== `number` || !Number.isFinite(x) || !Number.isFinite(y) || Math.abs(x) > 200 || Math.abs(y) > 200) return null;
+    if (typeof blur !== `number` || !Number.isFinite(blur) || blur < 0 || blur > 100) return null;
+    if (!isSafeColor(color)) return null;
+    if (typeof opacity !== `number` || !Number.isFinite(opacity) || opacity < 0 || opacity > 1) return null;
+    out.shadow = { x, y, blur, color, opacity };
+  }
+  for (const key of [`flipX`, `flipY`, `reflection`] as const) {
+    if (value[key] === undefined) continue;
+    if (typeof value[key] !== `boolean`) return null;
+    if (value[key] === true) out[key] = true;
+  }
+  return out;
+}
+
+// Reads the optional border of a shape: its kind and, for a rectangle, the radius of its corners. Returns null when a field is present and wrong.
+function readBorder(value: Record<string, unknown>, withRadius: boolean): { border?: Border; radius?: number } | null {
+  const out: { border?: Border; radius?: number } = {};
+  if (value.border !== undefined) {
+    if (!BORDERS.includes(value.border as Border)) return null;
+    out.border = value.border as Border;
+  }
+  if (value.radius !== undefined && withRadius) {
+    if (typeof value.radius !== `number` || !Number.isFinite(value.radius) || value.radius < 0 || value.radius > MAX_RADIUS) return null;
+    if (value.radius > 0) out.radius = value.radius;
+  }
+  return out;
+}
+
 // Reads one element and copies only its known fields. Returns null when it is not valid.
 function readElement(value: unknown): SketchElement | null {
   if (!isRecord(value)) return null;
@@ -250,7 +321,9 @@ function readElement(value: unknown): SketchElement | null {
   if (value.group !== undefined && value.group !== `structure`) return null;
   const groups = readGroups(value.groups);
   if (groups === null) return null;
-  const head = { id, ...(value.group === `structure` ? { group: `structure` as const } : {}), ...(groups ? { groups } : {}) };
+  const effects = readEffects(value);
+  if (effects === null) return null;
+  const head = { id, ...(value.group === `structure` ? { group: `structure` as const } : {}), ...(groups ? { groups } : {}), ...effects };
   if (type === `drawing`) {
     const { x, y, width, height } = value;
     if (!isCoord(x) || !isCoord(y) || !isSize(width) || !isSize(height)) return null;
@@ -279,7 +352,9 @@ function readElement(value: unknown): SketchElement | null {
   if (typeof strokeWidth !== `number` || !Number.isFinite(strokeWidth) || strokeWidth < MIN_STROKE || strokeWidth > MAX_STROKE) return null;
   const look = readLook(value);
   if (look === null) return null;
-  const base = { ...head, stroke, strokeWidth, ...look };
+  if (value.lineStyle !== undefined && value.lineStyle !== `solid` && value.lineStyle !== `dashed` && value.lineStyle !== `dotted`) return null;
+  const lineStyle = value.lineStyle === `dashed` || value.lineStyle === `dotted` ? { lineStyle: value.lineStyle as LineStyle } : {};
+  const base = { ...head, stroke, strokeWidth, ...look, ...lineStyle };
   if (type === `line` || type === `arrow` || type === `freedraw`) {
     const points = readPoints(value.points, type === `freedraw` ? MAX_FREEDRAW_POINTS : MAX_POINTS);
     if (points === null) return null;
@@ -301,13 +376,15 @@ function readElement(value: unknown): SketchElement | null {
   const angle = readAngle(value.angle);
   if (fill === null || angle === null) return null;
   const turn = angle === 0 ? {} : { angle };
+  const border = readBorder(value, type === `rect`);
+  if (border === null) return null;
   if (type === `rect` || type === `diamond`) {
     const { x, y, width, height } = value;
-    return isCoord(x) && isCoord(y) && isSize(width) && isSize(height) ? { ...base, ...fill, ...turn, type, x, y, width, height } : null;
+    return isCoord(x) && isCoord(y) && isSize(width) && isSize(height) ? { ...base, ...fill, ...turn, ...border, type, x, y, width, height } : null;
   }
   if (type === `ellipse`) {
     const { cx, cy, rx, ry } = value;
-    return isCoord(cx) && isCoord(cy) && isSize(rx) && isSize(ry) ? { ...base, ...fill, ...turn, type, cx, cy, rx, ry } : null;
+    return isCoord(cx) && isCoord(cy) && isSize(rx) && isSize(ry) ? { ...base, ...fill, ...turn, ...border, type, cx, cy, rx, ry } : null;
   }
   return null;
 }

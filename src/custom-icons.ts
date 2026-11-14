@@ -10,6 +10,7 @@ function tag(name: string, attrs: Record<string, string | number>): string {
 }
 
 const line = { fill: `none`, stroke: `currentColor`, "stroke-linecap": `round` };
+const boxed = { fill: `none`, stroke: `currentColor`, "stroke-linejoin": `round` };
 const FRAME = tag(`rect`, { x: 18, y: 18, width: 64, height: 64, rx: 6, fill: `none`, stroke: `currentColor`, "stroke-width": 7 });
 
 const ICONS: Record<string, string> = {
@@ -34,6 +35,26 @@ const ICONS: Record<string, string> = {
   "sketchnote-size-medium": tag(`path`, { d: `M26 76L50 30L74 76M35 60H65`, ...line, "stroke-linejoin": `round`, "stroke-width": 8 }),
   "sketchnote-size-large": tag(`path`, { d: `M20 80L50 22L80 80M31 58H69`, ...line, "stroke-linejoin": `round`, "stroke-width": 9 }),
   "sketchnote-size-huge": tag(`path`, { d: `M12 86L50 14L88 86M26 56H74`, ...line, "stroke-linejoin": `round`, "stroke-width": 10 }),
+  // Line styles, corners, borders, shadows, reflection and opacity.
+  "sketchnote-line-solid": tag(`path`, { d: `M12 50H88`, ...line, "stroke-width": 8 }),
+  "sketchnote-line-dashed": tag(`path`, { d: `M10 50H28M41 50H59M72 50H90`, ...line, "stroke-width": 8 }),
+  "sketchnote-line-dotted": tag(`path`, { d: `M14 50.1H14.1M32 50.1H32.1M50 50.1H50.1M68 50.1H68.1M86 50.1H86.1`, ...line, "stroke-width": 11 }),
+  "sketchnote-corner-square": tag(`rect`, { x: 16, y: 26, width: 68, height: 48, rx: 0, ...boxed, "stroke-width": 8 }),
+  "sketchnote-corner-slight": tag(`rect`, { x: 16, y: 26, width: 68, height: 48, rx: 9, ...boxed, "stroke-width": 8 }),
+  "sketchnote-corner-round": tag(`rect`, { x: 16, y: 26, width: 68, height: 48, rx: 18, ...boxed, "stroke-width": 8 }),
+  "sketchnote-corner-pill": tag(`rect`, { x: 16, y: 26, width: 68, height: 48, rx: 24, ...boxed, "stroke-width": 8 }),
+  "sketchnote-border-simple": tag(`rect`, { x: 18, y: 18, width: 64, height: 64, ...boxed, "stroke-width": 8 }),
+  "sketchnote-border-none": tag(`rect`, { x: 18, y: 18, width: 64, height: 64, rx: 2, fill: `currentColor`, "fill-opacity": 0.35, stroke: `none` }),
+  "sketchnote-border-double": tag(`rect`, { x: 12, y: 12, width: 76, height: 76, ...boxed, "stroke-width": 4 }) + tag(`rect`, { x: 28, y: 28, width: 44, height: 44, ...boxed, "stroke-width": 11 }),
+  "sketchnote-border-double-reverse": tag(`rect`, { x: 14, y: 14, width: 72, height: 72, ...boxed, "stroke-width": 11 }) + tag(`rect`, { x: 33, y: 33, width: 34, height: 34, ...boxed, "stroke-width": 4 }),
+  "sketchnote-border-frame": tag(`rect`, { x: 10, y: 10, width: 80, height: 80, ...boxed, "stroke-width": 4 }) + tag(`rect`, { x: 24, y: 24, width: 52, height: 52, ...boxed, "stroke-width": 10 }) + tag(`rect`, { x: 40, y: 40, width: 20, height: 20, ...boxed, "stroke-width": 4 }),
+  "sketchnote-border-mat": tag(`rect`, { x: 18, y: 18, width: 64, height: 64, ...boxed, "stroke-width": 18 }) + tag(`rect`, { x: 40, y: 40, width: 20, height: 20, ...boxed, "stroke-width": 4 }),
+  "sketchnote-shadow-none": tag(`rect`, { x: 22, y: 22, width: 52, height: 52, ...boxed, "stroke-width": 7 }),
+  "sketchnote-shadow-soft": tag(`rect`, { x: 28, y: 30, width: 52, height: 52, rx: 4, fill: `currentColor`, "fill-opacity": 0.25, stroke: `none` }) + tag(`rect`, { x: 18, y: 18, width: 52, height: 52, ...boxed, "stroke-width": 7 }),
+  "sketchnote-shadow-strong": tag(`rect`, { x: 30, y: 32, width: 52, height: 52, rx: 4, fill: `currentColor`, "fill-opacity": 0.55, stroke: `none` }) + tag(`rect`, { x: 16, y: 16, width: 52, height: 52, ...boxed, "stroke-width": 7 }),
+  "sketchnote-shadow-offset": tag(`rect`, { x: 30, y: 30, width: 52, height: 52, fill: `currentColor`, "fill-opacity": 0.4, stroke: `none` }) + tag(`rect`, { x: 16, y: 16, width: 52, height: 52, ...boxed, "stroke-width": 7 }),
+  "sketchnote-reflection": tag(`rect`, { x: 24, y: 14, width: 52, height: 30, ...boxed, "stroke-width": 7 }) + tag(`rect`, { x: 24, y: 54, width: 52, height: 30, fill: `currentColor`, "fill-opacity": 0.3, stroke: `none` }),
+  "sketchnote-opacity": tag(`circle`, { cx: 50, cy: 50, r: 32, ...boxed, "stroke-width": 7 }) + tag(`path`, { d: `M50 18A32 32 0 0 1 50 82Z`, fill: `currentColor`, stroke: `none` }),
 };
 
 // Registers the pictograms of the plugin. Each head of an arrow also exists mirrored (sketchnote-head-start-...), to show the head at the start of an arrow.

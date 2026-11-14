@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.0
+
+English
+
+Effects and borders for shapes and texts. The properties panel has new sections, shown only for the elements they concern. Line type (continuous, dashes, dots) for shapes, lines and arrows. For rectangles, diamonds and ellipses, one Border menu: simple, none (only the fill), double (a thick line and a thin one), reversed double, picture frame (a thick line between two thin ones) and frame with a mat (a wide band with a thin line inside); and, for rectangles, four buttons for the corners (square, slightly rounded, rounded, very rounded up to a pill). Effects for every element, texts included: one Shadow menu (none, soft, strong, offset), a Reflection button (a faded copy upside down under the element) and a slider for the opacity of the whole element (the line, the fill and the text; the fill keeps its own transparency slider). Two buttons of the selection actions, and the keys Shift+H and Shift+V, mirror the selection horizontally or vertically as a block (a line, an arrow and a pen stroke have their points mirrored; the other elements move to their mirror place, turn the other way and are drawn mirrored, which reverses a text). The strokes of a page structure and the zones are not mirrored. A new element takes the effects that are chosen when it is drawn. Files of the previous versions open without change.
+
+Français
+
+Les effets et les bordures des formes et du texte. Le panneau des propriétés a de nouvelles sections, affichées seulement pour les éléments qu'elles concernent. Type de trait (continu, tirets, pointillés) pour les formes, les traits et les flèches. Pour les rectangles, les losanges et les ellipses, un seul menu Bordure : simple, sans bordure (seul le remplissage), double (un trait épais et un trait fin), double inversée, cadre de tableau (un trait épais entre deux traits fins) et cadre avec marie-louise (une large bande avec un trait fin à l'intérieur) ; et, pour les rectangles, quatre boutons pour les coins (carrés, légèrement arrondis, arrondis, très arrondis jusqu'à la forme de pilule). Des effets pour tous les éléments, textes compris : un menu Ombre (aucune, douce, marquée, décalée), un bouton Reflet (une copie estompée à l'envers sous l'élément) et une réglette d'opacité de tout l'élément (le trait, le remplissage et le texte ; le remplissage garde sa propre réglette de transparence). Deux boutons des actions de la sélection, et les touches Maj+H et Maj+V, retournent la sélection horizontalement ou verticalement comme un bloc (un trait, une flèche et un tracé au stylo ont leurs points retournés ; les autres éléments passent à leur place symétrique, tournent dans l'autre sens et sont dessinés en miroir, ce qui renverse un texte). Les traits d'une structure de page et les zones ne sont pas retournés. Un nouvel élément prend les effets choisis au moment où on le dessine. Les fichiers des versions précédentes s'ouvrent sans changement.
+
 ## 0.10.2
 
 English

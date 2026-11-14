@@ -2,6 +2,7 @@
 // Shift for a square, a circle or a line at a multiple of 15 degrees, Alt to start from the centre. Pure module.
 import type { ArrowElement, DiamondElement, EllipseElement, FreedrawElement, LineElement, Point, RectElement, SketchElement, TextElement } from "./elements";
 import type { ToolStyle } from "./style";
+import { effectFields, lineStyleField } from "./effects";
 import { refitText } from "./text-layout";
 
 export type CreationTool = `rect` | `diamond` | `ellipse` | `line` | `arrow` | `pen` | `point`;
@@ -39,8 +40,13 @@ function lineEnd(start: Point, end: Point, shift: boolean): Point {
 }
 
 // Returns the look fields of a new element, from the style chosen by the user.
-function look(style: ToolStyle, seed: number): { stroke: string; strokeWidth: number; roughness: number; seed: number } {
-  return { stroke: style.stroke, strokeWidth: style.strokeWidth, roughness: style.roughness, seed };
+function look(style: ToolStyle, seed: number): ReturnType<typeof effectFields> & ReturnType<typeof lineStyleField> & { stroke: string; strokeWidth: number; roughness: number; seed: number } {
+  return { stroke: style.stroke, strokeWidth: style.strokeWidth, roughness: style.roughness, seed, ...lineStyleField(style.lineStyle), ...effectFields(style) };
+}
+
+// Returns the border and the corners of a new shape: only what differs from a simple border and square corners.
+function borderOf(style: ToolStyle, rect: boolean): { border?: Exclude<ToolStyle[`border`], `simple`>; radius?: number } {
+  return { ...(style.border !== `simple` ? { border: style.border } : {}), ...(rect && style.radius > 0 ? { radius: style.radius } : {}) };
 }
 
 // Returns the fill fields of a new shape: nothing when the style has no fill.
@@ -54,13 +60,13 @@ export function elementFromDrag(tool: CreationTool, start: Point, end: Point, mo
   if (tool === `rect` || tool === `diamond`) {
     const b = dragBox(start, end, mods);
     if (b.w < 2 || b.h < 2) return null;
-    const el: RectElement | DiamondElement = { id, type: tool, x: r2(b.x), y: r2(b.y), width: r2(b.w), height: r2(b.h), ...look(style, seed), ...fillOf(style) };
+    const el: RectElement | DiamondElement = { id, type: tool, x: r2(b.x), y: r2(b.y), width: r2(b.w), height: r2(b.h), ...look(style, seed), ...fillOf(style), ...borderOf(style, tool === `rect`) } as RectElement | DiamondElement;
     return el;
   }
   if (tool === `ellipse`) {
     const b = dragBox(start, end, mods);
     if (b.w < 2 || b.h < 2) return null;
-    const el: EllipseElement = { id, type: `ellipse`, cx: r2(b.x + b.w / 2), cy: r2(b.y + b.h / 2), rx: r2(b.w / 2), ry: r2(b.h / 2), ...look(style, seed), ...fillOf(style) };
+    const el: EllipseElement = { id, type: `ellipse`, cx: r2(b.x + b.w / 2), cy: r2(b.y + b.h / 2), rx: r2(b.w / 2), ry: r2(b.h / 2), ...look(style, seed), ...fillOf(style), ...borderOf(style, false) };
     return el;
   }
   if (tool === `line` || tool === `arrow`) {
@@ -104,11 +110,13 @@ export function addPenPoint(points: Point[], p: Point, minDistance: number): Poi
 export function penElement(points: Point[], style: ToolStyle, id: string, seed: number, maxPoints: number): FreedrawElement | null {
   if (points.length === 0) return null;
   const pts: Point[] = points.length === 1 ? [points[0], [r2(points[0][0] + 0.1), r2(points[0][1])]] : points.slice(0, maxPoints);
-  return { id, type: `freedraw`, points: pts, ...look(style, seed) };
+  const { lineStyle: _l, ...rest } = look(style, seed);
+  void _l;
+  return { id, type: `freedraw`, points: pts, ...rest };
 }
 
 // Returns a text whose top left corner is at a point, in the font, the size, the alignment and the colour of the style. `measure` gives the width of a line of text.
 export function textElement(at: Point, text: string, style: ToolStyle, id: string, measure: (line: string, font: string, size: number) => number): TextElement {
-  const base: TextElement = { id, type: `text`, x: r2(at[0]), y: r2(at[1]), width: 1, height: 1, text, font: style.font, size: style.fontSize, stroke: style.stroke, ...(style.align === `left` ? {} : { align: style.align }) };
+  const base: TextElement = { id, type: `text`, x: r2(at[0]), y: r2(at[1]), width: 1, height: 1, text, font: style.font, size: style.fontSize, stroke: style.stroke, ...(style.align === `left` ? {} : { align: style.align }), ...effectFields(style) };
   return refitText(base, measure);
 }
