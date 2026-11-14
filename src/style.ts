@@ -1,7 +1,7 @@
 // The look of the lines and fills that the user chooses, and how a choice is applied to elements. Pure module.
 import { FILL_STYLES, FillStyle, MAX_ROUGHNESS, Head, HEADS, headOf, isFontId, isShape, isStroked, LineStyle, MAX_FONT_SIZE, MIN_FILL_OPACITY, MIN_FONT_SIZE, SketchElement, TEXT_ALIGNS, TextAlign } from "./elements";
 import { DEFAULT_FONT } from "./fonts";
-import { BORDER_KINDS, BorderKind, cleanOpacity, CORNER_RADII, DEFAULT_REFLECT_DEPTH, DEFAULT_REFLECT_FADE, DEFAULT_SHADOW_OPACITY, SHADOW_MAX, shadowFrom, shadowOpacityOf, shadowSizeOf } from "./effects";
+import { BORDER_KINDS, BorderKind, cleanOpacity, CORNER_RADII, DEFAULT_REFLECT_DEPTH, DEFAULT_REFLECT_FADE, DEFAULT_REFLECT_GAP, DEFAULT_SHADOW, SHADOW_MAX_BLUR, SHADOW_MAX_DISTANCE, shadowFrom, shadowSettingsOf } from "./effects";
 import { isSafeColor } from "./color";
 
 export interface ToolStyle {
@@ -24,12 +24,16 @@ export interface ToolStyle {
   align: TextAlign;
   // The effects of every element: its opacity, its shadow and its reflection. The line style, the border and the corners of the shapes.
   opacity: number;
-  // The size and the strength of the shadow (a size of 0 means no shadow), whether there is a reflection, how deep it is and how much it fades.
-  shadowSize: number;
+  // The shadow (whether there is one, its distance, its blur, its density and its colour) and the reflection (whether there is one, how deep it is, how much it fades and how far it is).
+  shadow: boolean;
+  shadowDistance: number;
+  shadowBlur: number;
   shadowOpacity: number;
+  shadowColor: string;
   reflection: boolean;
   reflectionDepth: number;
   reflectionFade: number;
+  reflectionGap: number;
   // How much lines and arrows are tapered, from 0 (constant width) to 1.
   taper: number;
   lineStyle: LineStyle;
@@ -47,7 +51,7 @@ export const MAX_WIDTH = 24;
 export const TEXT_SIZES = { small: 20, medium: 32, large: 52, huge: 84 };
 
 // The effects of an element that has none: opaque, no shadow, no reflection, a continuous line, a simple border and square corners.
-const PLAIN_EFFECTS = { opacity: 1, shadowSize: 0, shadowOpacity: DEFAULT_SHADOW_OPACITY, reflection: false, reflectionDepth: DEFAULT_REFLECT_DEPTH, reflectionFade: DEFAULT_REFLECT_FADE, taper: 0, lineStyle: `solid` as LineStyle, border: `simple` as BorderKind, radius: 0 };
+const PLAIN_EFFECTS = { opacity: 1, shadow: false, shadowDistance: DEFAULT_SHADOW.distance, shadowBlur: DEFAULT_SHADOW.blur, shadowOpacity: DEFAULT_SHADOW.opacity, shadowColor: DEFAULT_SHADOW.color, reflection: false, reflectionDepth: DEFAULT_REFLECT_DEPTH, reflectionFade: DEFAULT_REFLECT_FADE, reflectionGap: DEFAULT_REFLECT_GAP, taper: 0, lineStyle: `solid` as LineStyle, border: `simple` as BorderKind, radius: 0 };
 
 // Returns the style of a new drawing: a thin hand drawn line in the ink colour of the page, with no fill.
 export function defaultStyle(ink: string): ToolStyle {
@@ -70,7 +74,11 @@ export function cleanPatch(patch: StylePatch): StylePatch {
   if (typeof patch.fontSize === `number` && Number.isFinite(patch.fontSize)) out.fontSize = Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, Math.round(patch.fontSize)));
   if (patch.align !== undefined && TEXT_ALIGNS.includes(patch.align)) out.align = patch.align;
   if (typeof patch.opacity === `number` && Number.isFinite(patch.opacity)) out.opacity = cleanOpacity(patch.opacity);
-  if (typeof patch.shadowSize === `number` && Number.isFinite(patch.shadowSize)) out.shadowSize = Math.min(SHADOW_MAX, Math.max(0, Math.round(patch.shadowSize)));
+  if (typeof patch.shadow === `boolean`) out.shadow = patch.shadow;
+  if (typeof patch.shadowDistance === `number` && Number.isFinite(patch.shadowDistance)) out.shadowDistance = Math.min(SHADOW_MAX_DISTANCE, Math.max(0, Math.round(patch.shadowDistance)));
+  if (typeof patch.shadowBlur === `number` && Number.isFinite(patch.shadowBlur)) out.shadowBlur = Math.min(SHADOW_MAX_BLUR, Math.max(0, Math.round(patch.shadowBlur)));
+  if (isSafeColor(patch.shadowColor)) out.shadowColor = patch.shadowColor;
+  if (typeof patch.reflectionGap === `number` && Number.isFinite(patch.reflectionGap)) out.reflectionGap = Math.min(1, Math.max(0, Math.round(patch.reflectionGap * 100) / 100));
   if (typeof patch.shadowOpacity === `number` && Number.isFinite(patch.shadowOpacity)) out.shadowOpacity = Math.min(1, Math.max(0.05, Math.round(patch.shadowOpacity * 100) / 100));
   if (typeof patch.reflectionDepth === `number` && Number.isFinite(patch.reflectionDepth)) out.reflectionDepth = Math.min(1, Math.max(0.1, Math.round(patch.reflectionDepth * 100) / 100));
   if (typeof patch.reflectionFade === `number` && Number.isFinite(patch.reflectionFade)) out.reflectionFade = Math.min(1, Math.max(0, Math.round(patch.reflectionFade * 100) / 100));
@@ -164,12 +172,17 @@ function applyEffects<T extends SketchElement>(el: T, p: StylePatch): T {
     void _o;
     next = (p.opacity >= 1 ? rest : { ...rest, opacity: p.opacity }) as SketchElement;
   }
-  if (p.shadowSize !== undefined || p.shadowOpacity !== undefined) {
-    // The size and the strength of the shadow each keep the value they have when only the other one is given.
+  if (p.shadow === false) {
     const { shadow: _s, ...rest } = next;
     void _s;
-    const shadow = shadowFrom(p.shadowSize ?? shadowSizeOf(next.shadow), p.shadowOpacity ?? shadowOpacityOf(next.shadow));
-    next = (shadow ? { ...rest, shadow } : rest) as SketchElement;
+    next = rest as SketchElement;
+  } else if (p.shadow === true || (next.shadow !== undefined && (p.shadowDistance !== undefined || p.shadowBlur !== undefined || p.shadowOpacity !== undefined || p.shadowColor !== undefined))) {
+    // Turning the shadow on gives the usual one; each setting keeps the value it has when only the others are given. Settings alone put no shadow on an element that has none.
+    const now = shadowSettingsOf(next.shadow);
+    next = {
+      ...next,
+      shadow: shadowFrom({ distance: p.shadowDistance ?? now.distance, blur: p.shadowBlur ?? now.blur, opacity: p.shadowOpacity ?? now.opacity, color: p.shadowColor ?? now.color }),
+    } as SketchElement;
   }
   if (p.reflection !== undefined) {
     const { reflection: _f, ...rest } = next;
@@ -185,6 +198,11 @@ function applyEffects<T extends SketchElement>(el: T, p: StylePatch): T {
     const { reflectFade: _e, ...rest } = next;
     void _e;
     next = (p.reflectionFade === DEFAULT_REFLECT_FADE ? rest : { ...rest, reflectFade: p.reflectionFade }) as SketchElement;
+  }
+  if (p.reflectionGap !== undefined) {
+    const { reflectGap: _g, ...rest } = next;
+    void _g;
+    next = (p.reflectionGap === DEFAULT_REFLECT_GAP ? rest : { ...rest, reflectGap: p.reflectionGap }) as SketchElement;
   }
   return next as T;
 }
@@ -228,6 +246,18 @@ function labelOf(el: SketchElement): { font: string; size: number; align?: TextA
 }
 
 // Returns the effects an element has, as the panel shows them.
-function effectsOfElement(el: SketchElement): { opacity: number; shadowSize: number; shadowOpacity: number; reflection: boolean; reflectionDepth: number; reflectionFade: number } {
-  return { opacity: el.opacity ?? 1, shadowSize: shadowSizeOf(el.shadow), shadowOpacity: shadowOpacityOf(el.shadow), reflection: el.reflection === true, reflectionDepth: el.reflectDepth ?? DEFAULT_REFLECT_DEPTH, reflectionFade: el.reflectFade ?? DEFAULT_REFLECT_FADE };
+function effectsOfElement(el: SketchElement): { opacity: number; shadow: boolean; shadowDistance: number; shadowBlur: number; shadowOpacity: number; shadowColor: string; reflection: boolean; reflectionDepth: number; reflectionFade: number; reflectionGap: number } {
+  const sh = shadowSettingsOf(el.shadow);
+  return {
+    opacity: el.opacity ?? 1,
+    shadow: el.shadow !== undefined,
+    shadowDistance: sh.distance,
+    shadowBlur: sh.blur,
+    shadowOpacity: sh.opacity,
+    shadowColor: sh.color,
+    reflection: el.reflection === true,
+    reflectionDepth: el.reflectDepth ?? DEFAULT_REFLECT_DEPTH,
+    reflectionFade: el.reflectFade ?? DEFAULT_REFLECT_FADE,
+    reflectionGap: el.reflectGap ?? DEFAULT_REFLECT_GAP,
+  };
 }

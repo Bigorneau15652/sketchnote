@@ -17,7 +17,7 @@ const MAX_COORD = 100000;
 const MIN_STROKE = 0.5;
 const MAX_STROKE = 40;
 // The most imperfect the hand drawn look can be: the roughness of an element goes from 0 (a clean line) to this.
-export const MAX_ROUGHNESS = 3;
+export const MAX_ROUGHNESS = 5;
 const MAX_SEED = 2147483647;
 const MAX_PATH_LENGTH = 512;
 export const MIN_FILL_OPACITY = 0.05;
@@ -56,6 +56,8 @@ interface BaseElement {
   // the default).
   reflectDepth?: number;
   reflectFade?: number;
+  // How far the reflection is from the element, as a part of the height of the element (0, edge to edge, when absent).
+  reflectGap?: number;
   // Elements made by a page structure carry the group `structure`: choosing another structure replaces them.
   group?: `structure`;
   // The groups the element belongs to, from the innermost to the outermost (a group can hold other groups). A group is selected, moved, resized and turned as one
@@ -315,8 +317,12 @@ function readFill(value: Record<string, unknown>): { fill?: string; fillStyle?: 
 }
 
 // Reads the optional effects shared by every element (opacity, shadow, mirror, reflection). Returns null when a field is present and wrong, otherwise the fields present.
-function readEffects(value: Record<string, unknown>): Pick<BaseElement, `opacity` | `shadow` | `flipX` | `flipY` | `reflection` | `reflectDepth` | `reflectFade`> | null {
-  const out: Pick<BaseElement, `opacity` | `shadow` | `flipX` | `flipY` | `reflection` | `reflectDepth` | `reflectFade`> = {};
+function readEffects(value: Record<string, unknown>): Pick<BaseElement, `opacity` | `shadow` | `flipX` | `flipY` | `reflection` | `reflectDepth` | `reflectFade` | `reflectGap`> | null {
+  const out: Pick<BaseElement, `opacity` | `shadow` | `flipX` | `flipY` | `reflection` | `reflectDepth` | `reflectFade` | `reflectGap`> = {};
+  if (value.reflectGap !== undefined) {
+    if (typeof value.reflectGap !== `number` || !Number.isFinite(value.reflectGap) || value.reflectGap < 0 || value.reflectGap > 1) return null;
+    if (value.reflectGap !== 0) out.reflectGap = value.reflectGap;
+  }
   if (value.reflectDepth !== undefined) {
     if (typeof value.reflectDepth !== `number` || !Number.isFinite(value.reflectDepth) || value.reflectDepth < 0.1 || value.reflectDepth > 1) return null;
     if (value.reflectDepth !== 0.6) out.reflectDepth = value.reflectDepth;

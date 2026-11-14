@@ -7,7 +7,7 @@ import { defaultFillPalette, FillSwatch, swatchBackground, swatchMatches } from 
 import { toHex6 } from "./page-background";
 import { CANVAS_HEIGHT, CANVAS_WIDTH, contentBox, createEmptyDrawing, guideBox, parseSketchdraw, serializeSketchdraw, SketchdrawDoc } from "./drawing-file";
 import { drawElements, PLAIN } from "./element-render";
-import { BORDER_KINDS, BorderKind, CORNER_RADII, SHADOW_MAX } from "./effects";
+import { BORDER_KINDS, BorderKind, CORNER_RADII, SHADOW_MAX_BLUR, SHADOW_MAX_DISTANCE } from "./effects";
 import { ArrowElement, MAX_ROUGHNESS, Head, HEADS, LineElement, Point, SketchElement, TextElement } from "./elements";
 import { fontStack } from "./fonts";
 import { openTextEditor } from "./text-editor";
@@ -456,18 +456,21 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.panelButton(aligns, `align-center`, t(`Centré`), (s) => s.align === `center`, () => this.change({ align: `center` }));
     this.panelButton(aligns, `align-right`, t(`Aligné à droite`), (s) => s.align === `right`, () => this.change({ align: `right` }));
 
-    // The effects of every element: the opacity, the shadow (its size and its strength) and the reflection (its depth and its fade). The sliders of the strength of the shadow and
-    // of the reflection only show when there is a shadow or a reflection.
+    // The effects of every element: the opacity, then the shadow and the reflection, which are checked to be used and then unfold their settings.
     const effectSec = this.section(props, `effects`);
     this.sectionIcon(effectSec, `sketchnote-shadow-soft`, t(`Effets`));
     this.slider(effectSec, t(`Opacité de l'élément`), t(`Opacité de l'élément`), 5, 100, 5, (s) => Math.round(s.opacity * 100), (v) => ({ opacity: v / 100 }));
-    this.slider(effectSec, t(`Ombre`), t(`Taille de l'ombre : 0 pour aucune ombre`), 0, SHADOW_MAX, 1, (s) => s.shadowSize, (v) => ({ shadowSize: v }));
-    this.slider(effectSec, t(`Puissance de l'ombre`), t(`Puissance de l'ombre : plus ou moins sombre`), 5, 100, 5, (s) => Math.round(s.shadowOpacity * 100), (v) => ({ shadowOpacity: v / 100 }), (s) => s.shadowSize > 0);
-    effectSec.createSpan({ cls: `sketchdraw-slider-label`, text: t(`Reflet`) });
-    const reflectRow = effectSec.createDiv({ cls: `sketchdraw-row` });
-    this.panelButton(reflectRow, `sketchnote-reflection`, t(`Reflet`), (s) => s.reflection, () => this.change({ reflection: !this.currentStyle().reflection }));
-    this.slider(effectSec, t(`Profondeur du reflet`), t(`Profondeur du reflet`), 10, 100, 5, (s) => Math.round(s.reflectionDepth * 100), (v) => ({ reflectionDepth: v / 100 }), (s) => s.reflection);
-    this.slider(effectSec, t(`Dégradé du reflet`), t(`Dégradé du reflet : de pas de dégradé à un reflet qui disparaît`), 0, 100, 5, (s) => Math.round(s.reflectionFade * 100), (v) => ({ reflectionFade: v / 100 }), (s) => s.reflection);
+    this.checkbox(effectSec, t(`Ombre`), (s) => s.shadow, (on) => ({ shadow: on }));
+    const shadowOn = (s: ToolStyle): boolean => s.shadow;
+    this.slider(effectSec, t(`Éloignement de l'ombre`), t(`Éloignement de l'ombre`), 0, SHADOW_MAX_DISTANCE, 1, (s) => s.shadowDistance, (v) => ({ shadowDistance: v }), shadowOn);
+    this.slider(effectSec, t(`Flou de l'ombre`), t(`Flou de l'ombre`), 0, SHADOW_MAX_BLUR, 1, (s) => s.shadowBlur, (v) => ({ shadowBlur: v }), shadowOn);
+    this.slider(effectSec, t(`Densité de l'ombre`), t(`Densité de l'ombre : plus ou moins sombre`), 5, 100, 5, (s) => Math.round(s.shadowOpacity * 100), (v) => ({ shadowOpacity: v / 100 }), shadowOn);
+    this.shadowColorButton(effectSec, shadowOn);
+    this.checkbox(effectSec, t(`Reflet`), (s) => s.reflection, (on) => ({ reflection: on }));
+    const reflectOn = (s: ToolStyle): boolean => s.reflection;
+    this.slider(effectSec, t(`Profondeur du reflet`), t(`Profondeur du reflet : la part de l'élément reflétée`), 10, 100, 5, (s) => Math.round(s.reflectionDepth * 100), (v) => ({ reflectionDepth: v / 100 }), reflectOn);
+    this.slider(effectSec, t(`Dégradé du reflet`), t(`Dégradé du reflet : de pas de dégradé à un reflet qui disparaît`), 0, 100, 5, (s) => Math.round(s.reflectionFade * 100), (v) => ({ reflectionFade: v / 100 }), reflectOn);
+    this.slider(effectSec, t(`Éloignement du reflet`), t(`Éloignement du reflet : de bord à bord à un reflet éloigné`), 0, 100, 5, (s) => Math.round(s.reflectionGap * 100), (v) => ({ reflectionGap: v / 100 }), reflectOn);
 
     this.swatchRows = { stroke: strokeRow, fill: fillRow };
     this.refreshSwatches();
@@ -483,6 +486,37 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     const el = props.createDiv({ cls: `sketchdraw-section` });
     this.sections.push({ el, name });
     return el;
+  }
+
+  // The boxes to check of the panel (the shadow and the reflection): each one reads its state from the style that the panel shows and changes the style when it is checked.
+  private readonly checks: { input: HTMLInputElement; read: (s: ToolStyle) => boolean }[] = [];
+  // The parts of the panel that show only when a test is true for the style (the colour of the shadow).
+  private readonly folds: { el: HTMLElement; visible: (s: ToolStyle) => boolean }[] = [];
+  private shadowSwatch: HTMLElement | null = null;
+
+  // Adds a box to check, with its name written next to it.
+  private checkbox(parent: HTMLElement, label: string, read: (s: ToolStyle) => boolean, write: (on: boolean) => StylePatch): void {
+    const wrap = parent.createEl(`label`, { cls: `sketchdraw-check` });
+    const input = wrap.createEl(`input`, { type: `checkbox` });
+    wrap.createSpan({ text: label });
+    input.addEventListener(`change`, () => this.change(write(input.checked)));
+    this.checks.push({ input, read });
+  }
+
+  // Adds the colour of the shadow: a round swatch that shows it. A double click opens the colour window to change it.
+  private shadowColorButton(parent: HTMLElement, visible: (s: ToolStyle) => boolean): void {
+    const row = parent.createDiv({ cls: `sketchdraw-row sketchdraw-shadow-colour` });
+    row.createSpan({ cls: `sketchdraw-slider-label`, text: t(`Couleur de l'ombre`) });
+    const b = row.createEl(`button`, { cls: `sketchdraw-swatch` });
+    b.setAttribute(`aria-label`, t(`Couleur de l'ombre`));
+    b.setAttribute(`title`, `${t(`Couleur de l'ombre`)} : ${t(`double clic pour changer`)}`);
+    b.addEventListener(`dblclick`, () => {
+      new ColorModal(this.app, this.currentStyle().shadowColor, (choice: ColorChoice) => {
+        if (choice.color !== null) this.change({ shadowColor: choice.color });
+      }).open();
+    });
+    this.shadowSwatch = b;
+    this.folds.push({ el: row, visible });
   }
 
   // The sliders of the panel. Each one reads its value from the style that the panel shows, and changes the style when it is moved; it can be hidden when it does not apply.
@@ -543,7 +577,11 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   // Shows the sections that concern the kind of element selected or about to be drawn.
   private syncSections(): void {
     const kinds = panelKinds(this.tool, this.selectedElements());
-    for (const sec of this.sections) sec.el.toggleClass(`sketchdraw-hidden`, !sectionShown(sec.name, kinds));
+    for (const sec of this.sections) {
+      sec.el.toggleClass(`sketchdraw-hidden`, !sectionShown(sec.name, kinds));
+      // With nothing selected the choices of the panel have nothing to apply to (a new shape is always standard): they are dimmed, except the settings of a text.
+      sec.el.toggleClass(`sketchdraw-idle`, this.selected.size === 0 && sec.name !== `text`);
+    }
   }
 
   private swatchRows: { stroke: HTMLElement; fill: HTMLElement } | null = null;
@@ -647,16 +685,27 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     return { ...restored, palette: current.palette, ...(current.fillPalette ? { fillPalette: current.fillPalette } : {}) };
   }
 
-  // The style shown in the panel: the one of the selected element when there is exactly one, otherwise the style of new elements.
+  // The style shown in the panel: the one of the first selected element that has one (several elements can be selected: a change then applies to all of them), otherwise the
+  // standard style, which is the one of every new element.
   private currentStyle(): ToolStyle {
-    const one = this.selected.size === 1 ? this.selectedElements()[0] : undefined;
-    return (one ? styleOf(one) : null) ?? this.style ?? defaultStyle(`#000000`);
+    for (const el of this.selectedElements()) {
+      const s = styleOf(el);
+      if (s) return s;
+    }
+    return this.style ?? defaultStyle(`#000000`);
   }
 
-  // Applies a change of style to the selected elements (one change that can be undone) and to the style of the next elements.
+  // Applies a change of style to the selected elements (one change that can be undone). It never changes the look of the next elements: every new element starts from the
+  // standard look (a black line, no fill, a normal border, no effect). Only the settings of a text (font, size, alignment) are kept for the next texts.
   private change(patch: StylePatch): void {
     const clean = cleanPatch(patch);
-    if (this.style) this.style = { ...this.style, ...clean };
+    if (this.style) {
+      const keep: StylePatch = {};
+      if (clean.font !== undefined) keep.font = clean.font;
+      if (clean.fontSize !== undefined) keep.fontSize = clean.fontSize;
+      if (clean.align !== undefined) keep.align = clean.align;
+      this.style = { ...this.style, ...keep };
+    }
     if (this.selected.size > 0) {
       // A text takes the size of its box again when its font or its size changed.
       const next = applyStyleToIds(this.doc.elements, this.selected, clean).map((e) => (e.type === `text` ? refitText(e, this.api.fonts.measure) : e));
@@ -695,6 +744,9 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       sl.input.value = String(sl.read(s));
       sl.wrap.toggleClass(`sketchdraw-hidden`, sl.visible ? !sl.visible(s) : false);
     }
+    for (const c of this.checks) c.input.checked = c.read(s);
+    for (const f of this.folds) f.el.toggleClass(`sketchdraw-hidden`, !f.visible(s));
+    if (this.shadowSwatch) this.shadowSwatch.style.background = toHex6(s.shadowColor);
     if (this.fontSelect) this.fontSelect.value = s.font;
   }
 }

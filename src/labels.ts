@@ -4,6 +4,7 @@ import { drawnPoints } from "./curves";
 import type { ArrowElement, DiamondElement, EllipseElement, LineElement, Point, RectElement, ShapeLabel, SketchElement, TriangleElement } from "./elements";
 import { hexToRgb } from "./hsl";
 import { Box } from "./geometry";
+import { borderReach } from "./extent";
 import { LINE_HEIGHT, textLines, wrapLines } from "./text-layout";
 
 export type LabeledShape = RectElement | EllipseElement | DiamondElement | TriangleElement;
@@ -19,9 +20,11 @@ const MIN_ROOM = 8;
 // Returns the part of a shape (before its rotation) where its text goes: the shape inside its line for a rectangle, the largest rectangle inside an ellipse (about 70 % of
 // each side) and the largest rectangle inside a diamond (half of each side).
 export function labelBox(el: LabeledShape): Box {
+  // The border can have several lines, some of them inside, and the hand drawn look wobbles: the text keeps away from all of them.
+  const extra = Math.max(0, borderReach(el) - el.strokeWidth / 2) + (el.roughness ?? 0) * 2;
   let box: Box;
   if (el.type === `rect`) {
-    const pad = 6 + el.strokeWidth;
+    const pad = 6 + el.strokeWidth + extra;
     box = { x: el.x + pad, y: el.y + pad, w: el.width - 2 * pad, h: el.height - 2 * pad };
   } else if (el.type === `ellipse`) {
     const [w, h] = [2 * el.rx * Math.SQRT1_2, 2 * el.ry * Math.SQRT1_2];
@@ -32,6 +35,8 @@ export function labelBox(el: LabeledShape): Box {
   } else {
     box = { x: el.x + el.width / 4, y: el.y + el.height / 4, w: el.width / 2, h: el.height / 2 };
   }
+  // The room of the other shapes is the rectangle inside them, made smaller by the same margin on every side.
+  if (el.type !== `rect`) box = { x: box.x + extra, y: box.y + extra, w: box.w - 2 * extra, h: box.h - 2 * extra };
   const w = Math.max(MIN_ROOM, box.w);
   const h = Math.max(MIN_ROOM, box.h);
   return { x: box.x + (box.w - w) / 2, y: box.y + (box.h - h) / 2, w, h };

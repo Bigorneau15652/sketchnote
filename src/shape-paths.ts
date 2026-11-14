@@ -111,14 +111,14 @@ function headPieces(shape: HeadShape, opts: Record<string, unknown>, salt: numbe
 
 // A line of the border of a shape: how far it is from the edge of the shape (positive outwards, negative inwards), how wide it is, and whether it is the one that
 // goes with the fill.
-interface Ring {
+export interface Ring {
   grow: number;
   width: number;
   main: boolean;
 }
 
 // Returns the lines of the border of a shape. The thin line is half the width of the line of the shape and the thick one is 1.6 times that width, and a gap separates the lines.
-function ringsOf(border: Border | undefined, width: number): Ring[] {
+export function ringsOf(border: Border | undefined, width: number): Ring[] {
   if (border === undefined) return [{ grow: 0, width, main: true }];
   const thin = Math.max(1.5, width * 0.5);
   const thick = width * 1.6;
