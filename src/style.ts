@@ -1,5 +1,5 @@
 // The look of the lines and fills that the user chooses, and how a choice is applied to elements. Pure module.
-import { FillStyle, isShape, isStroked, SketchElement } from "./elements";
+import { FillStyle, isShape, isStroked, MIN_FILL_OPACITY, SketchElement } from "./elements";
 import { isSafeColor } from "./color";
 
 export interface ToolStyle {
@@ -7,6 +7,8 @@ export interface ToolStyle {
   // Fill colour, or null for no fill.
   fill: string | null;
   fillStyle: FillStyle;
+  // Opacity of the fill, from MIN_FILL_OPACITY (almost transparent) to 1 (opaque).
+  fillOpacity: number;
   strokeWidth: number;
   // 0 for clean lines, 1 for the hand drawn look.
   roughness: number;
@@ -21,7 +23,7 @@ export const MAX_WIDTH = 24;
 
 // Returns the style of a new drawing: a thin hand drawn line in the ink colour of the page, with no fill.
 export function defaultStyle(ink: string): ToolStyle {
-  return { stroke: isSafeColor(ink) ? ink : `#000000`, fill: null, fillStyle: `solid`, strokeWidth: STROKE_WIDTHS.thin, roughness: 1 };
+  return { stroke: isSafeColor(ink) ? ink : `#000000`, fill: null, fillStyle: `solid`, fillOpacity: 1, strokeWidth: STROKE_WIDTHS.thin, roughness: 1 };
 }
 
 // Returns a style patch with every value checked: unknown or invalid values are dropped.
@@ -30,6 +32,7 @@ export function cleanPatch(patch: StylePatch): StylePatch {
   if (patch.stroke !== undefined && isSafeColor(patch.stroke)) out.stroke = patch.stroke;
   if (patch.fill !== undefined && (patch.fill === null || isSafeColor(patch.fill))) out.fill = patch.fill;
   if (patch.fillStyle === `solid` || patch.fillStyle === `hachure`) out.fillStyle = patch.fillStyle;
+  if (typeof patch.fillOpacity === `number` && Number.isFinite(patch.fillOpacity)) out.fillOpacity = Math.min(1, Math.max(MIN_FILL_OPACITY, Math.round(patch.fillOpacity * 100) / 100));
   if (typeof patch.strokeWidth === `number` && Number.isFinite(patch.strokeWidth)) out.strokeWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, patch.strokeWidth));
   if (typeof patch.roughness === `number` && Number.isFinite(patch.roughness)) out.roughness = patch.roughness <= 0 ? 0 : 1;
   return out;
@@ -52,6 +55,15 @@ export function applyStyle(el: SketchElement, patch: StylePatch): SketchElement 
       next = { ...next, fill: p.fill, fillStyle: next.fillStyle ?? p.fillStyle ?? `solid` } as typeof el;
     }
     if (p.fillStyle !== undefined && isShape(next) && next.fill !== undefined) next = { ...next, fillStyle: p.fillStyle } as typeof el;
+    if (p.fillOpacity !== undefined && isShape(next)) {
+      if (p.fillOpacity >= 1) {
+        const { fillOpacity: _o, ...rest } = next;
+        void _o;
+        next = rest as typeof el;
+      } else {
+        next = { ...next, fillOpacity: p.fillOpacity } as typeof el;
+      }
+    }
   }
   return next;
 }
@@ -66,5 +78,6 @@ export function styleOf(el: SketchElement): ToolStyle | null {
   if (!isStroked(el)) return null;
   const fill = isShape(el) && el.fill !== undefined ? el.fill : null;
   const fillStyle: FillStyle = isShape(el) && el.fillStyle ? el.fillStyle : `solid`;
-  return { stroke: el.stroke, fill, fillStyle, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0 };
+  const fillOpacity = isShape(el) && el.fillOpacity !== undefined ? el.fillOpacity : 1;
+  return { stroke: el.stroke, fill, fillStyle, fillOpacity, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0 };
 }

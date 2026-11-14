@@ -43,8 +43,9 @@ function look(style: ToolStyle, seed: number): { stroke: string; strokeWidth: nu
 }
 
 // Returns the fill fields of a new shape: nothing when the style has no fill.
-function fillOf(style: ToolStyle): { fill?: string; fillStyle?: `solid` | `hachure` } {
-  return style.fill === null ? {} : { fill: style.fill, fillStyle: style.fillStyle };
+function fillOf(style: ToolStyle): { fill?: string; fillStyle?: `solid` | `hachure`; fillOpacity?: number } {
+  if (style.fill === null) return {};
+  return { fill: style.fill, fillStyle: style.fillStyle, ...(style.fillOpacity < 1 ? { fillOpacity: style.fillOpacity } : {}) };
 }
 
 // Builds the element that a drag from `start` to `end` makes with a tool, or null when the drag is too small to be an element.

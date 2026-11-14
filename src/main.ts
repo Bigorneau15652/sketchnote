@@ -38,11 +38,28 @@ export default class SketchnotePlugin extends Plugin {
         return true;
       },
     });
+    this.addGroupCommand(`group-selection`, t(`Grouper la sélection`), (view) => view.groupSelection());
+    this.addGroupCommand(`ungroup-selection`, t(`Dégrouper la sélection`), (view) => view.ungroupSelection());
     this.addRibbonIcon(`pencil`, t(`Créer un sketchnote`), () => void this.createSketchnote());
     this.addSettingTab(new SketchnoteSettingTab(this.app, this));
     this.registerEvent(this.app.vault.on(`modify`, (file) => this.drawings.handleModify(file)));
     this.registerEvent(this.app.vault.on(`rename`, (file, oldPath) => void this.drawings.handleRename(file, oldPath)));
     this.registerEvent(this.app.vault.on(`delete`, (file) => this.drawings.handleDelete(file)));
+  }
+
+  // Adds a command of the palette that works on the selection of the active sketchnote or drawing. It has no default keyboard shortcut (Ctrl+G belongs to Obsidian): the
+  // user gives it one in the settings of Obsidian.
+  private addGroupCommand(id: string, name: string, run: (view: CanvasView<unknown>) => void): void {
+    this.addCommand({
+      id,
+      name,
+      checkCallback: (checking) => {
+        const view = this.app.workspace.getActiveViewOfType(SketchnoteView) ?? this.app.workspace.getActiveViewOfType(SketchdrawView);
+        if (!(view instanceof CanvasView)) return false;
+        if (!checking) run(view as CanvasView<unknown>);
+        return true;
+      },
+    });
   }
 
   // Returns a free path for a new sketchnote, next to the active note or at the root of the vault.

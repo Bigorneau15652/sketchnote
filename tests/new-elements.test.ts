@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isSafeDrawingPath, MAX_FREEDRAW_POINTS, readElements, seedFrom } from "../src/elements";
+import { isSafeDrawingPath, MAX_FREEDRAW_POINTS, newGroupId, readElements, seedFrom, SketchElement } from "../src/elements";
 
 const base = { stroke: `#000000`, strokeWidth: 3 };
 
@@ -58,4 +58,27 @@ test(`la forme du pointille d'un cadre est lue et controlee`, () => {
   assert.equal(readElements(make(`rect`)).ok, true);
   assert.equal(readElements(make(undefined)).ok, true);
   for (const bad of [`star`, 3, null]) assert.equal(readElements(make(bad)).ok, false, String(bad));
+});
+
+test(`la transparence du remplissage est lue et bornee`, () => {
+  const rect = (o: unknown): unknown[] => [{ id: `r`, type: `rect`, x: 0, y: 0, width: 5, height: 5, stroke: `#000`, strokeWidth: 1, fill: `#f00`, fillOpacity: o }];
+  assert.equal(readElements(rect(0.5)).ok, true);
+  assert.equal(readElements(rect(1)).ok, true);
+  assert.equal(readElements(rect(0.05)).ok, true);
+  for (const bad of [0, 0.01, 1.5, -1, `0.5`, NaN, null]) assert.equal(readElements(rect(bad)).ok, false, String(bad));
+});
+
+test(`la liste des groupes d'un element est lue et controlee`, () => {
+  const line = (g: unknown): unknown[] => [{ id: `l`, type: `line`, points: [[0, 0], [1, 1]], stroke: `#000`, strokeWidth: 1, groups: g }];
+  assert.equal(readElements(line([`g1`])).ok, true);
+  assert.equal(readElements(line([`g1`, `g2`])).ok, true);
+  for (const bad of [[], `g1`, [1], [`a b`], [``], [`x`.repeat(70)], Array.from({ length: 9 }, (_, i) => `g${i}`), null]) assert.equal(readElements(line(bad)).ok, false, JSON.stringify(bad));
+  assert.equal(readElements(line(undefined)).ok, true);
+});
+
+test(`un nouvel identifiant de groupe n'est jamais deja pris`, () => {
+  const mk = (id: string, groups?: string[]): SketchElement => ({ id, type: `line`, points: [[0, 0], [1, 1]], stroke: `#000`, strokeWidth: 1, ...(groups ? { groups } : {}) });
+  assert.equal(newGroupId([]), `g1`);
+  const items = [mk(`a`, [`g1`]), mk(`b`, [`g1`, `g2`]), mk(`c`, [`g3`])];
+  assert.ok(![`g1`, `g2`, `g3`].includes(newGroupId(items)));
 });

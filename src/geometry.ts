@@ -142,15 +142,51 @@ export function rotateHandlePos(box: Box, angle: number, zoom: number): Point {
   return rotatePoint([c[0], box.y - ROTATE_OFFSET / zoom], c, angle);
 }
 
-// Returns the handle that a point touches, or null. The radius is in screen pixels.
-export function hitHandle(el: SketchElement, p: Point, zoom: number, radiusPx: number): Handle | null {
-  const { box, angle } = boxOf(el);
+// Tells whether an element has a rotation handle. A line or an arrow has none: it is changed by moving its ends.
+export function hasRotateHandle(el: SketchElement): boolean {
+  return el.type !== `line` && el.type !== `arrow`;
+}
+
+// Returns the corners that carry a resize handle. A straight line or arrow (two points) has a handle at each end only; everything else has the four corners.
+export function visibleCorners(el: SketchElement): (0 | 1 | 2 | 3)[] {
+  if (!hasPoints(el) || el.points.length !== 2) return [0, 1, 2, 3];
+  const { box } = boxOf(el);
+  const cx = box.x + box.w / 2;
+  const cy = box.y + box.h / 2;
+  const corner = (p: Point): 0 | 1 | 2 | 3 => {
+    const right = p[0] > cx;
+    const bottom = p[1] > cy;
+    return right ? (bottom ? 2 : 1) : bottom ? 3 : 0;
+  };
+  const a = corner(el.points[0]);
+  const b = corner(el.points[1]);
+  return a === b ? [a] : [a, b];
+}
+
+// Returns the handle of a box (upright, without rotation) that a point touches, among the given corners and the rotation handle when `rotation` is true.
+export function hitBoxHandle(box: Box, angle: number, p: Point, zoom: number, radiusPx: number, corners: (0 | 1 | 2 | 3)[] = [0, 1, 2, 3], rotation = true): Handle | null {
   const r = radiusPx / zoom;
-  const rot = rotateHandlePos(box, angle, zoom);
-  if (Math.hypot(p[0] - rot[0], p[1] - rot[1]) <= r) return { kind: `rotate` };
-  const corners = boxCorners(box, angle);
-  for (let i = 0; i < 4; i++) {
-    if (Math.hypot(p[0] - corners[i][0], p[1] - corners[i][1]) <= r) return { kind: `resize`, corner: i as 0 | 1 | 2 | 3 };
+  if (rotation) {
+    const rot = rotateHandlePos(box, angle, zoom);
+    if (Math.hypot(p[0] - rot[0], p[1] - rot[1]) <= r) return { kind: `rotate` };
+  }
+  const all = boxCorners(box, angle);
+  for (const i of corners) {
+    if (Math.hypot(p[0] - all[i][0], p[1] - all[i][1]) <= r) return { kind: `resize`, corner: i };
   }
   return null;
+}
+
+// Returns the handle that a point touches on a selected element, or null. The radius is in screen pixels.
+export function hitHandle(el: SketchElement, p: Point, zoom: number, radiusPx: number): Handle | null {
+  const { box, angle } = boxOf(el);
+  return hitBoxHandle(box, angle, p, zoom, radiusPx, visibleCorners(el), hasRotateHandle(el));
+}
+
+// Returns the frame drawn around several selected elements, a little larger than their common box: the block that is moved, resized and turned as one.
+export function blockBox(elements: SketchElement[], zoom: number): Box | null {
+  const u = unionBox(elements.map(elementBounds));
+  if (!u) return null;
+  const pad = 6 / zoom;
+  return { x: u.x - pad, y: u.y - pad, w: u.w + 2 * pad, h: u.h + 2 * pad };
 }

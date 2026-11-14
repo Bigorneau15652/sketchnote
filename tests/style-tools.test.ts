@@ -9,7 +9,7 @@ const none = { shift: false, alt: false };
 const rect: SketchElement = { id: `r`, type: `rect`, x: 0, y: 0, width: 10, height: 10, stroke: `#000000`, strokeWidth: 3 };
 
 test(`le style par defaut est un trait fin noir a main levee sans remplissage`, () => {
-  assert.deepEqual(style, { stroke: `#000000`, fill: null, fillStyle: `solid`, strokeWidth: STROKE_WIDTHS.thin, roughness: 1 });
+  assert.deepEqual(style, { stroke: `#000000`, fill: null, fillStyle: `solid`, fillOpacity: 1, strokeWidth: STROKE_WIDTHS.thin, roughness: 1 });
   assert.equal(defaultStyle(`#ffffff`).stroke, `#ffffff`);
   assert.equal(defaultStyle(`red`).stroke, `#000000`);
 });
@@ -49,7 +49,7 @@ test(`une ligne ne prend pas de remplissage et un cadre de dessin n'a pas de sty
 
 test(`le style d'un element est relu tel qu'il est`, () => {
   const s = styleOf({ ...rect, fill: `#abc`, fillStyle: `hachure`, roughness: 1 } as SketchElement);
-  assert.deepEqual(s, { stroke: `#000000`, fill: `#abc`, fillStyle: `hachure`, strokeWidth: 3, roughness: 1 });
+  assert.deepEqual(s, { stroke: `#000000`, fill: `#abc`, fillStyle: `hachure`, fillOpacity: 1, strokeWidth: 3, roughness: 1 });
   assert.equal(styleOf(rect)?.fill, null);
 });
 
@@ -144,4 +144,28 @@ test(`le stylo garde les points assez eloignes et un clic donne un petit trait`,
 test(`les outils de creation sont ceux attendus`, () => {
   assert.deepEqual(CREATION_TOOLS, [`rect`, `diamond`, `ellipse`, `line`, `arrow`, `pen`, `point`]);
   assert.equal(elementFromDrag(`frame` as never, [0, 0], [200, 200], none, style, `f`, 1), null);
+});
+
+test(`la transparence du remplissage se regle, se garde bornee et ne touche pas le trait`, () => {
+  assert.deepEqual(cleanPatch({ fillOpacity: 0.5 }), { fillOpacity: 0.5 });
+  assert.deepEqual(cleanPatch({ fillOpacity: 0 }), { fillOpacity: 0.05 });
+  assert.deepEqual(cleanPatch({ fillOpacity: 7 }), { fillOpacity: 1 });
+  assert.deepEqual(cleanPatch({ fillOpacity: NaN }), {});
+  const filled = applyStyle(rect, { fill: `#ff0000` });
+  const half = applyStyle(filled, { fillOpacity: 0.4 }) as { fillOpacity?: number; stroke: string };
+  assert.equal(half.fillOpacity, 0.4);
+  assert.equal(half.stroke, `#000000`);
+  const back = applyStyle(half as SketchElement, { fillOpacity: 1 });
+  assert.equal(`fillOpacity` in back, false);
+  assert.equal(styleOf(half as SketchElement)?.fillOpacity, 0.4);
+  const line: SketchElement = { id: `l`, type: `line`, points: [[0, 0], [1, 1]], stroke: `#000000`, strokeWidth: 3 };
+  assert.equal(`fillOpacity` in applyStyle(line, { fillOpacity: 0.5 }), false);
+});
+
+test(`les nouvelles formes prennent la transparence choisie, sauf quand elle est de zero`, () => {
+  const s = { ...style, fill: `#ff0000`, fillStyle: `solid` as const, fillOpacity: 0.3 };
+  const el = elementFromDrag(`rect`, [0, 0], [40, 40], none, s, `r`, 1);
+  assert.ok(el && el.type === `rect` && el.fillOpacity === 0.3);
+  const opaque = elementFromDrag(`rect`, [0, 0], [40, 40], none, { ...s, fillOpacity: 1 }, `r`, 1);
+  assert.ok(opaque && opaque.type === `rect` && !(`fillOpacity` in opaque));
 });

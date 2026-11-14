@@ -86,3 +86,39 @@ export function rotateBy(el: SketchElement, degrees: number): SketchElement {
   }
   return { ...el, angle };
 }
+
+// Scales an element by a factor around an anchor point: its centre moves along the line from the anchor, its size grows by the same factor and its angle stays.
+// The width of the line is not scaled. Used to resize several elements as one block.
+export function scaleAbout(el: SketchElement, anchor: Point, k: number): SketchElement {
+  const at = (p: Point): Point => [r2(anchor[0] + (p[0] - anchor[0]) * k), r2(anchor[1] + (p[1] - anchor[1]) * k)];
+  if (hasPoints(el)) return { ...el, points: el.points.map(at) };
+  if (el.type === `ellipse`) {
+    const c = at([el.cx, el.cy]);
+    return { ...el, cx: c[0], cy: c[1], rx: r2(el.rx * k), ry: r2(el.ry * k) };
+  }
+  const c = at([el.x + el.width / 2, el.y + el.height / 2]);
+  const width = r2(el.width * k);
+  const height = r2(el.height * k);
+  return { ...el, x: r2(c[0] - width / 2), y: r2(c[1] - height / 2), width, height };
+}
+
+// Turns an element around a point by an angle in degrees, as part of a block: its centre goes round the point and the element turns by the same angle (a line has
+// its points turned). Used to rotate several elements as one block.
+export function rotateAbout(el: SketchElement, center: Point, degrees: number): SketchElement {
+  if (hasPoints(el)) return { ...el, points: el.points.map((p): Point => { const q = rotatePoint(p, center, degrees); return [r2(q[0]), r2(q[1])]; }) };
+  const angle = r2(normalizeAngle((el.angle ?? 0) + degrees));
+  const withAngle = <T extends SketchElement>(e: T): T => {
+    if (angle === 0) {
+      const { angle: _a, ...rest } = e as T & { angle?: number };
+      void _a;
+      return rest as T;
+    }
+    return { ...e, angle };
+  };
+  if (el.type === `ellipse`) {
+    const c = rotatePoint([el.cx, el.cy], center, degrees);
+    return withAngle({ ...el, cx: r2(c[0]), cy: r2(c[1]) });
+  }
+  const c = rotatePoint([el.x + el.width / 2, el.y + el.height / 2], center, degrees);
+  return withAngle({ ...el, x: r2(c[0] - el.width / 2), y: r2(c[1] - el.height / 2) });
+}

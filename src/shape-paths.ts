@@ -10,6 +10,8 @@ export interface PathPiece {
   stroke: string;
   strokeWidth: number;
   fill: string;
+  // Opacity of the piece, from 0 to 1. Only the pieces of a fill (the colour and the hatching) are made transparent.
+  opacity: number;
 }
 
 // What it takes to draw an element: the paths, and an SVG transform (a rotation) when the element is turned.
@@ -46,12 +48,17 @@ function roughOptions(el: StrokedElement): Record<string, unknown> {
   return opts;
 }
 
-// Turns a drawable of roughjs into pieces. The strokes come with their own colour and width; a path without a stroke is a solid fill.
-function piecesOf(drawable: ReturnType<RoughGenerator[`line`]>): PathPiece[] {
+// Turns a drawable of roughjs into pieces, one per set of operations: the outline (the colour and width of the line), the solid fill, or the hatching of a fill. The
+// fill pieces take the opacity of the fill; the outline stays opaque. (The same cases as roughjs does in its own toPaths, which does not tell them apart.)
+function piecesOf(drawable: ReturnType<RoughGenerator[`line`]>, fillOpacity = 1): PathPiece[] {
   const out: PathPiece[] = [];
-  for (const p of generator.toPaths(drawable)) {
-    if (!SAFE_PATH.test(p.d) || p.d === ``) continue;
-    out.push({ d: p.d, stroke: p.stroke, strokeWidth: p.strokeWidth, fill: p.fill ?? `none` });
+  const o = drawable.options;
+  for (const set of drawable.sets) {
+    const d = generator.opsToPath(set);
+    if (d === `` || !SAFE_PATH.test(d)) continue;
+    if (set.type === `path`) out.push({ d, stroke: o.stroke, strokeWidth: o.strokeWidth, fill: `none`, opacity: 1 });
+    else if (set.type === `fillPath`) out.push({ d, stroke: `none`, strokeWidth: 0, fill: o.fill || `none`, opacity: fillOpacity });
+    else if (set.type === `fillSketch`) out.push({ d, stroke: o.fill || `none`, strokeWidth: o.fillWeight < 0 ? o.strokeWidth / 2 : o.fillWeight, fill: `none`, opacity: fillOpacity });
   }
   return out;
 }
@@ -82,20 +89,20 @@ function turn(angle: number | undefined, cx: number, cy: number): string | null 
 function compute(el: StrokedElement): ElementPaths {
   const opts = roughOptions(el);
   if (el.type === `rect`) {
-    return { pieces: piecesOf(generator.rectangle(el.x, el.y, el.width, el.height, opts)), transform: turn(el.angle, el.x + el.width / 2, el.y + el.height / 2) };
+    return { pieces: piecesOf(generator.rectangle(el.x, el.y, el.width, el.height, opts), el.fillOpacity), transform: turn(el.angle, el.x + el.width / 2, el.y + el.height / 2) };
   }
   if (el.type === `ellipse`) {
-    return { pieces: piecesOf(generator.ellipse(el.cx, el.cy, 2 * el.rx, 2 * el.ry, opts)), transform: turn(el.angle, el.cx, el.cy) };
+    return { pieces: piecesOf(generator.ellipse(el.cx, el.cy, 2 * el.rx, 2 * el.ry, opts), el.fillOpacity), transform: turn(el.angle, el.cx, el.cy) };
   }
   if (el.type === `diamond`) {
     const { x, y, width: w, height: h } = el;
     const poly: Point[] = [[x + w / 2, y], [x + w, y + h / 2], [x + w / 2, y + h], [x, y + h / 2]];
-    return { pieces: piecesOf(generator.polygon(poly, opts)), transform: turn(el.angle, x + w / 2, y + h / 2) };
+    return { pieces: piecesOf(generator.polygon(poly, opts), el.fillOpacity), transform: turn(el.angle, x + w / 2, y + h / 2) };
   }
   if (el.type === `freedraw`) {
     const outline = getStroke(el.points, { size: el.strokeWidth * 1.6, thinning: 0.5, smoothing: 0.5, streamline: 0.5 });
     const d = pathFromOutline(outline);
-    return { pieces: SAFE_PATH.test(d) && d !== `` ? [{ d, stroke: `none`, strokeWidth: 0, fill: el.stroke }] : [], transform: null };
+    return { pieces: SAFE_PATH.test(d) && d !== `` ? [{ d, stroke: `none`, strokeWidth: 0, fill: el.stroke, opacity: 1 }] : [], transform: null };
   }
   const pieces = piecesOf(generator.linearPath(el.points, opts));
   if (el.type === `arrow`) {

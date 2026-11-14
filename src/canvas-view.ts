@@ -2,7 +2,8 @@
 // undo and redo, keyboard shortcuts, and the bottom bar. A subclass says what the document is, how its surface is drawn and which tools it offers.
 import { setIcon, TextFileView, WorkspaceLeaf } from "obsidian";
 import { newId, SketchElement } from "./elements";
-import { Box, boxesIntersect, boxOf, centerOf, elementBounds, hitHandle, hitTop, unionBox } from "./geometry";
+import { blockBox, Box, boxesIntersect, boxOf, centerOf, elementBounds, hitBoxHandle, hitHandle, hitTop, unionBox } from "./geometry";
+import { canUngroup, expandToGroups, groupAction, groupElements, topGroupId, ungroupElements } from "./groups";
 import { History } from "./history";
 import { t } from "./i18n";
 import { RenderedPage } from "./page-render";
@@ -11,7 +12,7 @@ import { cloneElements, moveElements, reorder, removeElements } from "./selectio
 import { snapBox } from "./snap";
 import { ToolStyle } from "./style";
 import { addPenPoint, CREATION_TOOLS, CreationTool, elementFromDrag, penElement, pointElement } from "./tools";
-import { normalizeAngle, resizeElement, rotateBy, translate } from "./transform";
+import { normalizeAngle, resizeElement, rotateAbout, rotateBy, scaleAbout, translate } from "./transform";
 import { MAX_FREEDRAW_POINTS } from "./elements";
 import { clampZoom, fitZoom, pinchZoom, sliderToZoom, stepZoom, zoomToSlider } from "./viewport";
 
@@ -20,9 +21,12 @@ export type Point = [number, number];
 
 type Gesture =
   | { kind: `pan`; pointerId: number; lastX: number; lastY: number }
-  | { kind: `move`; pointerId: number; start: Point; startClient: Point; ids: Set<string>; box: Box; moved: boolean }
+  | { kind: `move`; pointerId: number; start: Point; startClient: Point; ids: Set<string>; hitId: string; box: Box; moved: boolean }
   | { kind: `resize`; pointerId: number; orig: SketchElement; corner: 0 | 1 | 2 | 3; moved: boolean }
   | { kind: `rotate`; pointerId: number; orig: SketchElement; center: Point; startAngle: number; moved: boolean }
+  // Several elements resized or turned as one block: the originals are kept, the anchor is the corner opposite to the handle, the centre is the middle of the block.
+  | { kind: `blockResize`; pointerId: number; orig: Map<string, SketchElement>; anchor: Point; box: Box; pad: number; corner: 0 | 1 | 2 | 3; moved: boolean }
+  | { kind: `blockRotate`; pointerId: number; orig: Map<string, SketchElement>; center: Point; startAngle: number; moved: boolean }
   | { kind: `marquee`; pointerId: number; start: Point; current: Point; base: Set<string> }
   | { kind: `create`; pointerId: number; tool: CreationTool; start: Point; pen: Point[]; made: SketchElement | null };
 
@@ -40,6 +44,8 @@ export abstract class CanvasView<D> extends TextFileView {
   protected toolLocked = false;
   protected spaceDown = false;
   protected selected = new Set<string>();
+  // The group that the user is editing (after a double click on one of its members): its members are selected one by one instead of as a block.
+  protected editingGroup: string | null = null;
   protected readonly history = new History<D>(200);
   protected gesture: Gesture | null = null;
   // The document as it was when the current gesture started: it is restored when the gesture is cancelled and stored in the history when it ends.
@@ -60,6 +66,8 @@ export abstract class CanvasView<D> extends TextFileView {
   private undoButton: HTMLButtonElement | null = null;
   private redoButton: HTMLButtonElement | null = null;
   private selectionActions: HTMLElement | null = null;
+  private groupButton: HTMLButtonElement | null = null;
+  private groupIcon = ``;
   private readonly pointers = new Map<number, { x: number; y: number }>();
   private pinch: { distance: number; zoom: number } | null = null;
   private lastClick: { id: string; time: number; x: number; y: number } | null = null;
@@ -243,6 +251,7 @@ export abstract class CanvasView<D> extends TextFileView {
     this.zoomLabel = bar.createSpan({ cls: `sketchnote-zoom-text` });
 
     const actions = bar.createDiv({ cls: `sketchnote-selection-actions` });
+    this.groupButton = this.button(actions, `group`, t(`Grouper`), () => this.toggleGroup());
     this.button(actions, `copy`, t(`Dupliquer`), () => void this.duplicateSelection());
     this.button(actions, `bring-to-front`, t(`Mettre devant`), () => this.reorderSelection(`front`));
     this.button(actions, `send-to-back`, t(`Mettre derrière`), () => this.reorderSelection(`back`));
@@ -257,8 +266,49 @@ export abstract class CanvasView<D> extends TextFileView {
     if (this.undoButton) this.undoButton.disabled = !this.history.canUndo();
     if (this.redoButton) this.redoButton.disabled = !this.history.canRedo();
     this.selectionActions?.toggleClass(`is-visible`, this.selected.size > 0);
+    this.updateGroupButton();
     this.updateCursor();
     this.onSelectionChanged();
+  }
+
+  // Shows what the group button does for the selection: the group pictogram to group several elements, the ungroup pictogram when a group is selected, and nothing
+  // (the button is off) for a single element.
+  private updateGroupButton(): void {
+    const b = this.groupButton;
+    if (!b) return;
+    const action = groupAction(this.elementsOf(this.doc), this.selected, this.editingGroup);
+    b.disabled = action === null;
+    const icon = action === `ungroup` ? `ungroup` : `group`;
+    if (icon !== this.groupIcon) {
+      this.groupIcon = icon;
+      setIcon(b, icon);
+    }
+    const label = action === `ungroup` ? t(`Dégrouper`) : t(`Grouper`);
+    b.setAttribute(`aria-label`, label);
+    b.setAttribute(`title`, label);
+  }
+
+  // Groups two or more selected elements (or groups) into a new group. Public: the command of the palette calls it, so that the user can give it a keyboard shortcut.
+  groupSelection(): void {
+    const elements = this.elementsOf(this.doc);
+    if (groupAction(elements, this.selected, this.editingGroup) !== `group`) return;
+    this.editingGroup = null;
+    this.commitElements(groupElements(elements, this.selected).elements);
+  }
+
+  // Takes the selected groups apart. Public for the command of the palette.
+  ungroupSelection(): void {
+    const elements = this.elementsOf(this.doc);
+    if (!canUngroup(elements, this.selected, this.editingGroup)) return;
+    const next = ungroupElements(elements, this.selected, this.editingGroup);
+    this.editingGroup = null;
+    this.commitElements(next);
+  }
+
+  // The group button: it groups when a selection of several elements is not a group, and ungroups when the selection is a group.
+  private toggleGroup(): void {
+    if (groupAction(this.elementsOf(this.doc), this.selected, this.editingGroup) === `ungroup`) this.ungroupSelection();
+    else this.groupSelection();
   }
 
   // Chooses the mouse cursor: an open hand when the surface can be dragged, a cross when a tool creates elements.
@@ -477,6 +527,7 @@ export abstract class CanvasView<D> extends TextFileView {
     else if (key === `escape`) {
       this.cancelGesture();
       this.selected.clear();
+      this.editingGroup = null;
       this.tool = `select`;
       this.renderUi();
       this.updateBar();
@@ -592,6 +643,7 @@ export abstract class CanvasView<D> extends TextFileView {
   // Starts a selection gesture: a handle of the selected element, an element to select and move, or the empty surface (rectangle on a mouse, pan on a finger).
   private startSelection(e: PointerEvent, p: Point): void {
     const touch = e.pointerType === `touch`;
+    if (this.selected.size >= 2 && this.startBlockGesture(e, p, touch)) return;
     if (this.selected.size === 1) {
       const el = this.selectedElements()[0];
       const handle = el ? hitHandle(el, p, this.zoom, touch ? 18 : 10) : null;
@@ -607,26 +659,64 @@ export abstract class CanvasView<D> extends TextFileView {
     }
     const hit = hitTop(this.elementsOf(this.doc), p, (touch ? 12 : 6) / this.zoom);
     if (hit) {
-      if (e.shiftKey) {
-        if (this.selected.has(hit.id)) this.selected.delete(hit.id);
-        else this.selected.add(hit.id);
+      this.leaveGroupIfOutside(hit);
+      if (e.shiftKey || e.ctrlKey || e.metaKey) {
+        // Shift or Ctrl (Cmd on a Mac) adds or removes an element, or a whole group, from the selection.
+        const unit = expandToGroups(this.elementsOf(this.doc), new Set([hit.id]), this.editingGroup);
+        const adding = !this.selected.has(hit.id);
+        for (const id of unit) {
+          if (adding) this.selected.add(id);
+          else this.selected.delete(id);
+        }
         this.renderUi();
         this.updateBar();
         return;
       }
-      if (!this.selected.has(hit.id)) this.selected = new Set([hit.id]);
+      if (!this.selected.has(hit.id)) this.selected = expandToGroups(this.elementsOf(this.doc), new Set([hit.id]), this.editingGroup);
       const box = unionBox(this.selectedElements().map(elementBounds));
-      if (box) this.gesture = { kind: `move`, pointerId: e.pointerId, start: p, startClient: [e.clientX, e.clientY], ids: new Set(this.selected), box, moved: false };
+      if (box) this.gesture = { kind: `move`, pointerId: e.pointerId, start: p, startClient: [e.clientX, e.clientY], ids: new Set(this.selected), hitId: hit.id, box, moved: false };
       this.renderUi();
       this.updateBar();
       return;
     }
-    const base = e.shiftKey ? new Set(this.selected) : new Set<string>();
-    if (!e.shiftKey) this.selected.clear();
+    const additive = e.shiftKey || e.ctrlKey || e.metaKey;
+    const base = additive ? new Set(this.selected) : new Set<string>();
+    if (!additive) {
+      this.selected.clear();
+      this.editingGroup = null;
+    }
     if (touch) this.gesture = { kind: `pan`, pointerId: e.pointerId, lastX: e.clientX, lastY: e.clientY };
     else this.gesture = { kind: `marquee`, pointerId: e.pointerId, start: p, current: p, base };
     this.renderUi();
     this.updateBar();
+  }
+
+  // Starts the resize or the rotation of several selected elements as one block, when the pointer is on a handle of their common frame. Returns true when it started.
+  private startBlockGesture(e: PointerEvent, p: Point, touch: boolean): boolean {
+    const selected = this.selectedElements();
+    const frame = blockBox(selected, this.zoom);
+    if (!frame) return false;
+    const handle = hitBoxHandle(frame, 0, p, this.zoom, touch ? 18 : 10);
+    if (!handle) return false;
+    const orig = new Map(selected.map((el): [string, SketchElement] => [el.id, el]));
+    if (handle.kind === `rotate`) {
+      const center = centerOf(frame);
+      this.gesture = { kind: `blockRotate`, pointerId: e.pointerId, orig, center, startAngle: this.angleTo(center, p), moved: false };
+    } else {
+      // The anchor is a corner of the elements themselves (not of the padded frame), opposite to the handle; the pointer is corrected by the padding so that the block does
+      // not jump when the handle is grabbed.
+      const c = handle.corner;
+      const pad = 6 / this.zoom;
+      const box: Box = { x: frame.x + pad, y: frame.y + pad, w: frame.w - 2 * pad, h: frame.h - 2 * pad };
+      const anchor: Point = [c === 0 || c === 3 ? box.x + box.w : box.x, c === 0 || c === 1 ? box.y + box.h : box.y];
+      this.gesture = { kind: `blockResize`, pointerId: e.pointerId, orig, anchor, box, pad, corner: c, moved: false };
+    }
+    return true;
+  }
+
+  // Leaves the group being edited when an element that is not in it is clicked.
+  private leaveGroupIfOutside(el: SketchElement): void {
+    if (this.editingGroup !== null && !(el.groups ?? []).includes(this.editingGroup)) this.editingGroup = null;
   }
 
   // Called when a click (a press and a release without any move) ends on an element. The second click of a double click, on the same element, close in time and
@@ -636,7 +726,17 @@ export abstract class CanvasView<D> extends TextFileView {
     const last = this.lastClick;
     const same = last !== null && last.id === el.id && now - last.time < 400 && Math.hypot(e.clientX - last.x, e.clientY - last.y) < 10;
     this.lastClick = same ? null : { id: el.id, time: now, x: e.clientX, y: e.clientY };
-    if (same) this.onActivate(el);
+    if (!same) return;
+    // A double click on a member of a group edits the group: the member is selected alone. On anything else it activates the element (opens its drawing).
+    const top = topGroupId(el, this.editingGroup);
+    if (top !== null) {
+      this.editingGroup = top;
+      this.selected = expandToGroups(this.elementsOf(this.doc), new Set([el.id]), top);
+      this.renderUi();
+      this.updateBar();
+    } else {
+      this.onActivate(el);
+    }
   }
 
   // Returns the angle in degrees of the direction from a centre to a point.
@@ -676,11 +776,19 @@ export abstract class CanvasView<D> extends TextFileView {
         delta = Math.round((current + delta) / 15) * 15 - current;
       }
       this.replaceElement(rotateBy(g.orig, normalizeAngle(delta)));
+    } else if (g.kind === `blockResize`) {
+      g.moved = true;
+      this.applyBlock((el) => scaleAbout(el, g.anchor, this.blockScale(g, p)), g.orig);
+    } else if (g.kind === `blockRotate`) {
+      g.moved = true;
+      let delta = this.angleTo(g.center, p) - g.startAngle;
+      if (e.shiftKey) delta = Math.round(delta / 15) * 15;
+      this.applyBlock((el) => rotateAbout(el, g.center, normalizeAngle(delta)), g.orig);
     } else if (g.kind === `marquee`) {
       g.current = p;
       this.marquee = { x: Math.min(g.start[0], p[0]), y: Math.min(g.start[1], p[1]), w: Math.abs(p[0] - g.start[0]), h: Math.abs(p[1] - g.start[1]) };
       const inside = this.elementsOf(this.baseDoc).filter((el) => this.marquee && boxesIntersect(this.marquee, elementBounds(el))).map((el) => el.id);
-      this.selected = new Set([...g.base, ...inside]);
+      this.selected = expandToGroups(this.elementsOf(this.baseDoc), new Set([...g.base, ...inside]), this.editingGroup);
       this.renderUi();
       this.updateBar();
     }
@@ -711,6 +819,26 @@ export abstract class CanvasView<D> extends TextFileView {
     this.renderUi();
   }
 
+  // Returns the factor of a block resize for the pointer position: the frame grows or shrinks uniformly, so the block keeps its proportions (the larger of the two ratios).
+  private blockScale(g: Extract<Gesture, { kind: `blockResize` }>, p: Point): number {
+    const sx = g.corner === 0 || g.corner === 3 ? -1 : 1;
+    const sy = g.corner === 0 || g.corner === 1 ? -1 : 1;
+    const w = Math.max(1, sx * (p[0] - g.anchor[0]) - g.pad);
+    const h = Math.max(1, sy * (p[1] - g.anchor[1]) - g.pad);
+    return Math.max(0.05, Math.max(w / Math.max(1, g.box.w), h / Math.max(1, g.box.h)));
+  }
+
+  // Applies a change to every element of a block from its original during a gesture, without recording anything yet.
+  private applyBlock(change: (el: SketchElement) => SketchElement, orig: Map<string, SketchElement>): void {
+    if (!this.baseDoc) return;
+    this.doc = this.withElements(this.baseDoc, this.elementsOf(this.baseDoc).map((el) => {
+      const o = orig.get(el.id);
+      return o ? change(o) : el;
+    }));
+    this.renderContent();
+    this.renderUi();
+  }
+
   // Replaces one element of the document during a gesture, without recording anything yet.
   private replaceElement(next: SketchElement): void {
     if (!this.baseDoc) return;
@@ -735,13 +863,13 @@ export abstract class CanvasView<D> extends TextFileView {
       this.finishCreation(g, base);
       return;
     }
-    if ((g.kind === `move` || g.kind === `resize` || g.kind === `rotate`) && g.moved && base) {
+    if ((g.kind === `move` || g.kind === `resize` || g.kind === `rotate` || g.kind === `blockResize` || g.kind === `blockRotate`) && g.moved && base) {
       this.history.push(base);
       this.onElementsChanged();
       this.requestSave();
     }
-    if (g.kind === `move` && !g.moved && g.ids.size === 1) {
-      const clicked = this.elementsOf(this.doc).find((el) => g.ids.has(el.id));
+    if (g.kind === `move` && !g.moved) {
+      const clicked = this.elementsOf(this.doc).find((el) => el.id === g.hitId);
       if (clicked) this.registerClick(clicked, e);
     } else {
       this.lastClick = null;

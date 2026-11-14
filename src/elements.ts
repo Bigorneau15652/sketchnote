@@ -14,12 +14,17 @@ const MAX_STROKE = 40;
 const MAX_ROUGHNESS = 3;
 const MAX_SEED = 2147483647;
 const MAX_PATH_LENGTH = 512;
+export const MIN_FILL_OPACITY = 0.05;
+const MAX_GROUPS = 8;
 const MAX_SLOT = 999;
 
 interface BaseElement {
   id: string;
   // Elements made by a page structure carry the group `structure`: choosing another structure replaces them.
   group?: `structure`;
+  // The groups the element belongs to, from the innermost to the outermost (a group can hold other groups). A group is selected, moved, resized and turned as one
+  // block. Same idea as in Excalidraw.
+  groups?: string[];
 }
 
 // How the lines of an element look. The roughness is 0 for clean lines, 1 for a hand drawn look and 2 for a rougher one. The seed makes the
@@ -31,10 +36,11 @@ interface Strokes {
   seed?: number;
 }
 
-// A fill, for the shapes that have an inside.
+// A fill, for the shapes that have an inside. The opacity goes from almost transparent to 1 (opaque, the default) and only concerns the fill, not the line.
 interface Fills {
   fill?: string;
   fillStyle?: FillStyle;
+  fillOpacity?: number;
 }
 
 export interface LineElement extends BaseElement, Strokes {
@@ -174,9 +180,21 @@ function readLook(value: Record<string, unknown>): { roughness?: number; seed?: 
   return out;
 }
 
+// Reads the optional list of groups of an element. Returns null when it is present and wrong, undefined when absent.
+function readGroups(value: unknown): string[] | undefined | null {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_GROUPS) return null;
+  for (const g of value) if (typeof g !== `string` || !/^[A-Za-z0-9_-]{1,64}$/.test(g)) return null;
+  return [...(value as string[])];
+}
+
 // Reads the optional fill fields. Returns null when a field is present and wrong.
-function readFill(value: Record<string, unknown>): { fill?: string; fillStyle?: FillStyle } | null {
-  const out: { fill?: string; fillStyle?: FillStyle } = {};
+function readFill(value: Record<string, unknown>): { fill?: string; fillStyle?: FillStyle; fillOpacity?: number } | null {
+  const out: { fill?: string; fillStyle?: FillStyle; fillOpacity?: number } = {};
+  if (value.fillOpacity !== undefined) {
+    if (typeof value.fillOpacity !== `number` || !Number.isFinite(value.fillOpacity) || value.fillOpacity < MIN_FILL_OPACITY || value.fillOpacity > 1) return null;
+    out.fillOpacity = value.fillOpacity;
+  }
   if (value.fill !== undefined) {
     if (!isSafeColor(value.fill)) return null;
     out.fill = value.fill;
@@ -194,7 +212,9 @@ function readElement(value: unknown): SketchElement | null {
   const { id, type } = value;
   if (typeof id !== `string` || !/^[A-Za-z0-9_-]{1,64}$/.test(id)) return null;
   if (value.group !== undefined && value.group !== `structure`) return null;
-  const head = value.group === `structure` ? { id, group: `structure` as const } : { id };
+  const groups = readGroups(value.groups);
+  if (groups === null) return null;
+  const head = { id, ...(value.group === `structure` ? { group: `structure` as const } : {}), ...(groups ? { groups } : {}) };
   if (type === `drawing`) {
     const { x, y, width, height } = value;
     if (!isCoord(x) || !isCoord(y) || !isSize(width) || !isSize(height)) return null;
@@ -279,4 +299,12 @@ export function newId(elements: SketchElement[], prefix = `e`): string {
 // Returns a seed for the hand drawn look, from a number (for example the count of elements). The same number always gives the same seed.
 export function seedFrom(n: number): number {
   return ((Math.imul(n + 1, 2654435761) >>> 0) % 2147483646) + 1;
+}
+
+// Returns a new group identifier that no element of the list uses.
+export function newGroupId(elements: SketchElement[]): string {
+  const used = new Set(elements.flatMap((e) => e.groups ?? []));
+  let n = used.size + 1;
+  while (used.has(`g${n}`)) n++;
+  return `g${n}`;
 }
