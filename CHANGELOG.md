@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0
+
+English
+
+The page. A button Page at the bottom of the view opens the page settings: format (A5, A4, A3, 16/9, square or custom size in pixels), orientation, background style (blank, lines, grid, dots, craft paper or chalkboard), background colour and default stroke colour. The chalkboard sets a white stroke. The page can be zoomed with the buttons of the bottom bar, with Ctrl or Cmd and the wheel or by pinching, and dragged with the mouse or one finger. Files of version 0.1.0 open without change.
+
+Français
+
+La page. Un bouton Page en bas de la vue ouvre les réglages de la page : format (A5, A4, A3, 16/9, carré ou dimensions libres en pixels), orientation, style de fond (blanc, lignes, quadrillage, points, papier craft ou tableau noir), couleur du fond et couleur du trait par défaut. Le tableau noir passe le trait en blanc. La page se zoome avec les boutons de la barre du bas, avec Ctrl ou Cmd et la molette ou en pinçant avec deux doigts, et se déplace à la souris ou avec un doigt. Les fichiers de la version 0.1.0 s'ouvrent sans changement.
+
 ## 0.1.0
 
 English
