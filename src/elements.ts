@@ -112,10 +112,37 @@ export interface DrawingElement extends BaseElement {
   path: string | null;
 }
 
+// A text of one or several lines, written in a font (the identifier of a built-in or imported font) at a size. The box is the measured size of the text, kept in the file so that it can
+// be selected and drawn without measuring again. The colour of the text is `stroke`.
+export type TextAlign = `left` | `center` | `right`;
+export const TEXT_ALIGNS: TextAlign[] = [`left`, `center`, `right`];
+export interface TextElement extends BaseElement {
+  type: `text`;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  angle?: number;
+  text: string;
+  font: string;
+  size: number;
+  align?: TextAlign;
+  stroke: string;
+}
+
+export const MAX_TEXT_LENGTH = 5000;
+export const MIN_FONT_SIZE = 6;
+export const MAX_FONT_SIZE = 400;
+
+// Tells whether a value can be the identifier of a font: lowercase letters, digits and hyphens.
+export function isFontId(value: unknown): value is string {
+  return typeof value === `string` && /^[a-z0-9][a-z0-9-]{0,63}$/.test(value);
+}
+
 export type PointsElement = LineElement | ArrowElement | FreedrawElement;
 export type ShapeElement = RectElement | EllipseElement | DiamondElement;
 export type StrokedElement = PointsElement | ShapeElement;
-export type SketchElement = StrokedElement | DrawingElement;
+export type SketchElement = StrokedElement | DrawingElement | TextElement;
 
 export type ElementsResult = { ok: true; elements: SketchElement[] } | { ok: false; index: number } | { ok: false; tooMany: true };
 
@@ -124,9 +151,9 @@ export function hasPoints(el: SketchElement): el is PointsElement {
   return el.type === `line` || el.type === `arrow` || el.type === `freedraw`;
 }
 
-// Tells whether an element has lines with a colour and a width (everything except a drawing frame).
+// Tells whether an element has lines with a colour and a width (everything except a drawing frame and a text).
 export function isStroked(el: SketchElement): el is StrokedElement {
-  return el.type !== `drawing`;
+  return el.type !== `drawing` && el.type !== `text`;
 }
 
 // Tells whether an element is a shape with an inside: a rectangle, an ellipse or a diamond.
@@ -236,6 +263,16 @@ function readElement(value: unknown): SketchElement | null {
     if (value.shape !== undefined && value.shape !== `rect` && value.shape !== `ellipse`) return null;
     const shape = value.shape === undefined ? {} : { shape: value.shape as `rect` | `ellipse` };
     return { ...head, type, x, y, width, height, ...(angle === 0 ? {} : { angle }), ...slot, ...shape, path };
+  }
+  if (type === `text`) {
+    const { x, y, width, height, text, font, size } = value;
+    if (!isCoord(x) || !isCoord(y) || !isSize(width) || !isSize(height) || !isSafeColor(value.stroke)) return null;
+    if (typeof text !== `string` || text.length === 0 || text.length > MAX_TEXT_LENGTH || !isFontId(font)) return null;
+    if (typeof size !== `number` || !Number.isFinite(size) || size < MIN_FONT_SIZE || size > MAX_FONT_SIZE) return null;
+    if (value.align !== undefined && !TEXT_ALIGNS.includes(value.align as TextAlign)) return null;
+    const angle = readAngle(value.angle);
+    if (angle === null) return null;
+    return { ...head, type, x, y, width, height, text, font, size, stroke: value.stroke, ...(value.align === undefined || value.align === `left` ? {} : { align: value.align as TextAlign }), ...(angle === 0 ? {} : { angle }) };
   }
   const { stroke, strokeWidth } = value;
   if (!isSafeColor(stroke)) return null;

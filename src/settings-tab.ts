@@ -2,6 +2,8 @@
 import { AbstractInputSuggest, App, Notice, PluginSettingTab, Setting, TFolder } from "obsidian";
 import type SketchnotePlugin from "./main";
 import { t } from "./i18n";
+import { AddFontModal } from "./add-font-modal";
+import { importFonts } from "./font-import";
 import { DEFAULT_SETTINGS, normalizeFolder } from "./settings";
 
 // Suggests the folders of the vault under a text field.
@@ -52,6 +54,14 @@ export class SketchnoteSettingTab extends PluginSettingTab {
     if (await this.plugin.drawings.ensureFolder(folder)) new Notice(t(`Dossier créé : {0}`, folder));
   }
 
+  // Keeps a folder as the fonts folder, creates it when it does not exist and reads it.
+  private async keepFontsFolder(folder: string): Promise<void> {
+    this.plugin.settingsData.fontsFolder = folder;
+    await this.plugin.saveData(this.plugin.settingsData);
+    if (await this.plugin.drawings.ensureFolder(folder)) new Notice(t(`Dossier créé : {0}`, folder));
+    await this.plugin.fonts.refresh(true);
+  }
+
   // Draws the settings page.
   display(): void {
     const { containerEl } = this;
@@ -79,5 +89,34 @@ export class SketchnoteSettingTab extends PluginSettingTab {
           void this.keepFolder(path);
         });
       });
+
+    new Setting(containerEl)
+      .setName(t(`Dossier des polices`))
+      .setDesc(t(`Dossier du coffre où sont rangées les polices ajoutées (fichiers .ttf et .otf). Une police déposée dans ce dossier apparaît dans la liste de l'outil Texte. Le bouton ouvre la fenêtre qui explique où trouver des polices libres et les importe.`))
+      .addText((text) => {
+        text.setPlaceholder(DEFAULT_SETTINGS.fontsFolder).setValue(this.plugin.settingsData.fontsFolder);
+        text.inputEl.addEventListener(`change`, () => {
+          const folder = normalizeFolder(text.getValue());
+          text.inputEl.toggleClass(`mod-error`, folder === null);
+          if (folder !== null) void this.keepFontsFolder(folder);
+        });
+        new FolderSuggest(this.app, text.inputEl, (path) => {
+          text.inputEl.removeClass(`mod-error`);
+          void this.keepFontsFolder(path);
+        });
+      })
+      .addExtraButton((button) =>
+        button
+          .setIcon(`type`)
+          .setTooltip(t(`Ajouter une police`))
+          .onClick(() => {
+            const folder = (): string => this.plugin.settingsData.fontsFolder;
+            new AddFontModal(this.app, { folder, importFiles: async (files) => {
+              const report = await importFonts(this.app, folder(), files);
+              await this.plugin.fonts.refresh(true);
+              return report;
+            } }, () => undefined).open();
+          }),
+      );
   }
 }

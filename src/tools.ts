@@ -1,7 +1,8 @@
 // Creation of elements from a gesture (a drag from one point to another, or the points of a pen stroke), with the same keys as Excalidraw:
 // Shift for a square, a circle or a line at a multiple of 15 degrees, Alt to start from the centre. Pure module.
-import type { ArrowElement, DiamondElement, EllipseElement, FreedrawElement, LineElement, Point, RectElement, SketchElement } from "./elements";
+import type { ArrowElement, DiamondElement, EllipseElement, FreedrawElement, LineElement, Point, RectElement, SketchElement, TextElement } from "./elements";
 import type { ToolStyle } from "./style";
+import { refitText } from "./text-layout";
 
 export type CreationTool = `rect` | `diamond` | `ellipse` | `line` | `arrow` | `pen` | `point`;
 export const CREATION_TOOLS: CreationTool[] = [`rect`, `diamond`, `ellipse`, `line`, `arrow`, `pen`, `point`];
@@ -104,4 +105,10 @@ export function penElement(points: Point[], style: ToolStyle, id: string, seed: 
   if (points.length === 0) return null;
   const pts: Point[] = points.length === 1 ? [points[0], [r2(points[0][0] + 0.1), r2(points[0][1])]] : points.slice(0, maxPoints);
   return { id, type: `freedraw`, points: pts, ...look(style, seed) };
+}
+
+// Returns a text whose top left corner is at a point, in the font, the size, the alignment and the colour of the style. `measure` gives the width of a line of text.
+export function textElement(at: Point, text: string, style: ToolStyle, id: string, measure: (line: string, font: string, size: number) => number): TextElement {
+  const base: TextElement = { id, type: `text`, x: r2(at[0]), y: r2(at[1]), width: 1, height: 1, text, font: style.font, size: style.fontSize, stroke: style.stroke, ...(style.align === `left` ? {} : { align: style.align }) };
+  return refitText(base, measure);
 }

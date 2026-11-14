@@ -281,3 +281,71 @@
 .sketchdraw-heads-start svg {
   transform: scaleX(-1);
 }
+
+.sketchdraw-section {
+  display: block;
+}
+
+.sketchdraw-font {
+  width: 100%;
+  max-width: 100%;
+  margin-bottom: 6px;
+  box-sizing: border-box;
+}
+
+.sketchnote-text-editor {
+  position: fixed;
+  z-index: var(--layer-popover, 100);
+  margin: 0;
+  padding: 0;
+  border: 1px dashed var(--interactive-accent);
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  box-shadow: none;
+  resize: none;
+  overflow: hidden;
+  white-space: pre;
+  min-width: 1ch;
+}
+
+.sketchnote-addfont h4 {
+  margin: 12px 0 4px;
+}
+
+.sketchnote-addfont-site {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 2px 0;
+}
+
+.sketchnote-addfont-note {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.sketchnote-addfont-drop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 16px;
+  border: 2px dashed var(--background-modifier-border);
+  border-radius: 8px;
+}
+
+.sketchnote-addfont-drop.is-over {
+  border-color: var(--interactive-accent);
+}
+
+.sketchnote-addfont-ok {
+  color: var(--text-success, var(--text-normal));
+  overflow-wrap: anywhere;
+}
+
+.sketchnote-addfont-problem {
+  color: var(--text-error);
+  overflow-wrap: anywhere;
+}

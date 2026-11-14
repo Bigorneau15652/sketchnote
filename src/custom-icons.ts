@@ -29,6 +29,11 @@ const ICONS: Record<string, string> = {
   "sketchnote-head-dot": tag(`path`, { d: `M14 50H70`, ...line, "stroke-width": 8 }) + tag(`circle`, { cx: 76, cy: 50, r: 14, fill: `currentColor` }),
   "sketchnote-head-bar": tag(`path`, { d: `M14 50H84M84 26V74`, ...line, "stroke-width": 8 }),
   "sketchnote-head-diamond": tag(`path`, { d: `M14 50H52`, ...line, "stroke-width": 8 }) + tag(`path`, { d: `M52 50L70 30L88 50L70 70Z`, fill: `currentColor`, stroke: `currentColor`, "stroke-linejoin": `round`, "stroke-width": 5 }),
+  // The letter A at four sizes, for the size of texts.
+  "sketchnote-size-small": tag(`path`, { d: `M32 74L50 38L68 74M39 62H61`, ...line, "stroke-linejoin": `round`, "stroke-width": 7 }),
+  "sketchnote-size-medium": tag(`path`, { d: `M26 76L50 30L74 76M35 60H65`, ...line, "stroke-linejoin": `round`, "stroke-width": 8 }),
+  "sketchnote-size-large": tag(`path`, { d: `M20 80L50 22L80 80M31 58H69`, ...line, "stroke-linejoin": `round`, "stroke-width": 9 }),
+  "sketchnote-size-huge": tag(`path`, { d: `M12 86L50 14L88 86M26 56H74`, ...line, "stroke-linejoin": `round`, "stroke-width": 10 }),
 };
 
 // Registers the pictograms of the plugin.
