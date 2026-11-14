@@ -44,3 +44,6 @@ Applique le skill fin-de-session : relis ce qui a été durablement appris, prop
 
 ## Journal des mises à jour
 - [2026-10-31] Création du socle.
+
+## Projet Sketchnote
+Plugin Obsidian de sketchnotes. Lis docs/PROJET.md : décisions d'Olivier, règles techniques propres au projet et plan des versions.

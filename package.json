@@ -1,0 +1,19 @@
+{
+  "name": "sketchnote",
+  "version": "0.1.0",
+  "description": "Obsidian plugin to draw sketchnotes: one page that mixes drawings and handwritten text.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "test": "node tools/run-tests.mjs"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.21.0",
+    "obsidian": "1.13.1",
+    "tslib": "^2.6.0",
+    "typescript": "^5.4.0"
+  }
+}
