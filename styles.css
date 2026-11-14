@@ -264,3 +264,20 @@
     display: block;
   }
 }
+
+.sketchnote-mid-handle {
+  fill: var(--interactive-accent);
+  fill-opacity: 0.35;
+}
+
+.sketchnote-handle-active {
+  fill: var(--interactive-accent);
+}
+
+.sketchdraw-hidden {
+  display: none;
+}
+
+.sketchdraw-heads-start svg {
+  transform: scaleX(-1);
+}

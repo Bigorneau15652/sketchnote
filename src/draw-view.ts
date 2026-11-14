@@ -5,7 +5,7 @@ import { CanvasView, Tool } from "./canvas-view";
 import { toHex6 } from "./page-background";
 import { CANVAS_HEIGHT, CANVAS_WIDTH, contentBox, createEmptyDrawing, guideBox, parseSketchdraw, serializeSketchdraw, SketchdrawDoc } from "./drawing-file";
 import { drawElements, PLAIN } from "./element-render";
-import { SketchElement } from "./elements";
+import { Head, HEADS, SketchElement } from "./elements";
 import { Box, unionBox as unionBoxes } from "./geometry";
 import { brightness } from "./page-background";
 import { t } from "./i18n";
@@ -225,18 +225,50 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.panelButton(looks, `sketchnote-style-sketch`, t(`Dessiné à la main`), (s) => s.roughness > 0, () => this.change({ roughness: 1 }));
     this.panelButton(looks, `sketchnote-style-clean`, t(`Net`), (s) => s.roughness === 0, () => this.change({ roughness: 0 }));
 
+    // Sections shown only for lines and arrows: the edges, then the head at each end of an arrow.
+    this.linearSections.length = 0;
+    const edgeIcon = this.sectionIcon(props, `sketchnote-edge-round`, t(`Bords`));
+    const edges = props.createDiv({ cls: `sketchdraw-row` });
+    this.panelButton(edges, `sketchnote-edge-sharp`, t(`Bords droits`), (s) => !s.rounded, () => this.change({ rounded: false }));
+    this.panelButton(edges, `sketchnote-edge-round`, t(`Bords arrondis`), (s) => s.rounded, () => this.change({ rounded: true }));
+    this.linearSections.push({ els: [edgeIcon, edges], arrowOnly: false });
+    const headsIcon = this.sectionIcon(props, `sketchnote-head-arrow`, t(`Pointes`));
+    const startRow = props.createDiv({ cls: `sketchdraw-row sketchdraw-heads-start` });
+    const endRow = props.createDiv({ cls: `sketchdraw-row` });
+    for (const kind of HEADS) {
+      const name = headName(kind);
+      this.panelButton(startRow, `sketchnote-head-${kind}`, `${t(`Pointe au début`)} : ${name}`, (s) => s.startHead === kind, () => this.change({ startHead: kind }));
+      this.panelButton(endRow, `sketchnote-head-${kind}`, `${t(`Pointe à la fin`)} : ${name}`, (s) => s.endHead === kind, () => this.change({ endHead: kind }));
+    }
+    this.linearSections.push({ els: [headsIcon, startRow, endRow], arrowOnly: true });
+
     this.swatchRows = { stroke: strokeRow, fill: fillRow };
     this.refreshSwatches();
+  }
+
+  // The sections of the panel that only lines and arrows use.
+  private linearSections: { els: HTMLElement[]; arrowOnly: boolean }[] = [];
+
+  // Shows the edge and head sections when a line or an arrow is selected or about to be drawn.
+  private syncLinearSections(): void {
+    const one = this.selectedElements()[0];
+    const kind = this.tool !== `select` ? this.tool : this.selected.size === 1 && one ? one.type : this.tool;
+    const linear = kind === `line` || kind === `arrow`;
+    for (const sec of this.linearSections) {
+      const show = linear && (!sec.arrowOnly || kind === `arrow`);
+      for (const el of sec.els) el.toggleClass(`sketchdraw-hidden`, !show);
+    }
   }
 
   private swatchRows: { stroke: HTMLElement; fill: HTMLElement } | null = null;
 
   // Adds a small pictogram that heads a section of the panel. Its name is the tooltip.
-  private sectionIcon(parent: HTMLElement, icon: string, label: string): void {
+  private sectionIcon(parent: HTMLElement, icon: string, label: string): HTMLElement {
     const head = parent.createDiv({ cls: `sketchdraw-title` });
     setIcon(head, icon);
     head.setAttribute(`aria-label`, label);
     head.setAttribute(`title`, label);
+    return head;
   }
 
   // Adds a pictogram button of the panel that shows as active when its test is true for the current style.
@@ -303,6 +335,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   // Shows in the panel which choices are active. Does nothing when nothing changed since the last time.
   private syncPanel(): void {
     const s = this.currentStyle();
+    this.syncLinearSections();
     const key = JSON.stringify(s);
     if (key === this.lastPanel) return;
     this.lastPanel = key;
@@ -314,4 +347,17 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     if (this.strokeColor) this.strokeColor.value = toHex6(s.stroke);
     if (this.fillColor) this.fillColor.value = toHex6(s.fill ?? `#ffffff`);
   }
+}
+
+// The name of an arrow head, shown as a tooltip.
+function headName(kind: Head): string {
+  const names: Record<Head, string> = {
+    none: t(`Aucune`),
+    arrow: t(`Flèche`),
+    triangle: t(`Triangle`),
+    dot: t(`Point`),
+    bar: t(`Barre`),
+    diamond: t(`Losange`),
+  };
+  return names[kind];
 }

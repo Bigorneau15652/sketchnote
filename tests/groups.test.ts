@@ -138,15 +138,11 @@ test(`un trait et une fleche n'ont pas de poignee de rotation, une forme oui`, (
   assert.deepEqual(hitHandle(r, [50, -28], 1, 10), { kind: `rotate` });
 });
 
-test(`une ligne droite n'a de poignee qu'a ses deux bouts`, () => {
-  assert.deepEqual(visibleCorners(line(`a`, [[0, 0], [100, 50]])), [0, 2]);
-  assert.deepEqual(visibleCorners(line(`b`, [[0, 50], [100, 0]])), [3, 1]);
-  assert.deepEqual(visibleCorners(line(`c`, [[10, 10], [10, 90]])), [0, 3]);
-  assert.deepEqual(visibleCorners(line(`d`, [[0, 10], [90, 10]])), [0, 1]);
+test(`un trait et une fleche n'ont aucune poignee de coin : ils se changent par leurs points`, () => {
+  assert.deepEqual(visibleCorners(line(`a`, [[0, 0], [100, 50]])), []);
+  assert.deepEqual(visibleCorners({ id: `a`, type: `arrow`, points: [[0, 0], [100, 50]], ...base }), []);
   assert.deepEqual(visibleCorners(rect(`r`, 0, 0)), [0, 1, 2, 3]);
   assert.deepEqual(visibleCorners({ id: `f`, type: `freedraw`, points: [[0, 0], [5, 5], [9, 2]], ...base }), [0, 1, 2, 3]);
-  // A handle that is not shown cannot be grabbed.
   const diag = line(`a`, [[0, 0], [100, 50]]);
-  assert.equal(hitHandle(diag, [100, 0], 1, 10), null);
-  assert.deepEqual(hitHandle(diag, [100, 50], 1, 10), { kind: `resize`, corner: 2 });
+  for (const corner of [[0, 0], [100, 50], [100, 0], [0, 50]]) assert.equal(hitHandle(diag, corner as [number, number], 1, 10), null);
 });

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.0
+
+English
+
+Lines and arrows like Excalidraw (MIT licence), after a reading of its linear element editor. A line or an arrow is no longer bound to a rectangle: it has no frame and no corner handles, only one square handle for each of its points, which can be dragged anywhere, and a small round handle in the middle of each segment. Dragging a middle handle adds a point there. A double click on a line adds a point where it is clicked. A click on a point makes it the active one and the Delete key removes it (a line keeps at least two points; Delete on a line without an active point deletes the line). Shift while dragging locks the angle to a multiple of 15 degrees. With the Line or Arrow tool, a drag draws a straight segment as before, and a simple click starts a line made point by point: each click adds a point, a click on the last point, Enter, Escape, or a change of tool ends it. The properties panel shows, for lines and arrows, the edges (sharp or rounded: a rounded line is a smooth curve through its points) and, for arrows, the head at each end (none, arrow, triangle, dot, bar, diamond). Moving, copying, grouping, selecting with the rectangle and undo work on these lines as on the other elements. Files of the previous versions open without change. Elbow arrows are not part of this version.
+
+Français
+
+Les lignes et les flèches comme sur Excalidraw (licence MIT), après une lecture de son éditeur d'éléments linéaires. Une ligne ou une flèche n'est plus enfermée dans un rectangle : elle n'a plus de cadre ni de poignées d'angle, seulement une poignée carrée pour chacun de ses points, que l'on peut déplacer n'importe où, et une petite poignée ronde au milieu de chaque segment. Faire glisser une poignée de milieu y ajoute un point. Un double clic sur une ligne ajoute un point à l'endroit cliqué. Un clic sur un point le rend actif et la touche Suppr le supprime (une ligne garde au moins deux points ; Suppr sur une ligne sans point actif supprime la ligne). Maj pendant le glissement verrouille l'angle sur un multiple de 15 degrés. Avec l'outil Ligne ou Flèche, un glisser trace un segment droit comme avant, et un simple clic démarre une ligne faite point par point : chaque clic ajoute un point, un clic sur le dernier point, Entrée, Échap ou un changement d'outil la termine. Le panneau des propriétés montre pour les lignes et les flèches les bords (droits ou arrondis : une ligne arrondie est une courbe douce qui passe par ses points) et, pour les flèches, la pointe de chaque bout (aucune, flèche, triangle, point, barre, losange). Le déplacement, la copie, le groupement, la sélection au rectangle et l'annulation fonctionnent sur ces lignes comme sur les autres éléments. Les fichiers des versions précédentes s'ouvrent sans changement. Les flèches coudées ne font pas partie de cette version.
+
 ## 0.7.0
 
 English
