@@ -1,4 +1,5 @@
 // Pure geometry of the elements: boxes, rotation, hit tests and the position of the handles of a selected element.
+import { drawnPoints } from "./curves";
 import { hasPoints, isShape, isStroked } from "./elements";
 import type { Point, SketchElement } from "./elements";
 
@@ -57,6 +58,13 @@ export function boxCorners(box: Box, angle: number): [Point, Point, Point, Point
 
 // Returns the smallest upright box that holds the whole element, rotation included.
 export function elementBounds(el: SketchElement): Box {
+  if (hasPoints(el) && el.type !== `freedraw`) {
+    // A rounded line bulges outside of its control points: the bounds are the ones of the drawn curve.
+    const pts = drawnPoints(el);
+    const xs = pts.map((q) => q[0]);
+    const ys = pts.map((q) => q[1]);
+    return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+  }
   const { box, angle } = boxOf(el);
   if (angle === 0) return box;
   if (el.type === `ellipse`) {
@@ -100,7 +108,8 @@ export function distToSegment(p: Point, a: Point, b: Point): number {
 export function hitElement(el: SketchElement, p: Point, tolerance: number): boolean {
   const reach = (isStroked(el) ? el.strokeWidth / 2 : 0) + tolerance;
   if (hasPoints(el)) {
-    for (let i = 0; i + 1 < el.points.length; i++) if (distToSegment(p, el.points[i], el.points[i + 1]) <= reach) return true;
+    const pts = el.type === `freedraw` ? el.points : drawnPoints(el);
+    for (let i = 0; i + 1 < pts.length; i++) if (distToSegment(p, pts[i], pts[i + 1]) <= reach) return true;
     return false;
   }
   const { box, angle } = boxOf(el);
@@ -147,20 +156,10 @@ export function hasRotateHandle(el: SketchElement): boolean {
   return el.type !== `line` && el.type !== `arrow`;
 }
 
-// Returns the corners that carry a resize handle. A straight line or arrow (two points) has a handle at each end only; everything else has the four corners.
+// Returns the corners that carry a resize handle. A line or an arrow has none: it is changed by its points (see linear.ts), without any box around it. Everything else has
+// the four corners.
 export function visibleCorners(el: SketchElement): (0 | 1 | 2 | 3)[] {
-  if (!hasPoints(el) || el.points.length !== 2) return [0, 1, 2, 3];
-  const { box } = boxOf(el);
-  const cx = box.x + box.w / 2;
-  const cy = box.y + box.h / 2;
-  const corner = (p: Point): 0 | 1 | 2 | 3 => {
-    const right = p[0] > cx;
-    const bottom = p[1] > cy;
-    return right ? (bottom ? 2 : 1) : bottom ? 3 : 0;
-  };
-  const a = corner(el.points[0]);
-  const b = corner(el.points[1]);
-  return a === b ? [a] : [a, b];
+  return el.type === `line` || el.type === `arrow` ? [] : [0, 1, 2, 3];
 }
 
 // Returns the handle of a box (upright, without rotation) that a point touches, among the given corners and the rotation handle when `rotation` is true.

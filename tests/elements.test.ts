@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { arrowHeadPoints, MAX_ELEMENTS, MAX_POINTS, newId, readElements, SketchElement } from "../src/elements";
+import { MAX_ELEMENTS, MAX_POINTS, newId, readElements, SketchElement } from "../src/elements";
 
 const line = (over: Record<string, unknown> = {}): Record<string, unknown> => ({ id: `a1`, type: `line`, points: [[0, 0], [10, 10]], stroke: `#000000`, strokeWidth: 2, ...over });
 
@@ -75,19 +75,6 @@ test(`les champs inconnus d'un element ne sont pas recopies`, () => {
     assert.equal(`evil` in el, false);
     assert.equal(`onclick` in el, false);
   }
-});
-
-test(`la pointe d'une fleche est au bout de la ligne et de chaque cote`, () => {
-  const head = arrowHeadPoints([[0, 0], [0, 100]], 2);
-  assert.ok(head);
-  if (head) {
-    assert.deepEqual(head[1], [0, 100]);
-    assert.ok(head[0][1] < 100 && head[2][1] < 100);
-    assert.ok(Math.abs(head[0][0] + head[2][0]) < 1e-9);
-    assert.ok(head[0][0] !== head[2][0]);
-  }
-  assert.equal(arrowHeadPoints([[3, 3], [3, 3]], 2), null);
-  assert.equal(arrowHeadPoints([[3, 3]], 2), null);
 });
 
 test(`le type SketchElement couvre les quatre formes`, () => {

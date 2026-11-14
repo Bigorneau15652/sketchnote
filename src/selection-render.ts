@@ -3,6 +3,7 @@
 import type { SketchElement } from "./elements";
 import { blockBox, Box, boxCorners, boxOf, centerOf, hasRotateHandle, ROTATE_OFFSET, rotateHandlePos, rotatePoint, visibleCorners } from "./geometry";
 import { svgEl } from "./svg";
+import { visibleMidpoints } from "./linear";
 
 export interface UiState {
   selected: SketchElement[];
@@ -14,6 +15,8 @@ export interface UiState {
   // Positions of the magnetism guide lines.
   guideX: number[];
   guideY: number[];
+  // Index of the point of a selected line or arrow that is active (to be removed with Delete), or null.
+  activePoint?: number | null;
 }
 
 // Empties a group.
@@ -39,8 +42,21 @@ export function drawUi(ui: Element, st: UiState): void {
   for (const y of st.guideY) svgEl(`line`, { class: `sketchnote-snap-guide`, x1: 0, y1: y, x2: st.pageWidth, y2: y }, ui);
   if (st.selected.length === 1) {
     const el = st.selected[0];
+    if (el.type === `line` || el.type === `arrow`) {
+      // A line has no frame: only its points (square handles) and the middle of its segments (small round handles) are shown.
+      const r = 10 / z;
+      const mids = visibleMidpoints(el.points, r);
+      for (const m of mids) svgEl(`circle`, { class: `sketchnote-handle sketchnote-mid-handle`, cx: m.pos[0], cy: m.pos[1], r: 4 / z }, ui);
+      const hs = 10 / z;
+      el.points.forEach((pt, i) => {
+        const active = st.activePoint === i ? ` sketchnote-handle-active` : ``;
+        svgEl(`rect`, { class: `sketchnote-handle${active}`, x: pt[0] - hs / 2, y: pt[1] - hs / 2, width: hs, height: hs }, ui);
+      });
+      if (st.marquee) svgEl(`rect`, { class: `sketchnote-marquee`, x: st.marquee.x, y: st.marquee.y, width: st.marquee.w, height: st.marquee.h }, ui);
+      return;
+    }
     const { box, angle } = boxOf(el);
-    const thin = el.type === `line` || el.type === `arrow`;
+    const thin = false;
     const frame = thin ? boxCorners(padded(box, 5 / z), 0) : boxCorners(box, angle);
     svgEl(`polygon`, { class: `sketchnote-sel-outline`, points: pointsText(frame) }, ui);
     const corners = boxCorners(box, angle);

@@ -21,6 +21,14 @@ const ICONS: Record<string, string> = {
   "sketchnote-width-thick": tag(`path`, { d: `M14 50H86`, ...line, "stroke-width": 20 }),
   "sketchnote-style-sketch": tag(`path`, { d: `M12 56C26 38 36 66 50 48S72 40 88 52`, ...line, "stroke-width": 8 }),
   "sketchnote-style-clean": tag(`path`, { d: `M12 50H88`, ...line, "stroke-width": 8 }),
+  "sketchnote-edge-sharp": tag(`path`, { d: `M14 74L40 26L62 70L86 30`, ...line, "stroke-linejoin": `miter`, "stroke-width": 8 }),
+  "sketchnote-edge-round": tag(`path`, { d: `M14 74C30 20 48 20 56 50S76 74 86 30`, ...line, "stroke-width": 8 }),
+  "sketchnote-head-none": tag(`path`, { d: `M14 50H80`, ...line, "stroke-width": 8 }),
+  "sketchnote-head-arrow": tag(`path`, { d: `M14 50H84M62 28L84 50L62 72`, ...line, "stroke-linejoin": `round`, "stroke-width": 8 }),
+  "sketchnote-head-triangle": tag(`path`, { d: `M14 50H58`, ...line, "stroke-width": 8 }) + tag(`path`, { d: `M56 28L88 50L56 72Z`, fill: `currentColor`, stroke: `currentColor`, "stroke-linejoin": `round`, "stroke-width": 6 }),
+  "sketchnote-head-dot": tag(`path`, { d: `M14 50H70`, ...line, "stroke-width": 8 }) + tag(`circle`, { cx: 76, cy: 50, r: 14, fill: `currentColor` }),
+  "sketchnote-head-bar": tag(`path`, { d: `M14 50H84M84 26V74`, ...line, "stroke-width": 8 }),
+  "sketchnote-head-diamond": tag(`path`, { d: `M14 50H52`, ...line, "stroke-width": 8 }) + tag(`path`, { d: `M52 50L70 30L88 50L70 70Z`, fill: `currentColor`, stroke: `currentColor`, "stroke-linejoin": `round`, "stroke-width": 5 }),
 };
 
 // Registers the pictograms of the plugin.

@@ -4,6 +4,7 @@ import { setIcon, TextFileView, WorkspaceLeaf } from "obsidian";
 import { newId, SketchElement } from "./elements";
 import { blockBox, Box, boxesIntersect, boxOf, centerOf, elementBounds, hitBoxHandle, hitHandle, hitTop, unionBox } from "./geometry";
 import { canUngroup, expandToGroups, groupAction, groupElements, topGroupId, ungroupElements } from "./groups";
+import { insertPointAt, lockAngle, midpointIndexAt, movePointTo, nearestOnLine, pointIndexAt, removePointAt } from "./linear";
 import { History } from "./history";
 import { t } from "./i18n";
 import { RenderedPage } from "./page-render";
@@ -11,7 +12,7 @@ import { drawUi } from "./selection-render";
 import { cloneElements, moveElements, reorder, removeElements } from "./selection-ops";
 import { snapBox } from "./snap";
 import { ToolStyle } from "./style";
-import { addPenPoint, CREATION_TOOLS, CreationTool, elementFromDrag, penElement, pointElement } from "./tools";
+import { addPenPoint, CREATION_TOOLS, CreationTool, elementFromDrag, linearElement, penElement, pointElement } from "./tools";
 import { normalizeAngle, resizeElement, rotateAbout, rotateBy, scaleAbout, translate } from "./transform";
 import { MAX_FREEDRAW_POINTS } from "./elements";
 import { clampZoom, fitZoom, pinchZoom, sliderToZoom, stepZoom, zoomToSlider } from "./viewport";
@@ -24,11 +25,14 @@ type Gesture =
   | { kind: `move`; pointerId: number; start: Point; startClient: Point; ids: Set<string>; hitId: string; box: Box; moved: boolean }
   | { kind: `resize`; pointerId: number; orig: SketchElement; corner: 0 | 1 | 2 | 3; moved: boolean }
   | { kind: `rotate`; pointerId: number; orig: SketchElement; center: Point; startAngle: number; moved: boolean }
+  // A point of a line or an arrow dragged anywhere (`point`), or the middle handle of a segment, which creates a new point as soon as it is dragged (`midpoint`).
+  | { kind: `point`; pointerId: number; orig: SketchElement; index: number; startClient: Point; moved: boolean }
+  | { kind: `midpoint`; pointerId: number; orig: SketchElement; segment: number; startClient: Point; moved: boolean }
   // Several elements resized or turned as one block: the originals are kept, the anchor is the corner opposite to the handle, the centre is the middle of the block.
   | { kind: `blockResize`; pointerId: number; orig: Map<string, SketchElement>; anchor: Point; box: Box; pad: number; corner: 0 | 1 | 2 | 3; moved: boolean }
   | { kind: `blockRotate`; pointerId: number; orig: Map<string, SketchElement>; center: Point; startAngle: number; moved: boolean }
   | { kind: `marquee`; pointerId: number; start: Point; current: Point; base: Set<string> }
-  | { kind: `create`; pointerId: number; tool: CreationTool; start: Point; pen: Point[]; made: SketchElement | null };
+  | { kind: `create`; pointerId: number; tool: CreationTool; start: Point; pen: Point[]; made: SketchElement | null; dragged: boolean };
 
 // Elements copied with Copy, shared by every sketchnote and drawing of the session.
 let clipboard: SketchElement[] = [];
@@ -46,6 +50,10 @@ export abstract class CanvasView<D> extends TextFileView {
   protected selected = new Set<string>();
   // The group that the user is editing (after a double click on one of its members): its members are selected one by one instead of as a block.
   protected editingGroup: string | null = null;
+  // The point of the selected line or arrow that was clicked last: the Delete key removes it.
+  protected activePoint: { id: string; index: number } | null = null;
+  // A line or an arrow being drawn point by point (clicks): the committed points, the document before it was started. The last point follows the pointer until the next click.
+  private multi: { id: string; tool: `line` | `arrow`; base: D; committed: Point[]; seed: number } | null = null;
   protected readonly history = new History<D>(200);
   protected gesture: Gesture | null = null;
   // The document as it was when the current gesture started: it is restored when the gesture is cancelled and stored in the history when it ends.
@@ -321,6 +329,7 @@ export abstract class CanvasView<D> extends TextFileView {
 
   // Chooses the active tool.
   protected setTool(tool: Tool): void {
+    if (this.multi) this.finishMulti();
     this.tool = tool;
     this.updateBar();
   }
@@ -372,6 +381,7 @@ export abstract class CanvasView<D> extends TextFileView {
       marquee: this.marquee,
       guideX: this.guideX,
       guideY: this.guideY,
+      activePoint: this.selected.size === 1 && this.activePoint && this.selected.has(this.activePoint.id) ? this.activePoint.index : null,
     });
   }
 
@@ -507,7 +517,9 @@ export abstract class CanvasView<D> extends TextFileView {
     const key = e.key.toLowerCase();
     const step = e.shiftKey ? 10 : 1;
     const letter = !mod && !e.altKey ? this.toolKeys()[key] : undefined;
-    if (key === ` `) {
+    if (this.multi && (key === `enter` || key === `escape`)) {
+      this.finishMulti();
+    } else if (key === ` `) {
       this.spaceDown = true;
       this.updateCursor();
     } else if (mod && key === `z`) {
@@ -523,7 +535,9 @@ export abstract class CanvasView<D> extends TextFileView {
       this.updateBar();
     } else if (mod && key === `]`) this.reorderSelection(`front`);
     else if (mod && key === `[`) this.reorderSelection(`back`);
-    else if (key === `delete` || key === `backspace`) this.deleteSelection();
+    else if (key === `delete` || key === `backspace`) {
+      if (!this.deleteActivePoint()) this.deleteSelection();
+    }
     else if (key === `escape`) {
       this.cancelGesture();
       this.selected.clear();
@@ -604,6 +618,11 @@ export abstract class CanvasView<D> extends TextFileView {
       return;
     }
     const p = this.pagePoint(e);
+    if (this.multi) {
+      this.baseDoc = null;
+      this.multiClick(p, e.shiftKey);
+      return;
+    }
     if (this.tool !== `select` && CREATION_TOOLS.includes(this.tool as CreationTool) && this.creationTools().includes(this.tool as CreationTool)) {
       this.startCreation(e, p);
       return;
@@ -615,7 +634,7 @@ export abstract class CanvasView<D> extends TextFileView {
   private startCreation(e: PointerEvent, p: Point): void {
     const tool = this.tool as CreationTool;
     this.selected.clear();
-    this.gesture = { kind: `create`, pointerId: e.pointerId, tool, start: p, pen: tool === `pen` ? [p] : [], made: null };
+    this.gesture = { kind: `create`, pointerId: e.pointerId, tool, start: p, pen: tool === `pen` ? [p] : [], made: null, dragged: false };
     this.updateCreation(this.gesture as Extract<Gesture, { kind: `create` }>, p, e);
   }
 
@@ -643,6 +662,7 @@ export abstract class CanvasView<D> extends TextFileView {
   // Starts a selection gesture: a handle of the selected element, an element to select and move, or the empty surface (rectangle on a mouse, pan on a finger).
   private startSelection(e: PointerEvent, p: Point): void {
     const touch = e.pointerType === `touch`;
+    if (this.selected.size === 1 && this.startPointGesture(e, p, touch)) return;
     if (this.selected.size >= 2 && this.startBlockGesture(e, p, touch)) return;
     if (this.selected.size === 1) {
       const el = this.selectedElements()[0];
@@ -691,6 +711,123 @@ export abstract class CanvasView<D> extends TextFileView {
     this.updateBar();
   }
 
+  // Starts the dragging of a point or of a middle handle when the pointer is on one, on the line or arrow that is selected alone. Returns true when it started.
+  private startPointGesture(e: PointerEvent, p: Point, touch: boolean): boolean {
+    const el = this.selectedElements()[0];
+    if (!el || (el.type !== `line` && el.type !== `arrow`)) return false;
+    const radius = (touch ? 18 : 10) / this.zoom;
+    const startClient: Point = [e.clientX, e.clientY];
+    const index = pointIndexAt(el.points, p, radius);
+    if (index >= 0) {
+      this.activePoint = { id: el.id, index };
+      this.gesture = { kind: `point`, pointerId: e.pointerId, orig: el, index, startClient, moved: false };
+      this.renderUi();
+      return true;
+    }
+    const segment = midpointIndexAt(el.points, p, radius);
+    if (segment >= 0) {
+      this.gesture = { kind: `midpoint`, pointerId: e.pointerId, orig: el, segment, startClient, moved: false };
+      return true;
+    }
+    return false;
+  }
+
+  // Follows the pointer with a point of a line or an arrow, anywhere (no box limits it). Shift locks the angle to a multiple of 15 degrees around the next point. A middle
+  // handle makes a new point at the first move and goes on as that point.
+  private dragPoint(g: Extract<Gesture, { kind: `point` | `midpoint` }>, p: Point, e: PointerEvent): void {
+    if (!g.moved && Math.hypot(e.clientX - g.startClient[0], e.clientY - g.startClient[1]) < 3) return;
+    g.moved = true;
+    if (g.kind === `midpoint`) {
+      const el = g.orig;
+      if (el.type !== `line` && el.type !== `arrow`) return;
+      const made = insertPointAt(el, g.segment + 1, p);
+      const next: Gesture = { kind: `point`, pointerId: g.pointerId, orig: made, index: g.segment + 1, startClient: g.startClient, moved: true };
+      this.gesture = next;
+      this.activePoint = { id: el.id, index: g.segment + 1 };
+      this.applyPoint(next, p, e.shiftKey);
+      return;
+    }
+    this.applyPoint(g, p, e.shiftKey);
+  }
+
+  // Puts the dragged point at a position (or at the locked angle) in the document being edited.
+  private applyPoint(g: Extract<Gesture, { kind: `point` }>, p: Point, shift: boolean): void {
+    const el = g.orig;
+    if (el.type !== `line` && el.type !== `arrow`) return;
+    let at = p;
+    if (shift) {
+      const anchor = el.points[g.index - 1] ?? el.points[g.index + 1];
+      if (anchor) at = lockAngle(anchor, p);
+    }
+    this.replaceElement(movePointTo(el, g.index, at));
+  }
+
+  // The Delete key on a selected point removes it, when the line keeps at least two points. Returns true when it did.
+  protected deleteActivePoint(): boolean {
+    const a = this.activePoint;
+    if (!a || this.selected.size !== 1 || !this.selected.has(a.id)) return false;
+    const el = this.elementsOf(this.doc).find((x) => x.id === a.id);
+    if (!el || (el.type !== `line` && el.type !== `arrow`)) return false;
+    const next = removePointAt(el, a.index);
+    if (!next) return false;
+    this.activePoint = null;
+    this.commitElements(this.elementsOf(this.doc).map((x) => (x.id === a.id ? next : x)));
+    return true;
+  }
+
+  // Draws the line being made point by point: the committed points and the last one under the pointer.
+  private showMulti(cursor: Point | null): void {
+    const m = this.multi;
+    if (!m || !this.style) return;
+    const pts = cursor ? [...m.committed, cursor] : m.committed;
+    const base = this.elementsOf(m.base);
+    this.doc = this.withElements(m.base, pts.length >= 2 ? [...base, linearElement(m.tool, pts, this.style, m.id, m.seed)] : base);
+    this.renderContent();
+    this.renderUi();
+  }
+
+  // The pointer moves while a line is made point by point: the last point follows it.
+  private multiMove(p: Point, shift: boolean): void {
+    const m = this.multi;
+    if (!m) return;
+    const last = m.committed[m.committed.length - 1];
+    this.showMulti(shift ? lockAngle(last, p) : p);
+  }
+
+  // A click while a line is made point by point: a click on the last committed point ends the line, any other click adds a point.
+  private multiClick(p: Point, shift: boolean): void {
+    const m = this.multi;
+    if (!m) return;
+    const last = m.committed[m.committed.length - 1];
+    if (m.committed.length >= 2 && Math.hypot(p[0] - last[0], p[1] - last[1]) * this.zoom < 8) {
+      this.finishMulti();
+      return;
+    }
+    m.committed.push(shift ? lockAngle(last, p) : p);
+    this.showMulti(null);
+  }
+
+  // Ends the line made point by point (Enter, Escape, a double click, a click on the last point, another tool). It is kept when it has two points or more, with one change
+  // that can be undone; otherwise it is dropped.
+  private finishMulti(): void {
+    const m = this.multi;
+    if (!m || !this.style) return;
+    this.multi = null;
+    if (m.committed.length >= 2) {
+      this.doc = this.withElements(m.base, [...this.elementsOf(m.base), linearElement(m.tool, m.committed, this.style, m.id, m.seed)]);
+      this.history.push(m.base);
+      this.selected = new Set([m.id]);
+      if (!this.toolLocked) this.tool = `select`;
+      this.onElementsChanged();
+      this.requestSave();
+    } else {
+      this.doc = m.base;
+    }
+    this.renderContent();
+    this.renderUi();
+    this.updateBar();
+  }
+
   // Starts the resize or the rotation of several selected elements as one block, when the pointer is on a handle of their common frame. Returns true when it started.
   private startBlockGesture(e: PointerEvent, p: Point, touch: boolean): boolean {
     const selected = this.selectedElements();
@@ -727,6 +864,16 @@ export abstract class CanvasView<D> extends TextFileView {
     const same = last !== null && last.id === el.id && now - last.time < 400 && Math.hypot(e.clientX - last.x, e.clientY - last.y) < 10;
     this.lastClick = same ? null : { id: el.id, time: now, x: e.clientX, y: e.clientY };
     if (!same) return;
+    // A double click on a line or an arrow adds a point on it, where it was clicked.
+    if ((el.type === `line` || el.type === `arrow`) && topGroupId(el, this.editingGroup) === null) {
+      const hit = nearestOnLine(el, this.pagePoint(e));
+      if (hit) {
+        this.activePoint = { id: el.id, index: hit.segment + 1 };
+        this.selected = new Set([el.id]);
+        this.commitElements(this.elementsOf(this.doc).map((x) => (x.id === el.id ? insertPointAt(el, hit.segment + 1, hit.point) : x)));
+      }
+      return;
+    }
     // A double click on a member of a group edits the group: the member is selected alone. On anything else it activates the element (opens its drawing).
     const top = topGroupId(el, this.editingGroup);
     if (top !== null) {
@@ -746,6 +893,10 @@ export abstract class CanvasView<D> extends TextFileView {
 
   // Follows a pointer: pinch, then the current gesture.
   private onPointerMove(e: PointerEvent): void {
+    if (this.multi && this.pointers.size < 2) {
+      this.multiMove(this.pagePoint(e), e.shiftKey);
+      return;
+    }
     const previous = this.pointers.get(e.pointerId);
     if (!previous) return;
     this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -762,6 +913,7 @@ export abstract class CanvasView<D> extends TextFileView {
       g.lastX = e.clientX;
       g.lastY = e.clientY;
     } else if (g.kind === `create`) {
+      if (Math.hypot(p[0] - g.start[0], p[1] - g.start[1]) * this.zoom > 3) g.dragged = true;
       if (g.tool !== `point`) this.updateCreation(g, p, e);
     } else if (g.kind === `move`) {
       this.dragMove(g, p, e);
@@ -776,6 +928,8 @@ export abstract class CanvasView<D> extends TextFileView {
         delta = Math.round((current + delta) / 15) * 15 - current;
       }
       this.replaceElement(rotateBy(g.orig, normalizeAngle(delta)));
+    } else if (g.kind === `point` || g.kind === `midpoint`) {
+      this.dragPoint(g, p, e);
     } else if (g.kind === `blockResize`) {
       g.moved = true;
       this.applyBlock((el) => scaleAbout(el, g.anchor, this.blockScale(g, p)), g.orig);
@@ -863,7 +1017,7 @@ export abstract class CanvasView<D> extends TextFileView {
       this.finishCreation(g, base);
       return;
     }
-    if ((g.kind === `move` || g.kind === `resize` || g.kind === `rotate` || g.kind === `blockResize` || g.kind === `blockRotate`) && g.moved && base) {
+    if ((g.kind === `move` || g.kind === `resize` || g.kind === `rotate` || g.kind === `blockResize` || g.kind === `blockRotate` || g.kind === `point` || g.kind === `midpoint`) && g.moved && base) {
       this.history.push(base);
       this.onElementsChanged();
       this.requestSave();
@@ -880,6 +1034,13 @@ export abstract class CanvasView<D> extends TextFileView {
 
   // Ends the creation of an element: it is kept and selected, or dropped when it is too small. The tool goes back to Select unless it is locked.
   private finishCreation(g: Extract<Gesture, { kind: `create` }>, base: D | null): void {
+    if (base && !g.dragged && (g.tool === `line` || g.tool === `arrow`) && this.style) {
+      // A click without a drag: the line goes on point by point, with one click for each point (Enter, Escape, a double click or a click on the last point end it).
+      this.multi = { id: newId(this.elementsOf(base)), tool: g.tool, base, committed: [g.start], seed: this.newSeed() };
+      this.selected.clear();
+      this.updateBar();
+      return;
+    }
     if (base && g.made) {
       this.history.push(base);
       this.selected = new Set([g.made.id]);

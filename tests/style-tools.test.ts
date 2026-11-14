@@ -2,14 +2,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SketchElement } from "../src/elements";
 import { applyStyle, applyStyleToIds, cleanPatch, defaultStyle, MAX_WIDTH, MIN_WIDTH, STROKE_WIDTHS, styleOf } from "../src/style";
-import { addPenPoint, CREATION_TOOLS, elementFromDrag, penElement, pointElement } from "../src/tools";
+import { addPenPoint, CREATION_TOOLS, elementFromDrag, linearElement, penElement, pointElement } from "../src/tools";
 
 const style = defaultStyle(`#000000`);
 const none = { shift: false, alt: false };
 const rect: SketchElement = { id: `r`, type: `rect`, x: 0, y: 0, width: 10, height: 10, stroke: `#000000`, strokeWidth: 3 };
 
 test(`le style par defaut est un trait fin noir a main levee sans remplissage`, () => {
-  assert.deepEqual(style, { stroke: `#000000`, fill: null, fillStyle: `solid`, fillOpacity: 1, strokeWidth: STROKE_WIDTHS.thin, roughness: 1 });
+  assert.deepEqual(style, { stroke: `#000000`, fill: null, fillStyle: `solid`, fillOpacity: 1, strokeWidth: STROKE_WIDTHS.thin, roughness: 1, rounded: false, startHead: `none`, endHead: `arrow` });
   assert.equal(defaultStyle(`#ffffff`).stroke, `#ffffff`);
   assert.equal(defaultStyle(`red`).stroke, `#000000`);
 });
@@ -49,7 +49,7 @@ test(`une ligne ne prend pas de remplissage et un cadre de dessin n'a pas de sty
 
 test(`le style d'un element est relu tel qu'il est`, () => {
   const s = styleOf({ ...rect, fill: `#abc`, fillStyle: `hachure`, roughness: 1 } as SketchElement);
-  assert.deepEqual(s, { stroke: `#000000`, fill: `#abc`, fillStyle: `hachure`, fillOpacity: 1, strokeWidth: 3, roughness: 1 });
+  assert.deepEqual(s, { stroke: `#000000`, fill: `#abc`, fillStyle: `hachure`, fillOpacity: 1, strokeWidth: 3, roughness: 1, rounded: false, startHead: `none`, endHead: `arrow` });
   assert.equal(styleOf(rect)?.fill, null);
 });
 
@@ -168,4 +168,29 @@ test(`les nouvelles formes prennent la transparence choisie, sauf quand elle est
   assert.ok(el && el.type === `rect` && el.fillOpacity === 0.3);
   const opaque = elementFromDrag(`rect`, [0, 0], [40, 40], none, { ...s, fillOpacity: 1 }, `r`, 1);
   assert.ok(opaque && opaque.type === `rect` && !(`fillOpacity` in opaque));
+});
+
+test(`les bords arrondis et les pointes se reglent sur les traits et les fleches seulement`, () => {
+  const line: SketchElement = { id: `l`, type: `line`, points: [[0, 0], [5, 5], [9, 0]], stroke: `#000000`, strokeWidth: 3 };
+  const arrow: SketchElement = { ...line, id: `a`, type: `arrow` } as SketchElement;
+  assert.deepEqual(cleanPatch({ rounded: true, startHead: `dot`, endHead: `star` as never }), { rounded: true, startHead: `dot` });
+  assert.equal((applyStyle(line, { rounded: true }) as { rounded?: boolean }).rounded, true);
+  assert.equal(`rounded` in applyStyle(applyStyle(line, { rounded: true }), { rounded: false }), false);
+  const dotted = applyStyle(arrow, { startHead: `dot`, endHead: `triangle` }) as { startHead?: string; endHead?: string };
+  assert.deepEqual([dotted.startHead, dotted.endHead], [`dot`, `triangle`]);
+  assert.equal(`startHead` in applyStyle(line, { startHead: `dot` }), false, `a line has no head`);
+  assert.equal(`rounded` in applyStyle(rect, { rounded: true }), false);
+  assert.deepEqual([styleOf(arrow)?.rounded, styleOf(arrow)?.startHead, styleOf(arrow)?.endHead], [false, `none`, `arrow`]);
+  assert.equal(styleOf(dotted as SketchElement)?.endHead, `triangle`);
+});
+
+test(`une ligne ou une fleche creee prend les bords et les pointes du style`, () => {
+  const s = { ...style, rounded: true, startHead: `dot` as const, endHead: `none` as const };
+  const a = linearElement(`arrow`, [[0, 0], [50, 20], [90, 0]], s, `a`, 3);
+  assert.deepEqual([a.type, (a as { rounded?: boolean }).rounded, (a as { startHead?: string }).startHead, (a as { endHead?: string }).endHead], [`arrow`, true, `dot`, `none`]);
+  const l = linearElement(`line`, [[0, 0], [50, 20]], s, `l`, 3);
+  assert.equal(`startHead` in l, false);
+  assert.equal((l as { rounded?: boolean }).rounded, true);
+  const plain = linearElement(`arrow`, [[0, 0], [50, 20]], style, `p`, 3);
+  assert.equal(`rounded` in plain || `startHead` in plain || `endHead` in plain, false, `the defaults are not written`);
 });

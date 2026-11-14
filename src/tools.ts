@@ -1,6 +1,6 @@
 // Creation of elements from a gesture (a drag from one point to another, or the points of a pen stroke), with the same keys as Excalidraw:
 // Shift for a square, a circle or a line at a multiple of 15 degrees, Alt to start from the centre. Pure module.
-import type { DiamondElement, EllipseElement, FreedrawElement, Point, RectElement, SketchElement } from "./elements";
+import type { ArrowElement, DiamondElement, EllipseElement, FreedrawElement, LineElement, Point, RectElement, SketchElement } from "./elements";
 import type { ToolStyle } from "./style";
 
 export type CreationTool = `rect` | `diamond` | `ellipse` | `line` | `arrow` | `pen` | `point`;
@@ -65,9 +65,25 @@ export function elementFromDrag(tool: CreationTool, start: Point, end: Point, mo
   if (tool === `line` || tool === `arrow`) {
     const e = lineEnd(start, end, mods.shift);
     if (Math.hypot(e[0] - start[0], e[1] - start[1]) < 2) return null;
-    return { id, type: tool, points: [[r2(start[0]), r2(start[1])], [r2(e[0]), r2(e[1])]], ...look(style, seed) };
+    return linearElement(tool, [[start[0], start[1]], [e[0], e[1]]], style, id, seed);
   }
   return null;
+}
+
+// Builds a line or an arrow from its points and the style chosen by the user: rounded edges, and for an arrow the heads that are not the default ones.
+export function linearElement(tool: `line` | `arrow`, points: Point[], style: ToolStyle, id: string, seed: number): LineElement | ArrowElement {
+  const pts = points.map((p): Point => [r2(p[0]), r2(p[1])]);
+  const rounded = style.rounded ? { rounded: true } : {};
+  if (tool === `line`) return { id, type: `line`, points: pts, ...look(style, seed), ...rounded };
+  return {
+    id,
+    type: `arrow`,
+    points: pts,
+    ...look(style, seed),
+    ...rounded,
+    ...(style.startHead !== `none` ? { startHead: style.startHead } : {}),
+    ...(style.endHead !== `arrow` ? { endHead: style.endHead } : {}),
+  };
 }
 
 // Builds the element of the Point tool: a small filled disc centred on the click.

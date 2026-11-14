@@ -4,6 +4,9 @@ import { isSafeColor } from "./color";
 
 export type Point = [number, number];
 export type FillStyle = `solid` | `hachure`;
+// The shape at an end of an arrow: nothing, an open arrow head, a filled triangle, a dot, a bar or a diamond.
+export type Head = `none` | `arrow` | `triangle` | `dot` | `bar` | `diamond`;
+export const HEADS: Head[] = [`none`, `arrow`, `triangle`, `dot`, `bar`, `diamond`];
 
 export const MAX_ELEMENTS = 20000;
 export const MAX_POINTS = 500;
@@ -46,11 +49,17 @@ interface Fills {
 export interface LineElement extends BaseElement, Strokes {
   type: `line`;
   points: Point[];
+  // Rounded edges: a smooth curve goes through the points instead of straight segments.
+  rounded?: boolean;
 }
 
+// An arrow has the heads of its two ends. When they are absent the start has none and the end has an open arrow head.
 export interface ArrowElement extends BaseElement, Strokes {
   type: `arrow`;
   points: Point[];
+  rounded?: boolean;
+  startHead?: Head;
+  endHead?: Head;
 }
 
 // A line drawn freehand with the pen.
@@ -236,7 +245,20 @@ function readElement(value: unknown): SketchElement | null {
   const base = { ...head, stroke, strokeWidth, ...look };
   if (type === `line` || type === `arrow` || type === `freedraw`) {
     const points = readPoints(value.points, type === `freedraw` ? MAX_FREEDRAW_POINTS : MAX_POINTS);
-    return points === null ? null : { ...base, type, points };
+    if (points === null) return null;
+    if (type === `freedraw`) return { ...base, type, points };
+    if (value.rounded !== undefined && typeof value.rounded !== `boolean`) return null;
+    const rounded = value.rounded === true ? { rounded: true } : {};
+    if (type === `line`) return { ...base, type, points, ...rounded };
+    for (const h of [value.startHead, value.endHead]) if (h !== undefined && !HEADS.includes(h as Head)) return null;
+    return {
+      ...base,
+      type,
+      points,
+      ...rounded,
+      ...(value.startHead !== undefined ? { startHead: value.startHead as Head } : {}),
+      ...(value.endHead !== undefined ? { endHead: value.endHead as Head } : {}),
+    };
   }
   const fill = readFill(value);
   const angle = readAngle(value.angle);
@@ -270,22 +292,9 @@ export function readElements(value: unknown): ElementsResult {
   return { ok: true, elements };
 }
 
-// Returns the three points of the head of an arrow: one side, the tip and the other side. Returns null for a line of no length.
-export function arrowHeadPoints(points: Point[], strokeWidth: number): [Point, Point, Point] | null {
-  const a = points[points.length - 2];
-  const b = points[points.length - 1];
-  if (!a || !b) return null;
-  const dx = b[0] - a[0];
-  const dy = b[1] - a[1];
-  const len = Math.hypot(dx, dy);
-  if (len === 0) return null;
-  const ux = dx / len;
-  const uy = dy / len;
-  const size = Math.max(12, strokeWidth * 5);
-  const cos = Math.cos(0.5);
-  const sin = Math.sin(0.5);
-  const side = (s: number): Point => [b[0] - size * (ux * cos - s * uy * sin), b[1] - size * (uy * cos + s * ux * sin)];
-  return [side(1), b, side(-1)];
+// Returns the head at one end of an arrow, with the defaults: nothing at the start and an open arrow head at the end.
+export function headOf(el: ArrowElement, end: `start` | `end`): Head {
+  return (end === `start` ? el.startHead : el.endHead) ?? (end === `start` ? `none` : `arrow`);
 }
 
 // Returns a new identifier that no element of the list uses, made of the prefix and a number.

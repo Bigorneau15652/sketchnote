@@ -2,7 +2,8 @@
 // Pure module (no DOM): it returns plain data, so the result is tested without a browser and the view writes it into the page as attributes.
 import getStroke from "perfect-freehand";
 import { RoughGenerator } from "roughjs/bin/generator";
-import { arrowHeadPoints, Point, StrokedElement } from "./elements";
+import { Point, StrokedElement } from "./elements";
+import { arrowHeadShapes, HeadShape } from "./linear";
 
 // One path to draw: its data, its line colour and width and its fill colour (`none` for no fill).
 export interface PathPiece {
@@ -85,6 +86,16 @@ function turn(angle: number | undefined, cx: number, cy: number): string | null 
   return angle ? `rotate(${r2(angle)} ${r2(cx)} ${r2(cy)})` : null;
 }
 
+// Turns the shape of an arrow head into pieces: its open lines, and its filled polygons and discs (filled with the colour of the line).
+function headPieces(shape: HeadShape, opts: Record<string, unknown>, salt: number): PathPiece[] {
+  const out: PathPiece[] = [];
+  const base = (opts.seed as number) + salt;
+  shape.lines.forEach((l, i) => out.push(...piecesOf(generator.linearPath(l, { ...opts, seed: base + i }))));
+  shape.polygons.forEach((poly, i) => out.push(...piecesOf(generator.polygon(poly, { ...opts, seed: base + 10 + i, fill: opts.stroke as string, fillStyle: `solid` }))));
+  shape.circles.forEach((c, i) => out.push(...piecesOf(generator.ellipse(c.c[0], c.c[1], 2 * c.r, 2 * c.r, { ...opts, seed: base + 20 + i, fill: opts.stroke as string, fillStyle: `solid` }))));
+  return out;
+}
+
 // Computes the paths of an element.
 function compute(el: StrokedElement): ElementPaths {
   const opts = roughOptions(el);
@@ -104,10 +115,14 @@ function compute(el: StrokedElement): ElementPaths {
     const d = pathFromOutline(outline);
     return { pieces: SAFE_PATH.test(d) && d !== `` ? [{ d, stroke: `none`, strokeWidth: 0, fill: el.stroke, opacity: 1 }] : [], transform: null };
   }
-  const pieces = piecesOf(generator.linearPath(el.points, opts));
+  // A line or an arrow: straight segments, or a smooth curve through the points when the edges are rounded.
+  const drawable = el.rounded === true && el.points.length >= 3 ? generator.curve(el.points, opts) : generator.linearPath(el.points, opts);
+  const pieces = piecesOf(drawable);
   if (el.type === `arrow`) {
-    const head = arrowHeadPoints(el.points, el.strokeWidth);
-    if (head) pieces.push(...piecesOf(generator.linearPath(head, { ...opts, seed: (el.seed ?? 1) + 1 })));
+    const heads = arrowHeadShapes(el);
+    if (heads) {
+      pieces.push(...headPieces(heads.start, opts, 1), ...headPieces(heads.end, opts, 2));
+    }
   }
   return { pieces, transform: null };
 }

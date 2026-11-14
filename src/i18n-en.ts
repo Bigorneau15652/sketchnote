@@ -1,6 +1,14 @@
 // English translations: the French text is the key. Every text passed to t() in the code must be listed here (a test checks it).
 // Variable values are written {0}, {1}... as in the French text.
 const PAIRS: [string, string][] = [
+  [`Bords`, `Edges`],
+  [`Bords droits`, `Sharp edges`],
+  [`Bords arrondis`, `Rounded edges`],
+  [`Pointes`, `Heads`],
+  [`Pointe au début`, `Head at the start`],
+  [`Pointe à la fin`, `Head at the end`],
+  [`Triangle`, `Triangle`],
+  [`Barre`, `Bar`],
   [`Créer un sketchnote`, `Create a sketchnote`],
   [`Nouveau sketchnote`, `New sketchnote`],
   [`Sketchnote créé : {0}`, `Sketchnote created: {0}`],
