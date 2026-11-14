@@ -256,3 +256,20 @@ export function addColorSwatch(parent: HTMLElement, app: App, value: string, lab
   );
   return { el, show };
 }
+
+// Adds a rectangular multicolour pastille at the end of a row of round colour swatches. It opens the colour window. When the colour in use is not one of the swatches (it was
+// chosen in the window), the pastille shows that colour inside its multicolour edge and is marked as active. `sync` gives the colour in use (or null for none) and whether
+// it is one of the swatches.
+export function addCustomPastille(parent: HTMLElement, app: App, label: string, startColor: () => string, onPick: (hex: string) => void): { el: HTMLButtonElement; sync: (color: string | null, inPalette: boolean) => void } {
+  const el = parent.createEl(`button`, { cls: `sketchdraw-swatch sketchdraw-swatch-custom` });
+  el.setAttribute(`aria-label`, label);
+  el.setAttribute(`title`, label);
+  el.addEventListener(`click`, () => new ColorModal(app, startColor(), onPick).open());
+  const sync = (color: string | null, inPalette: boolean): void => {
+    const custom = color !== null && !inPalette;
+    el.toggleClass(`is-active`, custom);
+    if (custom && color) el.style.background = `linear-gradient(${toHex6(color)}, ${toHex6(color)}) padding-box, conic-gradient(#ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000) border-box`;
+    else el.style.background = ``;
+  };
+  return { el, sync };
+}

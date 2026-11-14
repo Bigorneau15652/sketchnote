@@ -2,7 +2,7 @@
 // the engine (zoom, selection, undo...) is in CanvasView.
 import { Menu, setIcon, WorkspaceLeaf } from "obsidian";
 import { CanvasView, Tool } from "./canvas-view";
-import { addColorSwatch } from "./color-modal";
+import { addCustomPastille } from "./color-modal";
 import { toHex6 } from "./page-background";
 import { CANVAS_HEIGHT, CANVAS_WIDTH, contentBox, createEmptyDrawing, guideBox, parseSketchdraw, serializeSketchdraw, SketchdrawDoc } from "./drawing-file";
 import { drawElements, PLAIN } from "./element-render";
@@ -34,8 +34,8 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   private readonly panelButtons: { el: HTMLElement; test: (s: ToolStyle) => boolean }[] = [];
   private widthInput: HTMLInputElement | null = null;
   private transparencyInput: HTMLInputElement | null = null;
-  private strokeColor: { show: (color: string) => void } | null = null;
-  private fillColor: { show: (color: string) => void } | null = null;
+  private strokeCustom: { sync: (color: string | null, inPalette: boolean) => void } | null = null;
+  private fillCustom: { sync: (color: string | null, inPalette: boolean) => void } | null = null;
   private lockButton: HTMLElement | null = null;
   // The text being written (hidden while the text area is over it) and the function that ends the writing.
   private editingText: string | null = null;
@@ -280,7 +280,6 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     const colour = this.section(props, `colour`);
     this.sectionIcon(colour, `pencil-line`, t(`Couleur du trait`));
     const strokeRow = colour.createDiv({ cls: `sketchdraw-swatches` });
-    this.strokeColor = this.colorInput(colour, (c) => this.change({ stroke: c }));
 
     const fillSec = this.section(props, `fill`);
     this.sectionIcon(fillSec, `paint-bucket`, t(`Remplissage`));
@@ -289,7 +288,6 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.panelButton(fillKinds, `sketchnote-fill-solid`, t(`Remplissage uni`), (s) => s.fill !== null && s.fillStyle === `solid`, () => this.change({ fill: this.style?.fill ?? this.doc.palette[1], fillStyle: `solid` }));
     this.panelButton(fillKinds, `sketchnote-fill-hachure`, t(`Remplissage hachuré`), (s) => s.fill !== null && s.fillStyle === `hachure`, () => this.change({ fill: this.style?.fill ?? this.doc.palette[1], fillStyle: `hachure` }));
     const fillRow = fillSec.createDiv({ cls: `sketchdraw-swatches` });
-    this.fillColor = this.colorInput(fillSec, (c) => this.change({ fill: c }));
     // The transparency of the fill: 0 is opaque, the line keeps its colour and stays opaque.
     const alpha = fillSec.createEl(`input`, { cls: `sketchdraw-range sketchdraw-alpha`, type: `range` });
     alpha.min = `0`;
@@ -453,6 +451,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   private sectionIcon(parent: HTMLElement, icon: string, label: string): HTMLElement {
     const head = parent.createDiv({ cls: `sketchdraw-title` });
     setIcon(head, icon);
+    head.createSpan({ cls: `sketchdraw-title-text`, text: label });
     head.setAttribute(`aria-label`, label);
     head.setAttribute(`title`, label);
     return head;
@@ -472,13 +471,6 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.panelButtons.push({ el: b, test });
   }
 
-  // Adds a button that shows a colour and opens the colour window (wheel, sliders, hexadecimal code, eyedropper).
-  private colorInput(parent: HTMLElement, onPick: (color: string) => void): { show: (color: string) => void } {
-    const swatch = addColorSwatch(parent, this.app, `#000000`, t(`Autre couleur`), onPick);
-    swatch.el.addClass(`sketchdraw-color`);
-    return swatch;
-  }
-
   // Draws the swatches of the palette of the drawing, for the stroke and for the fill.
   private refreshSwatches(): void {
     if (!this.swatchRows) return;
@@ -496,6 +488,11 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     };
     fill(this.swatchRows.stroke, this.strokeSwatches, (c) => this.change({ stroke: c }));
     fill(this.swatchRows.fill, this.fillSwatches, (c) => this.change({ fill: c }));
+    // The multicolour pastille at the end of each row opens the colour window.
+    this.strokeCustom = addCustomPastille(this.swatchRows.stroke, this.app, t(`Autre couleur`), () => this.currentStyle().stroke, (c) => this.change({ stroke: c }));
+    this.fillCustom = addCustomPastille(this.swatchRows.fill, this.app, t(`Autre couleur`), () => this.currentStyle().fill ?? this.doc.palette[1] ?? `#ffffff`, (c) => this.change({ fill: c }));
+    this.lastPanel = ``;
+    this.syncPanel();
   }
 
   // The style shown in the panel: the one of the selected element when there is exactly one, otherwise the style of new elements.
@@ -543,8 +540,9 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     if (this.fontSelect) this.fontSelect.value = s.font;
     if (this.opacityInput) this.opacityInput.value = String(Math.round(s.opacity * 100));
     if (this.transparencyInput) this.transparencyInput.value = String(Math.round((1 - s.fillOpacity) * 20) * 5);
-    this.strokeColor?.show(s.stroke);
-    this.fillColor?.show(s.fill ?? `#ffffff`);
+    const inPalette = (color: string | null): boolean => color !== null && this.doc.palette.some((c) => toHex6(c) === toHex6(color));
+    this.strokeCustom?.sync(s.stroke, inPalette(s.stroke));
+    this.fillCustom?.sync(s.fill, inPalette(s.fill));
   }
 }
 

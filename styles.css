@@ -188,8 +188,15 @@
 
 .sketchdraw-title {
   display: flex;
-  margin-top: 6px;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
   color: var(--text-muted);
+}
+
+.sketchdraw-title-text {
+  font-size: var(--font-ui-smaller);
+  overflow-wrap: anywhere;
 }
 
 .sketchdraw-title .svg-icon {
@@ -211,6 +218,17 @@
   padding: 0;
   border-radius: 50%;
   border: 2px solid var(--background-modifier-border);
+}
+
+.sketchdraw-swatch.sketchdraw-swatch-custom {
+  width: 36px;
+  border-radius: 6px;
+  border: 3px solid transparent;
+  background: linear-gradient(var(--background-primary), var(--background-primary)) padding-box, conic-gradient(#ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000) border-box;
+}
+
+.sketchdraw-swatch.sketchdraw-swatch-custom.is-active {
+  box-shadow: 0 0 0 2px var(--interactive-accent);
 }
 
 .sketchdraw-swatch.is-active {
@@ -287,13 +305,14 @@
   fill: var(--interactive-accent);
 }
 
-.sketchdraw-hidden {
-  display: none;
-}
-
-
 .sketchdraw-section {
   display: block;
+}
+
+/* After the rule of the sections, with a stronger selector: a hidden section must stay hidden. */
+.sketchdraw-section.sketchdraw-hidden,
+.sketchdraw-hidden {
+  display: none;
 }
 
 .sketchdraw-font {
