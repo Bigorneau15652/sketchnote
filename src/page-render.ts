@@ -9,6 +9,8 @@ export interface RenderedPage {
   svg: SVGElement;
   // Group that holds the elements of the page.
   content: SVGElement;
+  // Group drawn above everything, for the selection frames, handles and guide lines of the editor. It is never part of the drawing.
+  ui: SVGElement;
 }
 
 let counter = 0;
@@ -26,17 +28,24 @@ function pointsText(points: [number, number][]): string {
 }
 
 // Draws one element of the page into a parent. Strokes are round and clean (the hand-drawn style comes with the drawing tools).
-function drawElement(el: SketchElement, parent: Element): void {
+export function drawElement(el: SketchElement, parent: Element): void {
   const look = { stroke: el.stroke, "stroke-width": el.strokeWidth, "stroke-linecap": `round`, "stroke-linejoin": `round`, fill: `none` };
   if (el.type === `line` || el.type === `arrow`) {
     svgEl(`polyline`, { points: pointsText(el.points), ...look }, parent);
     const head = el.type === `arrow` ? arrowHeadPoints(el.points, el.strokeWidth) : null;
     if (head) svgEl(`polyline`, { points: pointsText(head), ...look }, parent);
   } else if (el.type === `rect`) {
-    svgEl(`rect`, { x: el.x, y: el.y, width: el.width, height: el.height, ...look }, parent);
+    const turn: Record<string, string | number> = el.angle ? { transform: `rotate(${el.angle} ${el.x + el.width / 2} ${el.y + el.height / 2})` } : {};
+    svgEl(`rect`, { x: el.x, y: el.y, width: el.width, height: el.height, ...look, ...turn }, parent);
   } else {
-    svgEl(`ellipse`, { cx: el.cx, cy: el.cy, rx: el.rx, ry: el.ry, ...look }, parent);
+    const turn: Record<string, string | number> = el.angle ? { transform: `rotate(${el.angle} ${el.cx} ${el.cy})` } : {};
+    svgEl(`ellipse`, { cx: el.cx, cy: el.cy, rx: el.rx, ry: el.ry, ...look, ...turn }, parent);
   }
+}
+
+// Draws a list of elements into a group, in order (the first one is at the back).
+export function drawElements(elements: SketchElement[], parent: Element): void {
+  for (const el of elements) drawElement(el, parent);
 }
 
 // Draws the slots of a structure as dotted frames in their own group. They help to place the contents while editing and are never part of the drawing.
@@ -71,7 +80,8 @@ export function renderPage(page: PageSettings, zoom: number, elements: SketchEle
   }
   for (const shape of spec.overlay) drawShape(shape, svg, prefix);
   const content = svgEl(`g`, { class: `sketchnote-content` }, svg);
-  for (const el of elements) drawElement(el, content);
+  drawElements(elements, content);
   if (slots.length > 0) drawSlots(slots, page.background, svg);
-  return { svg, content };
+  const ui = svgEl(`g`, { class: `sketchnote-ui`, "pointer-events": `none` }, svg);
+  return { svg, content, ui };
 }

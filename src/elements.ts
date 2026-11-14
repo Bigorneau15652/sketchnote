@@ -34,6 +34,8 @@ export interface RectElement extends BaseElement {
   y: number;
   width: number;
   height: number;
+  // Rotation in degrees around the centre of the rectangle. Absent means 0.
+  angle?: number;
 }
 
 export interface EllipseElement extends BaseElement {
@@ -42,6 +44,8 @@ export interface EllipseElement extends BaseElement {
   cy: number;
   rx: number;
   ry: number;
+  // Rotation in degrees around the centre of the ellipse. Absent means 0.
+  angle?: number;
 }
 
 export type SketchElement = LineElement | ArrowElement | RectElement | EllipseElement;
@@ -74,6 +78,12 @@ function readPoints(value: unknown): Point[] | null {
   return points;
 }
 
+// Reads an optional rotation in degrees. An absent angle is 0; a value that is not a finite number between -360 and 360 gives null.
+function readAngle(value: unknown): number | null {
+  if (value === undefined) return 0;
+  return typeof value === `number` && Number.isFinite(value) && Math.abs(value) <= 360 ? value : null;
+}
+
 // Reads one element and copies only its known fields. Returns null when it is not valid.
 function readElement(value: unknown): SketchElement | null {
   if (!isRecord(value)) return null;
@@ -89,11 +99,15 @@ function readElement(value: unknown): SketchElement | null {
   }
   if (type === `rect`) {
     const { x, y, width, height } = value;
-    return isCoord(x) && isCoord(y) && isSize(width) && isSize(height) ? { ...base, type, x, y, width, height } : null;
+    if (!isCoord(x) || !isCoord(y) || !isSize(width) || !isSize(height)) return null;
+    const angle = readAngle(value.angle);
+    return angle === null ? null : angle === 0 ? { ...base, type, x, y, width, height } : { ...base, type, x, y, width, height, angle };
   }
   if (type === `ellipse`) {
     const { cx, cy, rx, ry } = value;
-    return isCoord(cx) && isCoord(cy) && isSize(rx) && isSize(ry) ? { ...base, type, cx, cy, rx, ry } : null;
+    if (!isCoord(cx) || !isCoord(cy) || !isSize(rx) || !isSize(ry)) return null;
+    const angle = readAngle(value.angle);
+    return angle === null ? null : angle === 0 ? { ...base, type, cx, cy, rx, ry } : { ...base, type, cx, cy, rx, ry, angle };
   }
   return null;
 }
@@ -131,4 +145,12 @@ export function arrowHeadPoints(points: Point[], strokeWidth: number): [Point, P
   const sin = Math.sin(0.5);
   const side = (s: number): Point => [b[0] - size * (ux * cos - s * uy * sin), b[1] - size * (uy * cos + s * ux * sin)];
   return [side(1), b, side(-1)];
+}
+
+// Returns a new identifier that no element of the list uses, made of the prefix and a number.
+export function newId(elements: SketchElement[], prefix = `e`): string {
+  const used = new Set(elements.map((e) => e.id));
+  let n = elements.length + 1;
+  while (used.has(`${prefix}${n}`)) n++;
+  return `${prefix}${n}`;
 }

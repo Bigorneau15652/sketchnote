@@ -1,5 +1,6 @@
 // The window that sets up the page: format, orientation, size, background style, background colour and default ink.
 import { App, Modal, Setting } from "obsidian";
+import { ConfirmModal } from "./confirm-modal";
 import { MAX_PAGE_SIZE, MIN_PAGE_SIZE, PageSettings, Pattern } from "./file-format";
 import { t } from "./i18n";
 import { defaultLayout, LAYOUT_LIMITS, LAYOUT_TYPES, LayoutSettings, LayoutType, normalizeLayout, ROW_LIMITS } from "./layout";
@@ -10,13 +11,22 @@ export class PageModal extends Modal {
   private page: PageSettings;
   private layout: LayoutSettings | null;
   private readonly onChange: (page: PageSettings, layout: LayoutSettings | null) => void;
+  private readonly losesWork: (page: PageSettings, layout: LayoutSettings | null) => boolean;
 
-  // Creates the window with the current page settings and structure, and a function called after each change.
-  constructor(app: App, page: PageSettings, layout: LayoutSettings | null, onChange: (page: PageSettings, layout: LayoutSettings | null) => void) {
+  // Creates the window with the current page settings and structure, a function called after each change, and a function that tells whether a change
+  // would replace a structure that the user has edited (then the window asks first).
+  constructor(
+    app: App,
+    page: PageSettings,
+    layout: LayoutSettings | null,
+    onChange: (page: PageSettings, layout: LayoutSettings | null) => void,
+    losesWork: (page: PageSettings, layout: LayoutSettings | null) => boolean,
+  ) {
     super(app);
     this.page = page;
     this.layout = layout;
     this.onChange = onChange;
+    this.losesWork = losesWork;
   }
 
   // Draws the window when it opens.
@@ -31,6 +41,22 @@ export class PageModal extends Modal {
 
   // Stores a new version of the page, tells the view and draws the window again so that every field shows the new values.
   private apply(page: PageSettings, layout: LayoutSettings | null = this.layout): void {
+    if (this.losesWork(page, layout)) {
+      new ConfirmModal(
+        this.app,
+        t(`Remplacer la structure ?`),
+        t(`Vous avez modifié ce que la structure avait dessiné (séparations, flèches ou liens). Ce changement la redessine et ces modifications sont perdues. Le bouton Annuler de la barre du bas permet de les retrouver.`),
+        t(`Remplacer`),
+        () => this.commitChange(page, layout),
+        () => this.build(),
+      ).open();
+      return;
+    }
+    this.commitChange(page, layout);
+  }
+
+  // Applies a change: stores it, tells the view and draws the window again so that every field shows the new values.
+  private commitChange(page: PageSettings, layout: LayoutSettings | null): void {
     this.page = page;
     this.layout = layout;
     this.onChange(page, layout);

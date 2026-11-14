@@ -27,3 +27,14 @@ export function pinchZoom(startZoom: number, startDistance: number, distance: nu
   if (startDistance <= 0 || distance <= 0) return clampZoom(startZoom);
   return clampZoom((startZoom * distance) / startDistance);
 }
+
+// Converts a zoom into a position from 0 to 100 on the zoom slider. The slider is logarithmic, so that each step feels the same at every zoom.
+export function zoomToSlider(zoom: number): number {
+  return (Math.log(clampZoom(zoom) / MIN_ZOOM) / Math.log(MAX_ZOOM / MIN_ZOOM)) * 100;
+}
+
+// Converts a position from 0 to 100 on the zoom slider into a zoom.
+export function sliderToZoom(position: number): number {
+  const p = Math.min(100, Math.max(0, Number.isFinite(position) ? position : 0));
+  return clampZoom(MIN_ZOOM * Math.pow(MAX_ZOOM / MIN_ZOOM, p / 100));
+}

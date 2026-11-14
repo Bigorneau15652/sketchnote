@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0
+
+English
+
+Selecting and editing elements. A click on an element selects it (Shift adds or removes one, a rectangle drawn on the empty page selects what it touches, Ctrl or Cmd with A selects all). Dragging moves it, with magnetism on the slots of the structure, the page edges and the other elements (hold Alt to switch it off). Four corner handles resize it (Shift keeps the proportions) and a round handle above it turns it (Shift turns by steps of 15 degrees). Delete removes, Ctrl or Cmd with D duplicates, with C and V copies and pastes, with the bracket keys brings to the front or sends to the back, the arrow keys nudge by 1 pixel (10 with Shift). Undo and Redo (Ctrl or Cmd with Z and Y, and two buttons of the bottom bar) cover every change, including the page settings. To move the page: hold Space and drag, use the Hand button, the middle mouse button, or two fingers on a touch screen. The zoom has a slider in the bottom bar, in addition to the buttons, Ctrl or Cmd with the wheel and the pinch gesture. Changing the structure or the page size asks for confirmation when you edited what the structure drew. With several elements selected, move, copy, order and delete are available; resizing and turning work on one element at a time.
+
+Français
+
+Sélection et modification des éléments. Un clic sur un élément le sélectionne (Maj ajoute ou retire un élément, un rectangle tracé sur la page vide sélectionne ce qu'il touche, Ctrl ou Cmd avec A sélectionne tout). Le glisser le déplace, avec une aimantation sur les emplacements de la structure, les bords de la page et les autres éléments (maintenir Alt pour la suspendre). Quatre poignées d'angle le redimensionnent (Maj garde les proportions) et une poignée ronde au-dessus le fait pivoter (Maj pivote par pas de 15 degrés). Suppr supprime, Ctrl ou Cmd avec D duplique, avec C et V copie et colle, avec les touches crochets met devant ou derrière, les flèches du clavier décalent de 1 pixel (10 avec Maj). Annuler et Rétablir (Ctrl ou Cmd avec Z et Y, et deux boutons de la barre du bas) couvrent toutes les modifications, réglages de la page compris. Pour déplacer la page : maintenir Espace et glisser, utiliser le bouton Main, le bouton du milieu de la souris ou deux doigts sur un écran tactile. Le zoom a une réglette dans la barre du bas, en plus des boutons, de Ctrl ou Cmd avec la molette et du pincement. Changer la structure ou la taille de la page demande une confirmation quand vous avez modifié ce que la structure avait dessiné. Avec plusieurs éléments sélectionnés, le déplacement, la copie, l'ordre et la suppression sont disponibles ; le redimensionnement et la rotation se font sur un élément à la fois.
+
 ## 0.3.0
 
 English

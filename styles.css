@@ -17,8 +17,21 @@
   cursor: grab;
 }
 
-.sketchnote-scroller:active {
+.sketchnote-scroller {
+  cursor: default;
+}
+
+/* An open hand when the page can be dragged (Space held, or the Hand tool), a closed hand while dragging. */
+.sketchnote-scroller.is-panning {
+  cursor: grab;
+}
+
+.sketchnote-scroller.is-dragging {
   cursor: grabbing;
+}
+
+.sketchnote-host:focus {
+  outline: none;
 }
 
 /* margin: auto centres the page when it is smaller than the window and lets it scroll when it is larger. */
@@ -54,6 +67,71 @@
   min-height: 32px;
   padding: 4px 10px;
   color: var(--text-normal);
+}
+
+.sketchnote-bar-button.is-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.sketchnote-bar-button:disabled {
+  opacity: 0.4;
+}
+
+.sketchnote-zoom-slider {
+  width: 110px;
+  min-width: 60px;
+}
+
+/* The actions on the selection (duplicate, order, delete) appear only when something is selected. */
+.sketchnote-selection-actions {
+  display: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.sketchnote-selection-actions.is-visible {
+  display: inline-flex;
+}
+
+/* Editor overlay: drawn above the page, never part of the drawing. Strokes keep the same width on screen at every zoom. */
+.sketchnote-sel-outline {
+  fill: none;
+  stroke: var(--interactive-accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.sketchnote-sel-thin {
+  stroke-width: 1;
+  opacity: 0.7;
+}
+
+.sketchnote-handle {
+  fill: var(--background-primary);
+  stroke: var(--interactive-accent);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.sketchnote-rotate-handle {
+  fill: var(--interactive-accent);
+}
+
+.sketchnote-marquee {
+  fill: var(--interactive-accent);
+  fill-opacity: 0.12;
+  stroke: var(--interactive-accent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.sketchnote-snap-guide {
+  stroke: #e0457b;
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
 }
 
 .sketchnote-bar-icon {

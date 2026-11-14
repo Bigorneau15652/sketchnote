@@ -32,6 +32,10 @@ La commande npm test regroupe tous les fichiers tests/*.test.ts. La commande npm
 
 Version : manifest.json, package.json, package-lock.json (deux endroits) et versions.json portent le même numéro, et CHANGELOG.md a une section pour elle (un test le vérifie). La release est publiée avec une étiquette sans la lettre v, jamais en pré-version, avec main.js, manifest.json et styles.css (le workflow release.yml les joint).
 
+## Décisions d'Olivier pour l'édition (version 0.4.0)
+
+Déplacer la page : touche Espace maintenue avec glisser, bouton Main de la barre du bas (utile quand la page est très zoomée), clic molette, deux doigts sur écran tactile. Zoom : réglette dans la barre du bas, boutons, Ctrl ou Cmd avec la molette, pincement. Un clic sur un objet le sélectionne pour le déplacer ; poignées d'angle pour redimensionner ; poignée spécifique pour pivoter ; annuler et rétablir. Aimantation aux emplacements, aux bords de la page et aux autres éléments, active par défaut, suspendue avec Alt. La barre d'outils de dessin sera à droite dans le mode dessin (version 0.7.0), la barre du bas reste pour la page.
+
 ## Plan des versions
 
-0.1.0 squelette et installation par BRAT. 0.2.0 la page (taille, orientation, fond, style de fond). 0.3.0 les sept structures (faite). 0.4.0 cœur du moteur de dessin (sélection, poignées, annuler). 0.5.0 outils de formes. 0.6.0 texte et polices. 0.7.0 élément graphique imbriqué par double clic. 0.8.0 bibliothèque et images. 0.9.0 exports et intégration dans les notes. 0.10.0 audit de performance et de sécurité. 1.0.0 publication dans le répertoire communautaire.
+0.1.0 squelette et installation par BRAT. 0.2.0 la page (taille, orientation, fond, style de fond). 0.3.0 les sept structures (faite). 0.4.0 cœur du moteur de dessin : sélection, poignées, annuler (faite). 0.5.0 outils de formes. 0.6.0 texte et polices. 0.7.0 élément graphique imbriqué par double clic. 0.8.0 bibliothèque et images. 0.9.0 exports et intégration dans les notes. 0.10.0 audit de performance et de sécurité. 1.0.0 publication dans le répertoire communautaire.
