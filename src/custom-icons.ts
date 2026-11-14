@@ -36,7 +36,10 @@ const ICONS: Record<string, string> = {
   "sketchnote-size-huge": tag(`path`, { d: `M12 86L50 14L88 86M26 56H74`, ...line, "stroke-linejoin": `round`, "stroke-width": 10 }),
 };
 
-// Registers the pictograms of the plugin.
+// Registers the pictograms of the plugin. Each head of an arrow also exists mirrored (sketchnote-head-start-...), to show the head at the start of an arrow.
 export function registerIcons(): void {
   for (const [name, svg] of Object.entries(ICONS)) addIcon(name, svg);
+  for (const [name, svg] of Object.entries(ICONS)) {
+    if (name.startsWith(`sketchnote-head-`)) addIcon(name.replace(`sketchnote-head-`, `sketchnote-head-start-`), `<g transform=${Q}translate(100 0) scale(-1 1)${Q}>${svg}</g>`);
+  }
 }

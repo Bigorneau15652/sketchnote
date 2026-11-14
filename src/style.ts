@@ -71,7 +71,10 @@ export function applyStyle(el: SketchElement, patch: StylePatch): SketchElement 
       next = (p.rounded ? { ...rest, rounded: true } : rest) as typeof el;
     }
   }
-  if (next.type === `arrow`) {
+  // A line that is given a head becomes an arrow. Its other end keeps no head (an arrow without a choice has an open head at its end).
+  if (next.type === `line` && ((p.startHead !== undefined && p.startHead !== `none`) || (p.endHead !== undefined && p.endHead !== `none`))) {
+    next = { ...next, type: `arrow`, startHead: p.startHead ?? `none`, endHead: p.endHead ?? `none` } as typeof el;
+  } else if (next.type === `arrow`) {
     if (p.startHead !== undefined) next = { ...next, startHead: p.startHead } as typeof el;
     if (p.endHead !== undefined) next = { ...next, endHead: p.endHead } as typeof el;
   }
@@ -126,6 +129,6 @@ export function styleOf(el: SketchElement): ToolStyle | null {
   const linear = el.type === `line` || el.type === `arrow`;
   const rounded = linear && el.rounded === true;
   const startHead: Head = el.type === `arrow` ? headOf(el, `start`) : `none`;
-  const endHead: Head = el.type === `arrow` ? headOf(el, `end`) : `arrow`;
+  const endHead: Head = el.type === `arrow` ? headOf(el, `end`) : `none`;
   return { stroke: el.stroke, fill, fillStyle, fillOpacity, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0, rounded, startHead, endHead, font: DEFAULT_FONT, fontSize: TEXT_SIZES.medium, align: `left` };
 }

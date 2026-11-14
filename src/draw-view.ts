@@ -1,6 +1,6 @@
 // The view that opens a .sketchdraw file: a drawing kept in its own note. A toolbar on the right holds the tools and the properties of the lines and fills;
 // the engine (zoom, selection, undo...) is in CanvasView.
-import { setIcon, WorkspaceLeaf } from "obsidian";
+import { Menu, setIcon, WorkspaceLeaf } from "obsidian";
 import { CanvasView, Tool } from "./canvas-view";
 import { addColorSwatch } from "./color-modal";
 import { toHex6 } from "./page-background";
@@ -13,6 +13,7 @@ import { refitText } from "./text-layout";
 import { Box, unionBox as unionBoxes } from "./geometry";
 import { brightness } from "./page-background";
 import { t } from "./i18n";
+import { panelKinds, PanelSection, sectionShown } from "./panel-kinds";
 import { PluginApi } from "./plugin-api";
 import { renderCanvas, RenderedPage } from "./page-render";
 import { applyStyleToIds, cleanPatch, defaultStyle, MAX_WIDTH, MIN_WIDTH, StylePatch, STROKE_WIDTHS, styleOf, TEXT_SIZES, ToolStyle } from "./style";
@@ -275,12 +276,12 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.strokeSwatches.length = 0;
     this.fillSwatches.length = 0;
 
-    const colour = this.section(props, () => true);
+    const colour = this.section(props, `colour`);
     this.sectionIcon(colour, `pencil-line`, t(`Couleur du trait`));
     const strokeRow = colour.createDiv({ cls: `sketchdraw-swatches` });
     this.strokeColor = this.colorInput(colour, (c) => this.change({ stroke: c }));
 
-    const fillSec = this.section(props, (k) => k !== `text`);
+    const fillSec = this.section(props, `fill`);
     this.sectionIcon(fillSec, `paint-bucket`, t(`Remplissage`));
     const fillKinds = fillSec.createDiv({ cls: `sketchdraw-row` });
     this.panelButton(fillKinds, `sketchnote-fill-none`, t(`Aucun remplissage`), (s) => s.fill === null, () => this.change({ fill: null }));
@@ -298,7 +299,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     alpha.addEventListener(`input`, () => this.change({ fillOpacity: 1 - Number(alpha.value) / 100 }));
     this.transparencyInput = alpha;
 
-    const widthSec = this.section(props, (k) => k !== `text`);
+    const widthSec = this.section(props, `width`);
     this.sectionIcon(widthSec, `sketchnote-width-medium`, t(`Épaisseur`));
     const widths = widthSec.createDiv({ cls: `sketchdraw-row` });
     this.panelButton(widths, `sketchnote-width-thin`, t(`Trait fin`), (s) => s.strokeWidth === STROKE_WIDTHS.thin, () => this.change({ strokeWidth: STROKE_WIDTHS.thin }));
@@ -312,30 +313,27 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     range.addEventListener(`input`, () => this.change({ strokeWidth: Number(range.value) }));
     this.widthInput = range;
 
-    const lookSec = this.section(props, (k) => k !== `text`);
+    const lookSec = this.section(props, `look`);
     this.sectionIcon(lookSec, `brush`, t(`Style`));
     const looks = lookSec.createDiv({ cls: `sketchdraw-row` });
     this.panelButton(looks, `sketchnote-style-sketch`, t(`Dessiné à la main`), (s) => s.roughness > 0, () => this.change({ roughness: 1 }));
     this.panelButton(looks, `sketchnote-style-clean`, t(`Net`), (s) => s.roughness === 0, () => this.change({ roughness: 0 }));
 
     // Sections shown only for lines and arrows: the edges, then the head at each end of an arrow.
-    const edgeSec = this.section(props, (k) => k === `line` || k === `arrow`);
+    const edgeSec = this.section(props, `edges`);
     this.sectionIcon(edgeSec, `sketchnote-edge-round`, t(`Bords`));
     const edges = edgeSec.createDiv({ cls: `sketchdraw-row` });
     this.panelButton(edges, `sketchnote-edge-sharp`, t(`Bords droits`), (s) => !s.rounded, () => this.change({ rounded: false }));
     this.panelButton(edges, `sketchnote-edge-round`, t(`Bords arrondis`), (s) => s.rounded, () => this.change({ rounded: true }));
-    const headSec = this.section(props, (k) => k === `arrow`);
+    // The heads: one drop-down menu for each end, each one showing the head that is chosen and listing the six shapes.
+    const headSec = this.section(props, `heads`);
     this.sectionIcon(headSec, `sketchnote-head-arrow`, t(`Pointes`));
-    const startRow = headSec.createDiv({ cls: `sketchdraw-row sketchdraw-heads-start` });
-    const endRow = headSec.createDiv({ cls: `sketchdraw-row` });
-    for (const kind of HEADS) {
-      const name = headName(kind);
-      this.panelButton(startRow, `sketchnote-head-${kind}`, `${t(`Pointe au début`)} : ${name}`, (s) => s.startHead === kind, () => this.change({ startHead: kind }));
-      this.panelButton(endRow, `sketchnote-head-${kind}`, `${t(`Pointe à la fin`)} : ${name}`, (s) => s.endHead === kind, () => this.change({ endHead: kind }));
-    }
+    const headRow = headSec.createDiv({ cls: `sketchdraw-row` });
+    this.headMenu(headRow, `start`);
+    this.headMenu(headRow, `end`);
 
     // The section of the texts: the font (a list, each name written in its own font), the size and the alignment.
-    const textSec = this.section(props, (k) => k === `text`);
+    const textSec = this.section(props, `text`);
     this.sectionIcon(textSec, `type`, t(`Police`));
     const select = textSec.createEl(`select`, { cls: `dropdown sketchdraw-font` });
     select.setAttribute(`aria-label`, t(`Police`));
@@ -358,14 +356,40 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   }
 
   // The sections of the panel, each with the test that tells for which kind of element it is shown.
-  private readonly sections: { el: HTMLElement; show: (kind: string) => boolean }[] = [];
+  private readonly sections: { el: HTMLElement; name: PanelSection }[] = [];
+  private readonly headButtons: { el: HTMLElement; side: `start` | `end` }[] = [];
   private fontSelect: HTMLSelectElement | null = null;
 
   // Adds a section to the panel.
-  private section(props: HTMLElement, show: (kind: string) => boolean): HTMLElement {
+  private section(props: HTMLElement, name: PanelSection): HTMLElement {
     const el = props.createDiv({ cls: `sketchdraw-section` });
-    this.sections.push({ el, show });
+    this.sections.push({ el, name });
     return el;
+  }
+
+  // Adds the drop-down menu of the head at one end of an arrow: a button that shows the head and opens the list of heads. The start icons are the mirror of the end ones.
+  private headMenu(parent: HTMLElement, side: `start` | `end`): void {
+    const button = parent.createEl(`button`, { cls: `sketchdraw-chip sketchdraw-head-menu` });
+    const label = side === `start` ? t(`Pointe au début`) : t(`Pointe à la fin`);
+    button.addEventListener(`click`, (e) => {
+      const current = side === `start` ? this.currentStyle().startHead : this.currentStyle().endHead;
+      const menu = new Menu();
+      for (const kind of HEADS) {
+        menu.addItem((item) =>
+          item
+            .setTitle(headName(kind))
+            .setIcon(headIcon(side, kind))
+            .setChecked(kind === current)
+            .onClick(() => {
+              this.change(side === `start` ? { startHead: kind } : { endHead: kind });
+              this.contentEl.focus({ preventScroll: true });
+            }),
+        );
+      }
+      menu.showAtMouseEvent(e);
+    });
+    button.dataset.label = label;
+    this.headButtons.push({ el: button, side });
   }
 
   // Fills the list of fonts: the built-in fonts, then the imported ones, each name in its own font.
@@ -383,9 +407,8 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
 
   // Shows the sections that concern the kind of element selected or about to be drawn.
   private syncSections(): void {
-    const one = this.selectedElements()[0];
-    const kind = this.tool !== `select` ? this.tool : this.selected.size === 1 && one ? one.type : this.selected.size > 1 ? `mixed` : this.tool;
-    for (const sec of this.sections) sec.el.toggleClass(`sketchdraw-hidden`, !sec.show(kind));
+    const kinds = panelKinds(this.tool, this.selectedElements());
+    for (const sec of this.sections) sec.el.toggleClass(`sketchdraw-hidden`, !sectionShown(sec.name, kinds));
   }
 
   private swatchRows: { stroke: HTMLElement; fill: HTMLElement } | null = null;
@@ -405,7 +428,11 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     setIcon(b, icon);
     b.setAttribute(`aria-label`, label);
     b.setAttribute(`title`, label);
-    b.addEventListener(`click`, onClick);
+    b.addEventListener(`click`, () => {
+      onClick();
+      // The focus goes back to the drawing, so that the keyboard shortcuts keep working after a click on the panel.
+      this.contentEl.focus({ preventScroll: true });
+    });
     this.panelButtons.push({ el: b, test });
   }
 
@@ -468,6 +495,14 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     if (key === this.lastPanel) return;
     this.lastPanel = key;
     for (const b of this.panelButtons) b.el.toggleClass(`is-active`, b.test(s));
+    for (const h of this.headButtons) {
+      const kind = h.side === `start` ? s.startHead : s.endHead;
+      const name = `${h.el.dataset.label ?? ``} : ${headName(kind)}`;
+      h.el.empty();
+      setIcon(h.el, headIcon(h.side, kind));
+      h.el.setAttribute(`aria-label`, name);
+      h.el.setAttribute(`title`, name);
+    }
     for (const sw of this.strokeSwatches) sw.toggleClass(`is-active`, sw.dataset.color === toHex6(s.stroke));
     for (const sw of this.fillSwatches) sw.toggleClass(`is-active`, s.fill !== null && sw.dataset.color === toHex6(s.fill));
     if (this.widthInput) this.widthInput.value = String(Math.round(s.strokeWidth));
@@ -489,4 +524,9 @@ function headName(kind: Head): string {
     diamond: t(`Losange`),
   };
   return names[kind];
+}
+
+// Returns the name of the pictogram of a head at one end of an arrow.
+function headIcon(side: `start` | `end`, kind: Head): string {
+  return side === `start` ? `sketchnote-head-start-${kind}` : `sketchnote-head-${kind}`;
 }
