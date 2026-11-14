@@ -73,3 +73,17 @@ test(`le trait libre est un contour rempli de la couleur du trait`, () => {
 test(`les traces sont gardes pour un meme element`, () => {
   assert.equal(elementPaths(all[0]), elementPaths(all[0]));
 });
+
+test(`la transparence ne touche que le remplissage et jamais le trait`, () => {
+  const solid = elementPaths({ id: `s`, type: `rect`, x: 0, y: 0, width: 50, height: 50, fill: `#ff0000`, fillStyle: `solid`, fillOpacity: 0.3, ...base } as StrokedElement).pieces;
+  const outline = solid.filter((p) => p.stroke === base.stroke);
+  const fill = solid.filter((p) => p.fill === `#ff0000`);
+  assert.ok(outline.length > 0 && fill.length > 0);
+  assert.ok(outline.every((p) => p.opacity === 1), `outline stays opaque`);
+  assert.ok(fill.every((p) => p.opacity === 0.3), `fill takes the opacity`);
+  const hatch = elementPaths({ id: `h`, type: `ellipse`, cx: 30, cy: 30, rx: 20, ry: 20, fill: `#00aa00`, fillStyle: `hachure`, fillOpacity: 0.5, ...base } as StrokedElement).pieces;
+  assert.ok(hatch.some((p) => p.stroke === `#00aa00` && p.opacity === 0.5), `hatching takes the opacity`);
+  assert.ok(hatch.some((p) => p.stroke === base.stroke && p.opacity === 1), `outline of the hatched shape stays opaque`);
+  const opaque = elementPaths({ id: `o`, type: `rect`, x: 0, y: 0, width: 50, height: 50, fill: `#ff0000`, fillStyle: `solid`, ...base } as StrokedElement).pieces;
+  assert.ok(opaque.every((p) => p.opacity === 1));
+});

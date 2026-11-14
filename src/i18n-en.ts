@@ -100,6 +100,11 @@ const PAIRS: [string, string][] = [
   [`Masquer les zones`, `Hide the zones`],
   [`Afficher les zones`, `Show the zones`],
   [`Dossier du coffre qui contient toutes les notes de dessin. Cliquez dans la cellule pour choisir un dossier existant, ou tapez un nouveau nom : il est créé s'il n'existe pas. Les dessins déjà créés ne sont pas déplacés.`, `Folder of the vault that holds all the drawing notes. Click in the field to pick an existing folder, or type a new name: it is created if it does not exist. Drawings already created are not moved.`],
+  [`Grouper`, `Group`],
+  [`Dégrouper`, `Ungroup`],
+  [`Grouper la sélection`, `Group the selection`],
+  [`Dégrouper la sélection`, `Ungroup the selection`],
+  [`Transparence du remplissage`, `Fill transparency`],
 ];
 
 export const EN: Record<string, string> = Object.fromEntries(PAIRS);

@@ -25,6 +25,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   private readonly fillSwatches: HTMLElement[] = [];
   private readonly panelButtons: { el: HTMLElement; test: (s: ToolStyle) => boolean }[] = [];
   private widthInput: HTMLInputElement | null = null;
+  private transparencyInput: HTMLInputElement | null = null;
   private strokeColor: HTMLInputElement | null = null;
   private fillColor: HTMLInputElement | null = null;
   private lockButton: HTMLElement | null = null;
@@ -196,6 +197,15 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.panelButton(fillKinds, `sketchnote-fill-hachure`, t(`Remplissage hachuré`), (s) => s.fill !== null && s.fillStyle === `hachure`, () => this.change({ fill: this.style?.fill ?? this.doc.palette[1], fillStyle: `hachure` }));
     const fillRow = props.createDiv({ cls: `sketchdraw-swatches` });
     this.fillColor = this.colorInput(props, (c) => this.change({ fill: c }));
+    // The transparency of the fill: 0 is opaque, the line keeps its colour and stays opaque.
+    const alpha = props.createEl(`input`, { cls: `sketchdraw-range sketchdraw-alpha`, type: `range` });
+    alpha.min = `0`;
+    alpha.max = `95`;
+    alpha.step = `5`;
+    alpha.setAttribute(`aria-label`, t(`Transparence du remplissage`));
+    alpha.setAttribute(`title`, t(`Transparence du remplissage`));
+    alpha.addEventListener(`input`, () => this.change({ fillOpacity: 1 - Number(alpha.value) / 100 }));
+    this.transparencyInput = alpha;
 
     this.sectionIcon(props, `sketchnote-width-medium`, t(`Épaisseur`));
     const widths = props.createDiv({ cls: `sketchdraw-row` });
@@ -300,6 +310,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     for (const sw of this.strokeSwatches) sw.toggleClass(`is-active`, sw.dataset.color === toHex6(s.stroke));
     for (const sw of this.fillSwatches) sw.toggleClass(`is-active`, s.fill !== null && sw.dataset.color === toHex6(s.fill));
     if (this.widthInput) this.widthInput.value = String(Math.round(s.strokeWidth));
+    if (this.transparencyInput) this.transparencyInput.value = String(Math.round((1 - s.fillOpacity) * 20) * 5);
     if (this.strokeColor) this.strokeColor.value = toHex6(s.stroke);
     if (this.fillColor) this.fillColor.value = toHex6(s.fill ?? `#ffffff`);
   }

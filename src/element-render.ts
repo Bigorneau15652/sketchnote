@@ -25,7 +25,7 @@ function drawStroked(el: Exclude<SketchElement, DrawingElement>, parent: Element
   const { pieces, transform } = elementPaths(el);
   const group = svgEl(`g`, transform ? { transform } : {}, parent);
   for (const p of pieces) {
-    svgEl(`path`, { d: p.d, stroke: p.stroke, "stroke-width": p.strokeWidth, fill: p.fill, "stroke-linecap": `round`, "stroke-linejoin": `round` }, group);
+    svgEl(`path`, { d: p.d, stroke: p.stroke, "stroke-width": p.strokeWidth, fill: p.fill, ...(p.opacity < 1 ? { opacity: p.opacity } : {}), "stroke-linecap": `round`, "stroke-linejoin": `round` }, group);
   }
 }
 

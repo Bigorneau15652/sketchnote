@@ -1,7 +1,7 @@
 // Draws the editor overlay: selection frames, handles, the selection rectangle and the magnetism guide lines.
 // Everything is drawn with the DOM into the group `ui` of the page and styled by CSS classes; none of it is part of the drawing.
 import type { SketchElement } from "./elements";
-import { Box, boxCorners, boxOf, centerOf, elementBounds, ROTATE_OFFSET, rotateHandlePos, rotatePoint, unionBox } from "./geometry";
+import { blockBox, Box, boxCorners, boxOf, centerOf, hasRotateHandle, ROTATE_OFFSET, rotateHandlePos, rotatePoint, visibleCorners } from "./geometry";
 import { svgEl } from "./svg";
 
 export interface UiState {
@@ -44,21 +44,28 @@ export function drawUi(ui: Element, st: UiState): void {
     const frame = thin ? boxCorners(padded(box, 5 / z), 0) : boxCorners(box, angle);
     svgEl(`polygon`, { class: `sketchnote-sel-outline`, points: pointsText(frame) }, ui);
     const corners = boxCorners(box, angle);
-    const top = rotatePoint([centerOf(box)[0], box.y], centerOf(box), angle);
-    const rot = rotateHandlePos(box, angle, z);
-    svgEl(`line`, { class: `sketchnote-sel-outline`, x1: top[0], y1: top[1], x2: rot[0], y2: rot[1] }, ui);
-    svgEl(`circle`, { class: `sketchnote-handle sketchnote-rotate-handle`, cx: rot[0], cy: rot[1], r: 6 / z }, ui);
+    if (hasRotateHandle(el)) {
+      const top = rotatePoint([centerOf(box)[0], box.y], centerOf(box), angle);
+      const rot = rotateHandlePos(box, angle, z);
+      svgEl(`line`, { class: `sketchnote-sel-outline`, x1: top[0], y1: top[1], x2: rot[0], y2: rot[1] }, ui);
+      svgEl(`circle`, { class: `sketchnote-handle sketchnote-rotate-handle`, cx: rot[0], cy: rot[1], r: 6 / z }, ui);
+    }
     const s = 10 / z;
-    for (const [x, y] of corners) svgEl(`rect`, { class: `sketchnote-handle`, x: x - s / 2, y: y - s / 2, width: s, height: s }, ui);
+    for (const i of visibleCorners(el)) svgEl(`rect`, { class: `sketchnote-handle`, x: corners[i][0] - s / 2, y: corners[i][1] - s / 2, width: s, height: s }, ui);
   } else if (st.selected.length > 1) {
     for (const el of st.selected) {
       const { box, angle } = boxOf(el);
       svgEl(`polygon`, { class: `sketchnote-sel-outline sketchnote-sel-thin`, points: pointsText(boxCorners(padded(box, el.type === `line` || el.type === `arrow` ? 3 / z : 0), el.type === `line` || el.type === `arrow` ? 0 : angle)) }, ui);
     }
-    const all = unionBox(st.selected.map(elementBounds));
-    if (all) {
-      const b = padded(all, 6 / z);
+    const b = blockBox(st.selected, z);
+    if (b) {
+      // One frame around all the selected elements, with four corner handles and a rotation handle: they are moved, resized and turned as one block.
       svgEl(`rect`, { class: `sketchnote-sel-outline`, x: b.x, y: b.y, width: b.w, height: b.h }, ui);
+      const rot = rotateHandlePos(b, 0, z);
+      svgEl(`line`, { class: `sketchnote-sel-outline`, x1: b.x + b.w / 2, y1: b.y, x2: rot[0], y2: rot[1] }, ui);
+      svgEl(`circle`, { class: `sketchnote-handle sketchnote-rotate-handle`, cx: rot[0], cy: rot[1], r: 6 / z }, ui);
+      const hs = 10 / z;
+      for (const [x, y] of boxCorners(b, 0)) svgEl(`rect`, { class: `sketchnote-handle`, x: x - hs / 2, y: y - hs / 2, width: hs, height: hs }, ui);
     }
   }
   if (st.marquee) svgEl(`rect`, { class: `sketchnote-marquee`, x: st.marquee.x, y: st.marquee.y, width: st.marquee.w, height: st.marquee.h }, ui);
