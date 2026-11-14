@@ -1,6 +1,7 @@
 // Draws the elements of a page or of a drawing into an SVG group. Built with the DOM only: nothing is ever parsed from text.
 // A hand drawn or clean line comes from shape-paths; a frame of a drawing shows the drawing it points to, fitted to its width.
 import { ArrowElement, DrawingElement, isStroked, LineElement, SketchElement, TextElement } from "./elements";
+import { outlineExtent } from "./extent";
 import { boxOf, elementBounds } from "./geometry";
 import { fontStack } from "./fonts";
 import { labelColor, labelLayout, LabeledShape, lineLabelLayout } from "./labels";
@@ -163,16 +164,21 @@ export function drawElement(el: SketchElement, parent: Element, options: RenderO
   const content = svgEl(`g`, { id: `${id}-c` }, target);
   drawBare(el, content, options);
   if (el.reflection === true) {
-    const bottom = b.y + b.h;
-    // The depth is the part of the height of the element that the reflection takes; the fade is how much of the opacity is lost over that depth (all of it by default).
-    const depth = Math.max(8, b.h * (el.reflectDepth ?? 0.6));
+    // The reflection starts at the outer edge of the drawing of the element (its line and its border included), so that it touches the element without overlapping it, and it
+    // is a whole copy when its depth is at the maximum. The gap moves it away from the element, as a part of the height.
+    const ext = outlineExtent(el);
+    const top = b.y - ext;
+    const full = b.h + 2 * ext;
+    const bottom = top + full;
+    const depth = Math.max(8, full * (el.reflectDepth ?? 0.6));
+    const gap = (el.reflectGap ?? 0) * b.h;
     const fade = el.reflectFade ?? 1;
     const gradient = svgEl(`linearGradient`, { id: `${id}-g`, gradientUnits: `userSpaceOnUse`, x1: 0, y1: bottom, x2: 0, y2: bottom - depth }, defs);
     svgEl(`stop`, { offset: 0, "stop-color": `#ffffff`, "stop-opacity": 1 }, gradient);
     svgEl(`stop`, { offset: 1, "stop-color": `#ffffff`, "stop-opacity": 1 - fade }, gradient);
-    const mask = svgEl(`mask`, { id: `${id}-m`, maskUnits: `userSpaceOnUse`, x: b.x - 40, y: b.y - 40, width: b.w + 80, height: b.h + 80 }, defs);
-    svgEl(`rect`, { x: b.x - 40, y: bottom - depth, width: b.w + 80, height: depth, fill: `url(#${id}-g)` }, mask);
-    const mirror = svgEl(`g`, { transform: `translate(0 ${2 * bottom + 4}) scale(1 -1)`, opacity: 0.45, mask: `url(#${id}-m)` }, outer);
+    const mask = svgEl(`mask`, { id: `${id}-m`, maskUnits: `userSpaceOnUse`, x: b.x - ext - 40, y: bottom - depth, width: b.w + 2 * ext + 80, height: depth }, defs);
+    svgEl(`rect`, { x: b.x - ext - 40, y: bottom - depth, width: b.w + 2 * ext + 80, height: depth, fill: `url(#${id}-g)` }, mask);
+    const mirror = svgEl(`g`, { transform: `translate(0 ${2 * bottom + gap}) scale(1 -1)`, opacity: 0.5, mask: `url(#${id}-m)` }, outer);
     svgEl(`use`, { href: `#${id}-c` }, mirror);
   }
 }

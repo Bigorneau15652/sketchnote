@@ -544,3 +544,24 @@ textarea.sketchnote-text-editor.is-label {
 .sketchnote-color-patterns .sketchdraw-chip {
   flex: 0 0 auto;
 }
+
+/* A box to check (the shadow, the reflection): its settings unfold under it once it is checked. */
+.sketchdraw-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  cursor: pointer;
+}
+
+.sketchdraw-shadow-colour {
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* With nothing selected, the choices of the panel have nothing to apply to. */
+.sketchdraw-section.sketchdraw-idle {
+  opacity: 0.45;
+  pointer-events: none;
+}

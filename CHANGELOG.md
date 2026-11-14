@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.16.0
+
+English
+
+Effects that are checked and set finely, borders that keep the text inside, and a plain start for every new shape. Shadow: it is now a box to check that unfolds its settings, which are the distance, the blur, the density (more or less dark) and a colour, a round swatch that opens the colour window with a double click. Reflection: a box to check that unfolds the depth, the fade and a new distance slider, from a reflection that touches the shape edge to edge to a reflection that is further away; the reflection no longer overlaps the shape and is complete at the maximum settings (it took only the box of the shape and cut the thick borders and lines). Hand drawn imperfection: the slider now goes from 0 to 5. Borders: the text written in a shape stays inside the lines of every border, the double inverted border and the mat frame included. A shape that is drawn is always plain (no effect, normal border, black line): the choices of the panel apply to the selection, and the panel shows the choices of the first selected element. To give the same settings to several shapes, select them (rubber band or Ctrl click): colour, border and effects apply to all of them. With nothing selected the settings of the panel are dimmed, except the text ones, which stay for the next text. Files of the previous versions open without change.
+
+Français
+
+Des effets cochés et réglés finement, des bordures qui gardent le texte à l'intérieur et un départ neutre pour chaque nouvelle forme. Ombre : une case à cocher qui déplie ses réglages, qui sont l'éloignement, le flou, la densité (plus ou moins sombre) et une couleur, une pastille ronde qui ouvre la fenêtre de couleur par un double clic. Reflet : une case à cocher qui déplie la profondeur, le dégradé et une nouvelle réglette d'éloignement, d'un reflet qui touche la forme bord à bord à un reflet plus éloigné ; le reflet ne chevauche plus la forme et il est complet aux réglages maximum (il ne prenait que la boîte de la forme et coupait les bordures et les traits épais). Imperfection à main levée : la réglette va maintenant de 0 à 5. Bordures : le texte écrit dans une forme reste à l'intérieur des lignes de toutes les bordures, la bordure double inversée et le cadre avec marie-louise compris. Une forme que l'on dessine est toujours neutre (aucun effet, bordure normale, trait noir) : les choix du panneau s'appliquent à la sélection, et le panneau montre les choix du premier élément sélectionné. Pour donner les mêmes réglages à plusieurs formes, il suffit de les sélectionner (lasso ou Ctrl clic) : couleur, bordure et effets s'appliquent à toutes. Sans sélection, les réglages du panneau sont estompés, sauf ceux du texte qui restent pour le prochain texte. Les fichiers des versions précédentes s'ouvrent sans changement.
+
 ## 0.15.0
 
 English

@@ -156,3 +156,18 @@ test(`la hauteur de la boite tracee donne la taille des lettres`, () => {
   const z = zoneElement({ x: 10, y: 20, w: 200, h: 62.5 }, `Salut`, { ...defaultStyle(`#c0392b`), fontSize: 99 }, `n`);
   assert.deepEqual([z.size, z.width, z.height, z.zone, z.stroke], [50, 200, 62.5, true, `#c0392b`]);
 });
+
+test(`le texte d'une forme reste loin des lignes de sa bordure, y compris celles de l'interieur`, () => {
+  const plain = labelBox(rect);
+  const mat = labelBox({ ...rect, border: `mat` });
+  const reverse = labelBox({ ...rect, border: `double-reverse` });
+  const frame = labelBox({ ...rect, border: `frame` });
+  for (const b of [mat, reverse, frame]) assert.ok(b.w < plain.w && b.h < plain.h, `smaller than the plain room`);
+  // The shapes that are not rectangles keep the same margin on every side.
+  const e = labelBox({ ...ellipse, border: `mat` });
+  assert.ok(e.w < labelBox(ellipse).w && e.h < labelBox(ellipse).h);
+  const rough = labelBox({ ...rect, roughness: 5 });
+  assert.ok(rough.w < plain.w, `the wobble of the hand drawn look needs room too`);
+  // A border cannot take the whole shape.
+  assert.ok(labelBox({ ...rect, width: 40, height: 40, border: `mat`, strokeWidth: 12 }).w >= 8);
+});
