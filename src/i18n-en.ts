@@ -1,6 +1,15 @@
 // English translations: the French text is the key. Every text passed to t() in the code must be listed here (a test checks it).
 // Variable values are written {0}, {1}... as in the French text.
 const PAIRS: [string, string][] = [
+  [`Couleur`, `Colour`],
+  [`Cercle chromatique`, `Colour wheel`],
+  [`Teinte`, `Hue`],
+  [`Saturation`, `Saturation`],
+  [`Luminance`, `Luminance`],
+  [`Hexadécimal`, `Hexadecimal`],
+  [`Pipette : prendre une couleur à l'écran`, `Eyedropper: take a colour from the screen`],
+  [`Couleur de départ`, `Starting colour`],
+  [`Nouvelle couleur`, `New colour`],
   [`Texte`, `Text`],
   [`Police`, `Font`],
   [`Texte petit`, `Small text`],
