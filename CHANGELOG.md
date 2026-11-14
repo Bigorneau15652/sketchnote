@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.1
+
+English
+
+The properties panel follows the selection, and the heads of arrows become two drop-down menus. A line or an arrow no longer shows the fill; a rectangle, a diamond or an ellipse no longer shows the edges or the heads; a text shows only its colour and its font settings; a frame of a drawing shows nothing. With several elements selected the panel shows the sections of each kind, and with nothing selected it follows the active tool (a line about to be drawn shows no heads). The heads are chosen in one menu for each end, each one listing the six shapes (none, arrow, triangle, dot, bar, diamond) with a pictogram, and the button shows the shape that is chosen; the shapes of the start menu are the mirror of those of the end menu. A head can be chosen for a line: it then becomes an arrow, with no head at its other end. After a click on a button of the panel the keyboard shortcuts work again (the focus goes back to the drawing). Files of the previous versions open without change.
+
+Français
+
+Le panneau des propriétés suit la sélection, et les pointes de flèche deviennent deux menus déroulants. Un trait ou une flèche n'affiche plus le remplissage ; un rectangle, un losange ou une ellipse n'affiche plus les bords ni les pointes ; un texte n'affiche que sa couleur et ses réglages de police ; un cadre de dessin n'affiche rien. Avec plusieurs éléments sélectionnés, le panneau montre les sections de chaque sorte, et sans sélection il suit l'outil actif (un trait que l'on va tracer n'affiche pas de pointes). Les pointes se choisissent dans un menu pour chaque bout, chacun listant les six formes (aucune, flèche, triangle, point, barre, losange) avec un pictogramme, et le bouton montre la forme choisie ; les formes du menu du début sont le miroir de celles du menu de la fin. On peut choisir une pointe pour un trait : il devient alors une flèche, sans pointe à son autre bout. Après un clic sur un bouton du panneau, les raccourcis clavier fonctionnent à nouveau (le focus revient au dessin). Les fichiers des versions précédentes s'ouvrent sans changement.
+
 ## 0.10.0
 
 English

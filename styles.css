@@ -291,9 +291,6 @@
   display: none;
 }
 
-.sketchdraw-heads-start svg {
-  transform: scaleX(-1);
-}
 
 .sketchdraw-section {
   display: block;

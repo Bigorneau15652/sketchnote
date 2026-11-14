@@ -49,7 +49,7 @@ test(`une ligne ne prend pas de remplissage et un cadre de dessin n'a pas de sty
 
 test(`le style d'un element est relu tel qu'il est`, () => {
   const s = styleOf({ ...rect, fill: `#abc`, fillStyle: `hachure`, roughness: 1 } as SketchElement);
-  assert.deepEqual(s, { stroke: `#000000`, fill: `#abc`, fillStyle: `hachure`, fillOpacity: 1, strokeWidth: 3, roughness: 1, rounded: false, startHead: `none`, endHead: `arrow`, font: `caveat`, fontSize: 32, align: `left` });
+  assert.deepEqual(s, { stroke: `#000000`, fill: `#abc`, fillStyle: `hachure`, fillOpacity: 1, strokeWidth: 3, roughness: 1, rounded: false, startHead: `none`, endHead: `none`, font: `caveat`, fontSize: 32, align: `left` });
   assert.equal(styleOf(rect)?.fill, null);
 });
 
@@ -178,7 +178,12 @@ test(`les bords arrondis et les pointes se reglent sur les traits et les fleches
   assert.equal(`rounded` in applyStyle(applyStyle(line, { rounded: true }), { rounded: false }), false);
   const dotted = applyStyle(arrow, { startHead: `dot`, endHead: `triangle` }) as { startHead?: string; endHead?: string };
   assert.deepEqual([dotted.startHead, dotted.endHead], [`dot`, `triangle`]);
-  assert.equal(`startHead` in applyStyle(line, { startHead: `dot` }), false, `a line has no head`);
+  // A line that is given a head becomes an arrow, with no head at the other end; a choice of no head leaves it a line.
+  const turned = applyStyle(line, { startHead: `dot` }) as { type: string; startHead?: string; endHead?: string };
+  assert.deepEqual([turned.type, turned.startHead, turned.endHead], [`arrow`, `dot`, `none`]);
+  assert.equal(applyStyle(line, { endHead: `none` }).type, `line`);
+  assert.equal(applyStyle(rect, { endHead: `arrow` }).type, `rect`);
+  assert.equal(styleOf(line)?.endHead, `none`);
   assert.equal(`rounded` in applyStyle(rect, { rounded: true }), false);
   assert.deepEqual([styleOf(arrow)?.rounded, styleOf(arrow)?.startHead, styleOf(arrow)?.endHead], [false, `none`, `arrow`]);
   assert.equal(styleOf(dotted as SketchElement)?.endHead, `triangle`);
