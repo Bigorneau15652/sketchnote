@@ -1,13 +1,13 @@
 // Creation of elements from a gesture (a drag from one point to another, or the points of a pen stroke), with the same keys as Excalidraw:
 // Shift for a square, a circle or a line at a multiple of 15 degrees, Alt to start from the centre. Pure module.
 import { MAX_FONT_SIZE, MIN_FONT_SIZE } from "./elements";
-import type { ArrowElement, DiamondElement, FillStyle, EllipseElement, FreedrawElement, LineElement, Point, RectElement, SketchElement, TextElement } from "./elements";
+import type { ArrowElement, DiamondElement, FillStyle, TriangleElement, EllipseElement, FreedrawElement, LineElement, Point, RectElement, SketchElement, TextElement } from "./elements";
 import type { ToolStyle } from "./style";
 import { effectFields, lineStyleField } from "./effects";
 import { LINE_HEIGHT, refitText } from "./text-layout";
 
-export type CreationTool = `rect` | `diamond` | `ellipse` | `line` | `arrow` | `pen` | `point`;
-export const CREATION_TOOLS: CreationTool[] = [`rect`, `diamond`, `ellipse`, `line`, `arrow`, `pen`, `point`];
+export type CreationTool = `rect` | `diamond` | `ellipse` | `triangle` | `line` | `arrow` | `pen` | `point`;
+export const CREATION_TOOLS: CreationTool[] = [`rect`, `diamond`, `ellipse`, `triangle`, `line`, `arrow`, `pen`, `point`];
 
 export interface Modifiers {
   shift: boolean;
@@ -28,6 +28,23 @@ function dragBox(start: Point, end: Point, mods: Modifiers): { x: number; y: num
   if (mods.alt) return { x: start[0] - Math.abs(dx), y: start[1] - Math.abs(dy), w: 2 * Math.abs(dx), h: 2 * Math.abs(dy) };
   return { x: Math.min(start[0], start[0] + dx), y: Math.min(start[1], start[1] + dy), w: Math.abs(dx), h: Math.abs(dy) };
 }
+
+// Returns the box of an equilateral triangle dragged from a point: as wide as the drag is wide, and 0.866 times as high, upwards or downwards like the pointer, from the centre of
+// the base with Alt.
+function equilateralBox(start: Point, end: Point, mods: Modifiers): { x: number; y: number; w: number; h: number } {
+  const dx = end[0] - start[0];
+  const dy = end[1] - start[1];
+  const w = Math.max(Math.abs(dx), Math.abs(dy) / EQUILATERAL);
+  const h = w * EQUILATERAL;
+  const x = mods.alt ? start[0] - w : dx < 0 ? start[0] - w : start[0];
+  const width = mods.alt ? 2 * w : w;
+  const height = mods.alt ? 2 * h : h;
+  const y = mods.alt ? start[1] - h : dy < 0 ? start[1] - h : start[1];
+  return { x, y, w: width, h: height };
+}
+
+// Height of an equilateral triangle as a part of its base.
+const EQUILATERAL = Math.sqrt(3) / 2;
 
 // Returns the end of a line, brought to the nearest multiple of 15 degrees around its start when Shift is held.
 function lineEnd(start: Point, end: Point, shift: boolean): Point {
@@ -64,6 +81,13 @@ export function elementFromDrag(tool: CreationTool, start: Point, end: Point, mo
     const el: RectElement | DiamondElement = { id, type: tool, x: r2(b.x), y: r2(b.y), width: r2(b.w), height: r2(b.h), ...look(style, seed), ...fillOf(style), ...borderOf(style, tool === `rect`) } as RectElement | DiamondElement;
     return el;
   }
+  if (tool === `triangle`) {
+    // The triangle is isosceles in the box that is dragged; with Shift its proportions are fixed (equilateral), like the square and the circle.
+    const b = mods.shift ? equilateralBox(start, end, mods) : dragBox(start, end, mods);
+    if (b.w < 2 || b.h < 2) return null;
+    const el: TriangleElement = { id, type: `triangle`, x: r2(b.x), y: r2(b.y), width: r2(b.w), height: r2(b.h), ...look(style, seed), ...fillOf(style), ...borderOf(style, false) };
+    return el;
+  }
   if (tool === `ellipse`) {
     const b = dragBox(start, end, mods);
     if (b.w < 2 || b.h < 2) return null;
@@ -82,13 +106,15 @@ export function elementFromDrag(tool: CreationTool, start: Point, end: Point, mo
 export function linearElement(tool: `line` | `arrow`, points: Point[], style: ToolStyle, id: string, seed: number): LineElement | ArrowElement {
   const pts = points.map((p): Point => [r2(p[0]), r2(p[1])]);
   const rounded = style.rounded ? { rounded: true } : {};
-  if (tool === `line`) return { id, type: `line`, points: pts, ...look(style, seed), ...rounded };
+  const taper = style.taper > 0 ? { taper: style.taper } : {};
+  if (tool === `line`) return { id, type: `line`, points: pts, ...look(style, seed), ...rounded, ...taper };
   return {
     id,
     type: `arrow`,
     points: pts,
     ...look(style, seed),
     ...rounded,
+    ...taper,
     ...(style.startHead !== `none` ? { startHead: style.startHead } : {}),
     ...(style.endHead !== `arrow` ? { endHead: style.endHead } : {}),
   };

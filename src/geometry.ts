@@ -36,7 +36,7 @@ export function centerOf(box: Box): Point {
 
 // Returns the box of an element before rotation and its rotation. A line or an arrow has no rotation of its own: its box is the one of its points.
 export function boxOf(el: SketchElement): { box: Box; angle: number } {
-  if (el.type === `rect` || el.type === `diamond` || el.type === `drawing` || el.type === `text`) return { box: { x: el.x, y: el.y, w: el.width, h: el.height }, angle: el.angle ?? 0 };
+  if (el.type === `rect` || el.type === `diamond` || el.type === `triangle` || el.type === `drawing` || el.type === `text`) return { box: { x: el.x, y: el.y, w: el.width, h: el.height }, angle: el.angle ?? 0 };
   if (el.type === `ellipse`) return { box: { x: el.cx - el.rx, y: el.cy - el.ry, w: 2 * el.rx, h: 2 * el.ry }, angle: el.angle ?? 0 };
   let minX = Infinity;
   let minY = Infinity;
@@ -105,6 +105,15 @@ export function distToSegment(p: Point, a: Point, b: Point): number {
   return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
 }
 
+// Tells whether a point is inside a triangle given by its three corners.
+function insideTriangle(p: Point, t: [Point, Point, Point]): boolean {
+  const side = (a: Point, b: Point): number => (p[0] - b[0]) * (a[1] - b[1]) - (a[0] - b[0]) * (p[1] - b[1]);
+  const d1 = side(t[0], t[1]);
+  const d2 = side(t[1], t[2]);
+  const d3 = side(t[2], t[0]);
+  return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0));
+}
+
 // Tells whether a point touches an element, with a tolerance in page units. A line is touched on its stroke, a shape on its outline (and inside
 // when it has a fill), a drawing frame anywhere inside.
 export function hitElement(el: SketchElement, p: Point, tolerance: number): boolean {
@@ -136,6 +145,14 @@ export function hitElement(el: SketchElement, p: Point, tolerance: number): bool
     for (let i = 0; i < 4; i++) if (distToSegment([lx, ly], corners[i], corners[(i + 1) % 4]) <= reach) return true;
     return false;
   }
+  if (el.type === `triangle`) {
+    const hw = box.w / 2;
+    const hh = box.h / 2;
+    const corners: [Point, Point, Point] = [[0, -hh], [hw, hh], [-hw, hh]];
+    if (filled && insideTriangle([lx, ly], corners)) return true;
+    for (let i = 0; i < 3; i++) if (distToSegment([lx, ly], corners[i], corners[(i + 1) % 3]) <= reach) return true;
+    return false;
+  }
   const r = Math.hypot(lx / (box.w / 2), ly / (box.h / 2));
   if (filled && r <= 1) return true;
   return Math.abs(r - 1) * Math.min(box.w / 2, box.h / 2) <= reach;
@@ -144,7 +161,7 @@ export function hitElement(el: SketchElement, p: Point, tolerance: number): bool
 // Tells whether a point is inside a rectangle, an ellipse, a diamond or a text zone (rotation included), whether or not it has a fill. Used to write in a shape that is selected
 // and to move it by its inside.
 export function insideShape(el: SketchElement, p: Point): boolean {
-  if (el.type !== `rect` && el.type !== `ellipse` && el.type !== `diamond` && !(el.type === `text` && el.zone === true)) return false;
+  if (el.type !== `rect` && el.type !== `ellipse` && el.type !== `diamond` && el.type !== `triangle` && !(el.type === `text` && el.zone === true)) return false;
   const { box, angle } = boxOf(el);
   const c = centerOf(box);
   const q = rotatePoint(p, c, -angle);
@@ -152,6 +169,7 @@ export function insideShape(el: SketchElement, p: Point): boolean {
   const ly = Math.abs(q[1] - c[1]);
   if (el.type === `ellipse`) return (lx / (box.w / 2)) ** 2 + (ly / (box.h / 2)) ** 2 <= 1;
   if (el.type === `diamond`) return lx / (box.w / 2) + ly / (box.h / 2) <= 1;
+  if (el.type === `triangle`) return insideTriangle([q[0] - c[0], q[1] - c[1]], [[0, -box.h / 2], [box.w / 2, box.h / 2], [-box.w / 2, box.h / 2]]);
   return lx <= box.w / 2 && ly <= box.h / 2;
 }
 
@@ -181,7 +199,7 @@ export function visibleCorners(el: SketchElement): (0 | 1 | 2 | 3)[] {
 // Returns the sides that carry a handle in their middle: the rectangle, the ellipse, the diamond and the text zone, which are stretched or squashed with them. A text that is
 // only as large as its lines, a picture frame, a line, an arrow and a pen stroke have none.
 export function visibleSides(el: SketchElement): Side[] {
-  if (el.type === `rect` || el.type === `ellipse` || el.type === `diamond` || (el.type === `text` && el.zone === true)) return [0, 1, 2, 3];
+  if (el.type === `rect` || el.type === `ellipse` || el.type === `diamond` || el.type === `triangle` || (el.type === `text` && el.zone === true)) return [0, 1, 2, 3];
   return [];
 }
 

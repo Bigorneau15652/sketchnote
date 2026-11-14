@@ -1,7 +1,7 @@
 // The look of the lines and fills that the user chooses, and how a choice is applied to elements. Pure module.
-import { FILL_STYLES, FillStyle, Head, HEADS, headOf, isFontId, isShape, isStroked, LineStyle, MAX_FONT_SIZE, MIN_FILL_OPACITY, MIN_FONT_SIZE, SketchElement, TEXT_ALIGNS, TextAlign } from "./elements";
+import { FILL_STYLES, FillStyle, MAX_ROUGHNESS, Head, HEADS, headOf, isFontId, isShape, isStroked, LineStyle, MAX_FONT_SIZE, MIN_FILL_OPACITY, MIN_FONT_SIZE, SketchElement, TEXT_ALIGNS, TextAlign } from "./elements";
 import { DEFAULT_FONT } from "./fonts";
-import { BORDER_KINDS, BorderKind, cleanOpacity, CORNER_RADII, kindOfShadow, SHADOW_KINDS, shadowOf, ShadowKind } from "./effects";
+import { BORDER_KINDS, BorderKind, cleanOpacity, CORNER_RADII, DEFAULT_REFLECT_DEPTH, DEFAULT_REFLECT_FADE, DEFAULT_SHADOW_OPACITY, SHADOW_MAX, shadowFrom, shadowOpacityOf, shadowSizeOf } from "./effects";
 import { isSafeColor } from "./color";
 
 export interface ToolStyle {
@@ -24,8 +24,14 @@ export interface ToolStyle {
   align: TextAlign;
   // The effects of every element: its opacity, its shadow and its reflection. The line style, the border and the corners of the shapes.
   opacity: number;
-  shadow: ShadowKind;
+  // The size and the strength of the shadow (a size of 0 means no shadow), whether there is a reflection, how deep it is and how much it fades.
+  shadowSize: number;
+  shadowOpacity: number;
   reflection: boolean;
+  reflectionDepth: number;
+  reflectionFade: number;
+  // How much lines and arrows are tapered, from 0 (constant width) to 1.
+  taper: number;
   lineStyle: LineStyle;
   border: BorderKind;
   radius: number;
@@ -41,7 +47,7 @@ export const MAX_WIDTH = 24;
 export const TEXT_SIZES = { small: 20, medium: 32, large: 52, huge: 84 };
 
 // The effects of an element that has none: opaque, no shadow, no reflection, a continuous line, a simple border and square corners.
-const PLAIN_EFFECTS = { opacity: 1, shadow: `none` as ShadowKind, reflection: false, lineStyle: `solid` as LineStyle, border: `simple` as BorderKind, radius: 0 };
+const PLAIN_EFFECTS = { opacity: 1, shadowSize: 0, shadowOpacity: DEFAULT_SHADOW_OPACITY, reflection: false, reflectionDepth: DEFAULT_REFLECT_DEPTH, reflectionFade: DEFAULT_REFLECT_FADE, taper: 0, lineStyle: `solid` as LineStyle, border: `simple` as BorderKind, radius: 0 };
 
 // Returns the style of a new drawing: a thin hand drawn line in the ink colour of the page, with no fill.
 export function defaultStyle(ink: string): ToolStyle {
@@ -56,7 +62,7 @@ export function cleanPatch(patch: StylePatch): StylePatch {
   if (patch.fillStyle !== undefined && FILL_STYLES.includes(patch.fillStyle)) out.fillStyle = patch.fillStyle;
   if (typeof patch.fillOpacity === `number` && Number.isFinite(patch.fillOpacity)) out.fillOpacity = Math.min(1, Math.max(MIN_FILL_OPACITY, Math.round(patch.fillOpacity * 100) / 100));
   if (typeof patch.strokeWidth === `number` && Number.isFinite(patch.strokeWidth)) out.strokeWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, patch.strokeWidth));
-  if (typeof patch.roughness === `number` && Number.isFinite(patch.roughness)) out.roughness = patch.roughness <= 0 ? 0 : 1;
+  if (typeof patch.roughness === `number` && Number.isFinite(patch.roughness)) out.roughness = Math.min(MAX_ROUGHNESS, Math.max(0, Math.round(patch.roughness * 10) / 10));
   if (typeof patch.rounded === `boolean`) out.rounded = patch.rounded;
   if (patch.startHead !== undefined && HEADS.includes(patch.startHead)) out.startHead = patch.startHead;
   if (patch.endHead !== undefined && HEADS.includes(patch.endHead)) out.endHead = patch.endHead;
@@ -64,7 +70,11 @@ export function cleanPatch(patch: StylePatch): StylePatch {
   if (typeof patch.fontSize === `number` && Number.isFinite(patch.fontSize)) out.fontSize = Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, Math.round(patch.fontSize)));
   if (patch.align !== undefined && TEXT_ALIGNS.includes(patch.align)) out.align = patch.align;
   if (typeof patch.opacity === `number` && Number.isFinite(patch.opacity)) out.opacity = cleanOpacity(patch.opacity);
-  if (patch.shadow !== undefined && SHADOW_KINDS.includes(patch.shadow)) out.shadow = patch.shadow;
+  if (typeof patch.shadowSize === `number` && Number.isFinite(patch.shadowSize)) out.shadowSize = Math.min(SHADOW_MAX, Math.max(0, Math.round(patch.shadowSize)));
+  if (typeof patch.shadowOpacity === `number` && Number.isFinite(patch.shadowOpacity)) out.shadowOpacity = Math.min(1, Math.max(0.05, Math.round(patch.shadowOpacity * 100) / 100));
+  if (typeof patch.reflectionDepth === `number` && Number.isFinite(patch.reflectionDepth)) out.reflectionDepth = Math.min(1, Math.max(0.1, Math.round(patch.reflectionDepth * 100) / 100));
+  if (typeof patch.reflectionFade === `number` && Number.isFinite(patch.reflectionFade)) out.reflectionFade = Math.min(1, Math.max(0, Math.round(patch.reflectionFade * 100) / 100));
+  if (typeof patch.taper === `number` && Number.isFinite(patch.taper)) out.taper = Math.min(1, Math.max(0, Math.round(patch.taper * 100) / 100));
   if (typeof patch.reflection === `boolean`) out.reflection = patch.reflection;
   if (patch.lineStyle === `solid` || patch.lineStyle === `dashed` || patch.lineStyle === `dotted`) out.lineStyle = patch.lineStyle;
   if (patch.border !== undefined && BORDER_KINDS.includes(patch.border)) out.border = patch.border;
@@ -105,6 +115,11 @@ export function applyStyle(el: SketchElement, patch: StylePatch): SketchElement 
   if (p.stroke !== undefined) next.stroke = p.stroke;
   if (p.strokeWidth !== undefined) next.strokeWidth = p.strokeWidth;
   if (p.roughness !== undefined) next.roughness = p.roughness;
+  if ((next.type === `line` || next.type === `arrow`) && p.taper !== undefined) {
+    const { taper: _t, ...rest } = next;
+    void _t;
+    next = (p.taper > 0 ? { ...rest, taper: p.taper } : rest) as typeof el;
+  }
   if (next.type === `line` || next.type === `arrow`) {
     if (p.rounded !== undefined) {
       const { rounded: _r, ...rest } = next;
@@ -149,16 +164,27 @@ function applyEffects<T extends SketchElement>(el: T, p: StylePatch): T {
     void _o;
     next = (p.opacity >= 1 ? rest : { ...rest, opacity: p.opacity }) as SketchElement;
   }
-  if (p.shadow !== undefined && p.shadow !== `custom`) {
+  if (p.shadowSize !== undefined || p.shadowOpacity !== undefined) {
+    // The size and the strength of the shadow each keep the value they have when only the other one is given.
     const { shadow: _s, ...rest } = next;
     void _s;
-    const shadow = shadowOf(p.shadow);
+    const shadow = shadowFrom(p.shadowSize ?? shadowSizeOf(next.shadow), p.shadowOpacity ?? shadowOpacityOf(next.shadow));
     next = (shadow ? { ...rest, shadow } : rest) as SketchElement;
   }
   if (p.reflection !== undefined) {
     const { reflection: _f, ...rest } = next;
     void _f;
     next = (p.reflection ? { ...rest, reflection: true } : rest) as SketchElement;
+  }
+  if (p.reflectionDepth !== undefined) {
+    const { reflectDepth: _d, ...rest } = next;
+    void _d;
+    next = (p.reflectionDepth === DEFAULT_REFLECT_DEPTH ? rest : { ...rest, reflectDepth: p.reflectionDepth }) as SketchElement;
+  }
+  if (p.reflectionFade !== undefined) {
+    const { reflectFade: _e, ...rest } = next;
+    void _e;
+    next = (p.reflectionFade === DEFAULT_REFLECT_FADE ? rest : { ...rest, reflectFade: p.reflectionFade }) as SketchElement;
   }
   return next as T;
 }
@@ -193,15 +219,15 @@ export function styleOf(el: SketchElement): ToolStyle | null {
   const rounded = linear && el.rounded === true;
   const startHead: Head = el.type === `arrow` ? headOf(el, `start`) : `none`;
   const endHead: Head = el.type === `arrow` ? headOf(el, `end`) : `none`;
-  return { stroke: el.stroke, fill, fillStyle, fillOpacity, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0, rounded, startHead, endHead, font: labelOf(el) ? labelOf(el)?.font ?? DEFAULT_FONT : DEFAULT_FONT, fontSize: labelOf(el)?.size ?? TEXT_SIZES.medium, align: labelOf(el) ? labelOf(el)?.align ?? `center` : `left`, ...effectsOfElement(el), lineStyle: el.type === `freedraw` ? `solid` : el.lineStyle ?? `solid`, border: isShape(el) ? el.border ?? `simple` : `simple`, radius: el.type === `rect` ? el.radius ?? 0 : 0 };
+  return { stroke: el.stroke, fill, fillStyle, fillOpacity, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0, rounded, startHead, endHead, taper: el.type === `line` || el.type === `arrow` ? el.taper ?? 0 : 0, font: labelOf(el) ? labelOf(el)?.font ?? DEFAULT_FONT : DEFAULT_FONT, fontSize: labelOf(el)?.size ?? TEXT_SIZES.medium, align: labelOf(el) ? labelOf(el)?.align ?? `center` : `left`, ...effectsOfElement(el), lineStyle: el.type === `freedraw` ? `solid` : el.lineStyle ?? `solid`, border: isShape(el) ? el.border ?? `simple` : `simple`, radius: el.type === `rect` ? el.radius ?? 0 : 0 };
 }
 
 // Returns the text written in a shape or in the middle of a line, or undefined.
 function labelOf(el: SketchElement): { font: string; size: number; align?: TextAlign } | undefined {
-  return el.type === `rect` || el.type === `ellipse` || el.type === `diamond` || el.type === `line` || el.type === `arrow` ? el.label : undefined;
+  return el.type === `rect` || el.type === `ellipse` || el.type === `diamond` || el.type === `triangle` || el.type === `line` || el.type === `arrow` ? el.label : undefined;
 }
 
 // Returns the effects an element has, as the panel shows them.
-function effectsOfElement(el: SketchElement): { opacity: number; shadow: ShadowKind; reflection: boolean } {
-  return { opacity: el.opacity ?? 1, shadow: kindOfShadow(el.shadow), reflection: el.reflection === true };
+function effectsOfElement(el: SketchElement): { opacity: number; shadowSize: number; shadowOpacity: number; reflection: boolean; reflectionDepth: number; reflectionFade: number } {
+  return { opacity: el.opacity ?? 1, shadowSize: shadowSizeOf(el.shadow), shadowOpacity: shadowOpacityOf(el.shadow), reflection: el.reflection === true, reflectionDepth: el.reflectDepth ?? DEFAULT_REFLECT_DEPTH, reflectionFade: el.reflectFade ?? DEFAULT_REFLECT_FADE };
 }

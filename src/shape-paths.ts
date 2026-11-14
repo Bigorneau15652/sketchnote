@@ -2,7 +2,8 @@
 // Pure module (no DOM): it returns plain data, so the result is tested without a browser and the view writes it into the page as attributes.
 import getStroke from "perfect-freehand";
 import { RoughGenerator } from "roughjs/bin/generator";
-import { Border, DiamondElement, EllipseElement, LineStyle, Point, RectElement, StrokedElement } from "./elements";
+import { drawnPoints } from "./curves";
+import { ArrowElement, Border, DiamondElement, EllipseElement, headOf, LineElement, LineStyle, Point, RectElement, StrokedElement, TriangleElement } from "./elements";
 import { arrowHeadShapes, HeadShape } from "./linear";
 
 // One path to draw: its data, its line colour and width and its fill colour (`none` for no fill).
@@ -146,7 +147,7 @@ function roundedRectPath(x: number, y: number, w: number, h: number, radius: num
 }
 
 // Returns the drawable of a shape grown (or shrunk) by a distance on every side, or null when nothing is left of it.
-function grownShape(el: RectElement | EllipseElement | DiamondElement, grow: number, opts: Record<string, unknown>): ReturnType<RoughGenerator[`rectangle`]> | null {
+function grownShape(el: RectElement | EllipseElement | DiamondElement | TriangleElement, grow: number, opts: Record<string, unknown>): ReturnType<RoughGenerator[`rectangle`]> | null {
   if (el.type === `rect`) {
     const [x, y, w, h] = [el.x - grow, el.y - grow, el.width + 2 * grow, el.height + 2 * grow];
     if (w < 2 || h < 2) return null;
@@ -156,6 +157,18 @@ function grownShape(el: RectElement | EllipseElement | DiamondElement, grow: num
   if (el.type === `ellipse`) {
     const [rx, ry] = [el.rx + grow, el.ry + grow];
     return rx < 1 || ry < 1 ? null : generator.ellipse(el.cx, el.cy, 2 * rx, 2 * ry, opts);
+  }
+  if (el.type === `triangle`) {
+    // An isosceles triangle: its sides are moved by the distance along their normal, which scales it about its centre (the middle of its inscribed circle).
+    const [apex, left, right]: Point[] = [[el.x + el.width / 2, el.y], [el.x, el.y + el.height], [el.x + el.width, el.y + el.height]];
+    const sides = [Math.hypot(left[0] - right[0], left[1] - right[1]), Math.hypot(apex[0] - right[0], apex[1] - right[1]), Math.hypot(apex[0] - left[0], apex[1] - left[1])];
+    const perimeter = sides[0] + sides[1] + sides[2];
+    const centre: Point = [(sides[0] * apex[0] + sides[1] * left[0] + sides[2] * right[0]) / perimeter, (sides[0] * apex[1] + sides[1] * left[1] + sides[2] * right[1]) / perimeter];
+    const radius = (el.width * el.height) / perimeter;
+    const k = (radius + grow) / radius;
+    if (k <= 0.05) return null;
+    const scale = (p: Point): Point => [centre[0] + (p[0] - centre[0]) * k, centre[1] + (p[1] - centre[1]) * k];
+    return generator.polygon([scale(apex), scale(right), scale(left)], opts);
   }
   // A diamond: its sides are moved by the distance along their normal, which grows both half diagonals by the same factor.
   const a = el.width / 2;
@@ -168,7 +181,7 @@ function grownShape(el: RectElement | EllipseElement | DiamondElement, grow: num
 }
 
 // Computes the pieces of a rectangle, an ellipse or a diamond: the fill with the main line of its border, then the other lines of the border (none for a simple border).
-function shapePieces(el: RectElement | EllipseElement | DiamondElement, opts: Record<string, unknown>): PathPiece[] {
+function shapePieces(el: RectElement | EllipseElement | DiamondElement | TriangleElement, opts: Record<string, unknown>): PathPiece[] {
   const out: PathPiece[] = [];
   const style = el.lineStyle ?? `solid`;
   for (const ring of ringsOf(el.border, el.strokeWidth)) {
@@ -182,12 +195,67 @@ function shapePieces(el: RectElement | EllipseElement | DiamondElement, opts: Re
   return out;
 }
 
+// Returns the points of a polyline again, evenly spaced along it (about `step` apart), the first and the last point kept.
+export function resample(points: Point[], step: number): Point[] {
+  if (points.length < 2) return points.map((p): Point => [p[0], p[1]]);
+  const out: Point[] = [[points[0][0], points[0][1]]];
+  let carried = 0;
+  for (let i = 0; i + 1 < points.length; i++) {
+    const [a, b] = [points[i], points[i + 1]];
+    const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    let at = step - carried;
+    while (at <= length) {
+      out.push([a[0] + ((b[0] - a[0]) * at) / length, a[1] + ((b[1] - a[1]) * at) / length]);
+      at += step;
+    }
+    carried = length - (at - step);
+  }
+  const last = points[points.length - 1];
+  const end = out[out.length - 1];
+  if (Math.hypot(last[0] - end[0], last[1] - end[1]) > 0.01) out.push([last[0], last[1]]);
+  return out;
+}
+
+// Moves the points of a polyline a little to the side, smoothly and the same way every time for a seed, so that a tapered line has the hand drawn look too. The amplitude grows with
+// the roughness of the element; the two ends stay where they are.
+export function wobble(points: Point[], roughness: number, seed: number): Point[] {
+  if (roughness <= 0 || points.length < 3) return points;
+  const a = (((seed * 9301 + 49297) % 233280) / 233280) * Math.PI * 2;
+  const b = (((seed * 4096 + 150889) % 714025) / 714025) * Math.PI * 2;
+  const out: Point[] = [];
+  let run = 0;
+  points.forEach((p, i) => {
+    if (i > 0) run += Math.hypot(p[0] - points[i - 1][0], p[1] - points[i - 1][1]);
+    const prev = points[Math.max(0, i - 1)];
+    const next = points[Math.min(points.length - 1, i + 1)];
+    const len = Math.hypot(next[0] - prev[0], next[1] - prev[1]) || 1;
+    const edge = Math.min(1, i / 4, (points.length - 1 - i) / 4);
+    const shift = (Math.sin(run / 23 + a) + 0.5 * Math.sin(run / 9 + b)) * roughness * 0.9 * edge;
+    out.push([p[0] - ((next[1] - prev[1]) / len) * shift, p[1] + ((next[0] - prev[0]) / len) * shift]);
+  });
+  return out;
+}
+
+// Returns the piece that draws a tapered line or arrow: a filled outline (made with perfect-freehand) as wide as the line at its start and ending in a point at its end, or at the
+// end that has the head of an arrow, the point being the tip. The taper goes over the last part of the line: all of it for a taper of 1, half of it for 0.5.
+function taperedPiece(el: LineElement | ArrowElement): PathPiece[] {
+  let pts = drawnPoints(el);
+  if (el.type === `arrow` && headOf(el, `end`) === `none` && headOf(el, `start`) !== `none`) pts = [...pts].reverse();
+  const dense = wobble(resample(pts, 3), el.roughness ?? 0, el.seed ?? 1);
+  let length = 0;
+  for (let i = 0; i + 1 < dense.length; i++) length += Math.hypot(dense[i + 1][0] - dense[i][0], dense[i + 1][1] - dense[i][1]);
+  if (dense.length < 2 || length <= 0) return [];
+  const outline = getStroke(dense, { size: el.strokeWidth, thinning: 0, smoothing: 0.5, streamline: 0, simulatePressure: false, last: true, start: { cap: true }, end: { cap: false, taper: Math.max(1, length * (el.taper ?? 0)) } });
+  const d = pathFromOutline(outline);
+  return SAFE_PATH.test(d) && d !== `` ? [{ d, stroke: `none`, strokeWidth: 0, fill: el.stroke, opacity: 1 }] : [];
+}
+
 // Computes the paths of an element.
 function compute(el: StrokedElement): ElementPaths {
   const opts = roughOptions(el);
   if (el.type === `rect`) return { pieces: shapePieces(el, opts), transform: turn(el.angle, el.x + el.width / 2, el.y + el.height / 2) };
   if (el.type === `ellipse`) return { pieces: shapePieces(el, opts), transform: turn(el.angle, el.cx, el.cy) };
-  if (el.type === `diamond`) return { pieces: shapePieces(el, opts), transform: turn(el.angle, el.x + el.width / 2, el.y + el.height / 2) };
+  if (el.type === `diamond` || el.type === `triangle`) return { pieces: shapePieces(el, opts), transform: turn(el.angle, el.x + el.width / 2, el.y + el.height / 2) };
   if (el.type === `freedraw`) {
     const outline = getStroke(el.points, { size: el.strokeWidth * 1.6, thinning: 0.5, smoothing: 0.5, streamline: 0.5 });
     const d = pathFromOutline(outline);
@@ -195,7 +263,7 @@ function compute(el: StrokedElement): ElementPaths {
   }
   // A line or an arrow: straight segments, or a smooth curve through the points when the edges are rounded.
   const drawable = el.rounded === true && el.points.length >= 3 ? generator.curve(el.points, opts) : generator.linearPath(el.points, opts);
-  const pieces = piecesOf(drawable, 1, el.lineStyle ?? `solid`);
+  const pieces = (el.taper ?? 0) > 0 ? taperedPiece(el) : piecesOf(drawable, 1, el.lineStyle ?? `solid`);
   if (el.type === `arrow`) {
     const heads = arrowHeadShapes(el);
     if (heads) {

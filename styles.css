@@ -275,6 +275,51 @@
   width: 100%;
 }
 
+/* Every slider of the panel is as wide as the panel: the theme of Obsidian gives sliders a margin and a width of their own, so the rule is stronger than the theme's. */
+.sketchdraw-side input[type="range"].sketchdraw-range {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  margin: 4px 0;
+  box-sizing: border-box;
+}
+
+.sketchdraw-slider {
+  display: block;
+  width: 100%;
+}
+
+.sketchdraw-slider-label {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+/* The menu of the borders shows the name of the border next to its (wide) pictogram. */
+.sketchdraw-menu.has-name {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+}
+
+.sketchdraw-menu.has-name .svg-icon {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+}
+
+.sketchdraw-menu-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--font-ui-smaller);
+}
+
 /* On a narrow window the properties are hidden until the Properties button is pressed, and the toolbar is narrower. */
 @media (max-width: 600px) {
   .sketchdraw-side {

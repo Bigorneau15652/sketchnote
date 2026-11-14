@@ -9,13 +9,13 @@ const none = { shift: false, alt: false };
 const rect: SketchElement = { id: `r`, type: `rect`, x: 0, y: 0, width: 10, height: 10, stroke: `#000000`, strokeWidth: 3 };
 
 test(`le style par defaut est un trait fin noir a main levee sans remplissage`, () => {
-  assert.deepEqual(style, { stroke: `#000000`, fill: null, fillStyle: `solid`, fillOpacity: 1, strokeWidth: STROKE_WIDTHS.thin, roughness: 1, rounded: false, startHead: `none`, endHead: `arrow`, font: `caveat`, fontSize: 32, align: `left`, opacity: 1, shadow: `none`, reflection: false, lineStyle: `solid`, border: `simple`, radius: 0 });
+  assert.deepEqual(style, { stroke: `#000000`, fill: null, fillStyle: `solid`, fillOpacity: 1, strokeWidth: STROKE_WIDTHS.thin, roughness: 1, rounded: false, startHead: `none`, endHead: `arrow`, font: `caveat`, fontSize: 32, align: `left`, opacity: 1, shadowSize: 0, shadowOpacity: 0.4, reflection: false, reflectionDepth: 0.6, reflectionFade: 1, taper: 0, lineStyle: `solid`, border: `simple`, radius: 0 });
   assert.equal(defaultStyle(`#ffffff`).stroke, `#ffffff`);
   assert.equal(defaultStyle(`red`).stroke, `#000000`);
 });
 
 test(`un style est nettoye avant usage`, () => {
-  assert.deepEqual(cleanPatch({ stroke: `red`, fill: `javascript:x` as string, strokeWidth: 999, roughness: 5 }), { strokeWidth: MAX_WIDTH, roughness: 1 });
+  assert.deepEqual(cleanPatch({ stroke: `red`, fill: `javascript:x` as string, strokeWidth: 999, roughness: 5 }), { strokeWidth: MAX_WIDTH, roughness: 3 });
   assert.deepEqual(cleanPatch({ strokeWidth: -4, roughness: 0 }), { strokeWidth: MIN_WIDTH, roughness: 0 });
   assert.deepEqual(cleanPatch({ fill: null, fillStyle: `hachure` }), { fill: null, fillStyle: `hachure` });
   assert.deepEqual(cleanPatch({ strokeWidth: NaN }), {});
@@ -49,7 +49,7 @@ test(`une ligne ne prend pas de remplissage et un cadre de dessin n'a pas de sty
 
 test(`le style d'un element est relu tel qu'il est`, () => {
   const s = styleOf({ ...rect, fill: `#abc`, fillStyle: `hachure`, roughness: 1 } as SketchElement);
-  assert.deepEqual(s, { stroke: `#000000`, fill: `#abc`, fillStyle: `hachure`, fillOpacity: 1, strokeWidth: 3, roughness: 1, rounded: false, startHead: `none`, endHead: `none`, font: `caveat`, fontSize: 32, align: `left`, opacity: 1, shadow: `none`, reflection: false, lineStyle: `solid`, border: `simple`, radius: 0 });
+  assert.deepEqual(s, { stroke: `#000000`, fill: `#abc`, fillStyle: `hachure`, fillOpacity: 1, strokeWidth: 3, roughness: 1, rounded: false, startHead: `none`, endHead: `none`, font: `caveat`, fontSize: 32, align: `left`, opacity: 1, shadowSize: 0, shadowOpacity: 0.4, reflection: false, reflectionDepth: 0.6, reflectionFade: 1, taper: 0, lineStyle: `solid`, border: `simple`, radius: 0 });
   assert.equal(styleOf(rect)?.fill, null);
 });
 
@@ -142,7 +142,7 @@ test(`le stylo garde les points assez eloignes et un clic donne un petit trait`,
 });
 
 test(`les outils de creation sont ceux attendus`, () => {
-  assert.deepEqual(CREATION_TOOLS, [`rect`, `diamond`, `ellipse`, `line`, `arrow`, `pen`, `point`]);
+  assert.deepEqual(CREATION_TOOLS, [`rect`, `diamond`, `ellipse`, `triangle`, `line`, `arrow`, `pen`, `point`]);
   assert.equal(elementFromDrag(`frame` as never, [0, 0], [200, 200], none, style, `f`, 1), null);
 });
 
