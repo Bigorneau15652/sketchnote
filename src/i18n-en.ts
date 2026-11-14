@@ -48,6 +48,18 @@ const PAIRS: [string, string][] = [
   [`Nombre d'étapes`, `Number of steps`],
   [`Nombre de bulles`, `Number of bubbles`],
   [`Nombre de lignes`, `Number of rows`],
+  [`Remplacer la structure ?`, `Replace the structure?`],
+  [`Vous avez modifié ce que la structure avait dessiné (séparations, flèches ou liens). Ce changement la redessine et ces modifications sont perdues. Le bouton Annuler de la barre du bas permet de les retrouver.`, `You changed what the structure had drawn (separators, arrows or links). This change draws it again and those changes are lost. The Undo button of the bottom bar brings them back.`],
+  [`Remplacer`, `Replace`],
+  [`Annuler`, `Undo`],
+  [`Rétablir`, `Redo`],
+  [`Sélectionner`, `Select`],
+  [`Main : déplacer la page`, `Hand: move the page`],
+  [`Dupliquer`, `Duplicate`],
+  [`Supprimer`, `Delete`],
+  [`Mettre devant`, `Bring to front`],
+  [`Mettre derrière`, `Send to back`],
+  [`Zoom`, `Zoom`],
 ];
 
 export const EN: Record<string, string> = Object.fromEntries(PAIRS);

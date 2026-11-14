@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { arrowHeadPoints, MAX_ELEMENTS, MAX_POINTS, readElements, SketchElement } from "../src/elements";
+import { arrowHeadPoints, MAX_ELEMENTS, MAX_POINTS, newId, readElements, SketchElement } from "../src/elements";
 
 const line = (over: Record<string, unknown> = {}): Record<string, unknown> => ({ id: `a1`, type: `line`, points: [[0, 0], [10, 10]], stroke: `#000000`, strokeWidth: 2, ...over });
 
@@ -93,4 +93,22 @@ test(`la pointe d'une fleche est au bout de la ligne et de chaque cote`, () => {
 test(`le type SketchElement couvre les quatre formes`, () => {
   const kinds: SketchElement[`type`][] = [`line`, `arrow`, `rect`, `ellipse`];
   assert.equal(kinds.length, 4);
+});
+
+test(`l'angle d'un rectangle ou d'une ellipse est lu, borne et ecarte quand il vaut zero`, () => {
+  const rect = (angle: unknown): Record<string, unknown> => ({ id: `r`, type: `rect`, x: 0, y: 0, width: 5, height: 5, stroke: `#000`, strokeWidth: 1, angle });
+  const r = readElements([rect(45)]);
+  assert.equal(r.ok, true);
+  if (r.ok) assert.equal((r.elements[0] as { angle?: number }).angle, 45);
+  const z = readElements([rect(0)]);
+  if (z.ok) assert.equal(`angle` in z.elements[0], false);
+  for (const bad of [`45`, NaN, 1000, -361, null]) assert.equal(readElements([rect(bad)]).ok, false, String(bad));
+  assert.equal(readElements([{ id: `e`, type: `ellipse`, cx: 0, cy: 0, rx: 5, ry: 5, stroke: `#000`, strokeWidth: 1, angle: 90 }]).ok, true);
+});
+
+test(`un nouvel identifiant n'est jamais deja pris`, () => {
+  const items = [1, 2, 3].map((n): SketchElement => ({ id: `e${n + 1}`, type: `line`, points: [[0, 0], [1, 1]], stroke: `#000`, strokeWidth: 1 }));
+  const id = newId(items);
+  assert.ok(!items.some((e) => e.id === id));
+  assert.equal(newId([]), `e1`);
 });
