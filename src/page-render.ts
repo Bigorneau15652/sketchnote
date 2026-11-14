@@ -1,7 +1,8 @@
 // Draws the surface of a page as an SVG element, from its settings: the page colour, the repeating tile of its style, the dotted frames of its structure.
 // The elements are drawn into the group `content` by the view. Built with the DOM only: no markup text is ever parsed.
+import { DrawingGuide, guideBox } from "./drawing-file";
 import { PageSettings } from "./file-format";
-import { backgroundSpec, TileShape } from "./page-background";
+import { backgroundSpec, slotStyle, TileShape } from "./page-background";
 import { svgEl } from "./svg";
 
 export interface RenderedPage {
@@ -46,11 +47,20 @@ export function renderPage(page: PageSettings, zoom: number): RenderedPage {
   return { svg, content, ui };
 }
 
-// Builds the SVG of the surface of a drawing: a plain colour and the groups for the elements and the editor overlay. The colour is dark when the ink is
+// Builds the SVG of the surface of a drawing: a plain colour, the dotted guide of its zone if it has one, and the groups for the elements and the editor overlay. The colour is dark when the ink is
 // light, so that a white drawing made for a chalkboard stays visible.
-export function renderCanvas(width: number, height: number, zoom: number, dark: boolean): RenderedPage {
+export function renderCanvas(width: number, height: number, zoom: number, dark: boolean, guide: DrawingGuide | null = null): RenderedPage {
   const svg = svgEl(`svg`, { class: `sketchnote-page sketchnote-canvas`, width: width * zoom, height: height * zoom, viewBox: `0 0 ${width} ${height}` });
-  svgEl(`rect`, { x: 0, y: 0, width, height, fill: dark ? `#2a3631` : `#ffffff` }, svg);
+  const background = dark ? `#2a3631` : `#ffffff`;
+  svgEl(`rect`, { x: 0, y: 0, width, height, fill: background }, svg);
+  if (guide) {
+    // The guide: a big dotted shape in the middle, with the proportions of the zone of the page. It only helps to draw; elements can go outside of it.
+    const b = guideBox(guide);
+    const style = slotStyle(background);
+    const look = { class: `sketchdraw-guide`, fill: style.color, "fill-opacity": style.fillOpacity, stroke: style.color, "stroke-opacity": style.strokeOpacity, "stroke-width": 2, "stroke-dasharray": `12 8` };
+    if (guide.shape === `ellipse`) svgEl(`ellipse`, { cx: b.x + b.w / 2, cy: b.y + b.h / 2, rx: b.w / 2, ry: b.h / 2, ...look }, svg);
+    else svgEl(`rect`, { x: b.x, y: b.y, width: b.w, height: b.h, rx: 8, ...look }, svg);
+  }
   const content = svgEl(`g`, { class: `sketchnote-content` }, svg);
   const ui = svgEl(`g`, { class: `sketchnote-ui`, "pointer-events": `none` }, svg);
   return { svg, content, ui };

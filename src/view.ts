@@ -1,16 +1,16 @@
 // The view that opens a .sketchnote file: the page, its structure, its elements and the drawings that live in the dotted zones of the structure.
 // The engine (zoom, selection, undo...) is in CanvasView; this file adds what is specific to a page.
 import { Notice, setIcon, TFile, WorkspaceLeaf } from "obsidian";
-import { CanvasView, Point, Tool } from "./canvas-view";
+import { CanvasView, Tool } from "./canvas-view";
 import { ConfirmModal } from "./confirm-modal";
-import { applySettings, structureEdited } from "./doc-ops";
-import { contentBox, fitInFrame } from "./drawing-file";
+import { applySettings, ensureZoneFrames, structureEdited, zoneFrame } from "./doc-ops";
+import { contentBox, DrawingGuide, fitInFrame, makeGuide } from "./drawing-file";
 import { drawElements } from "./element-render";
-import { DrawingElement, newId, SketchElement } from "./elements";
+import { DrawingElement, SketchElement } from "./elements";
 import { createEmptyDoc, PageSettings, parseSketchnote, serializeSketchnote, SketchnoteDoc } from "./file-format";
 import { Box } from "./geometry";
 import { t } from "./i18n";
-import { addZone, buildStructure, LayoutSettings, sameLayout, Slot, slotIndexAt } from "./layout";
+import { addZone, buildStructure, LayoutSettings, sameLayout, Slot } from "./layout";
 import { PageModal } from "./page-modal";
 import { renderPage, RenderedPage } from "./page-render";
 import { PluginApi } from "./plugin-api";
@@ -59,7 +59,9 @@ export class SketchnoteView extends CanvasView<SketchnoteDoc> {
   }
 
   protected parseDoc(data: string): { ok: true; doc: SketchnoteDoc } | { ok: false; error: string } {
-    return parseSketchnote(data);
+    const result = parseSketchnote(data);
+    // A page made by an earlier version may lack the frame of some zones: they are added when the file is read.
+    return result.ok ? { ok: true, doc: ensureZoneFrames(result.doc) } : result;
   }
 
   protected serializeDoc(doc: SketchnoteDoc): string {
@@ -84,9 +86,9 @@ export class SketchnoteView extends CanvasView<SketchnoteDoc> {
     return renderPage(this.doc.page, zoom);
   }
 
-  // Draws the elements of the page, and the drawings shown in its frames.
+  // Draws the elements of the page: the drawings shown in the frames of the zones, and the dotted outline of the empty zones unless the eye hid them.
   protected drawContent(group: SVGElement): void {
-    drawElements(this.doc.elements, group, (path) => this.api.drawings.lookup(path));
+    drawElements(this.doc.elements, group, { lookup: (path) => this.api.drawings.lookup(path), showZones: this.showZones, background: this.doc.page.background });
   }
 
   protected extraSnapTargets(): Box[] {
@@ -97,19 +99,13 @@ export class SketchnoteView extends CanvasView<SketchnoteDoc> {
     return { v: `select`, h: `hand` };
   }
 
-  // The dotted zones, unless the eye button hid them, and which ones already hold a drawing.
-  protected zones(): { slots: Slot[]; occupied: boolean[]; background: string } | null {
-    if (!this.showZones || this.slots.length === 0) return null;
-    return { slots: this.slots, occupied: this.slots.map((_, i) => this.frameOfSlot(i) !== undefined), background: this.doc.page.background };
-  }
-
   // Adds the buttons of the page at the start of the bottom bar: the menu of the page settings, the add zone button and the eye that shows or hides the zones.
   protected buildBarStart(bar: HTMLElement): void {
     this.button(bar, `menu`, t(`Réglages de la page`), () => this.openPageSettings());
     this.addButton = this.button(bar, `plus`, t(`Ajouter une zone`), () => this.addZone());
     this.zonesButton = this.button(bar, `eye`, t(`Masquer les zones`), () => {
       this.showZones = !this.showZones;
-      this.renderUi();
+      this.renderContent();
       this.updateBar();
     });
   }
@@ -167,44 +163,32 @@ export class SketchnoteView extends CanvasView<SketchnoteDoc> {
 
   // ---------------------------------------------------------------------------------------------------------------- drawings
 
-  // Returns the frame of a drawing that belongs to a slot: the one that names the slot, or one whose centre is inside it.
-  private frameOfSlot(index: number): DrawingElement | undefined {
-    const s = this.slots[index];
-    if (!s) return undefined;
-    const frames = this.doc.elements.filter((e): e is DrawingElement => e.type === `drawing`);
-    return (
-      frames.find((f) => f.slot === index) ??
-      frames.find((f) => f.slot === undefined && slotIndexAt([s], [f.x + f.width / 2, f.y + f.height / 2]) === 0)
-    );
-  }
-
-  // Double click on a frame: opens its drawing.
+  // Double click on a frame (a zone): opens its drawing, created the first time.
   protected onActivate(el: SketchElement): void {
     if (el.type === `drawing`) void this.openDrawing(el);
   }
 
-  // Double click on the empty page: in a dotted zone it opens the drawing of that zone, creating it the first time.
-  protected onEmptyActivate(p: Point): void {
-    const index = slotIndexAt(this.slots, p);
-    if (index < 0) return;
-    const frame = this.frameOfSlot(index);
-    if (frame) void this.openDrawing(frame);
-    else void this.openNewDrawing(index);
+  // Returns the guide that the drawing of a frame shows: the proportions and the shape of its zone, or of the frame itself when it has no zone.
+  private guideOf(frame: DrawingElement): DrawingGuide | null {
+    const zone = frame.slot !== undefined ? this.slots[frame.slot] : undefined;
+    return zone ? makeGuide(zone.width, zone.height, zone.shape) : makeGuide(frame.width, frame.height, frame.shape ?? `rect`);
   }
 
-  // Creates the drawing of an empty zone: a frame that fills the zone, its drawing note, and opens the note. Everything is one change that can be undone.
-  private async openNewDrawing(index: number): Promise<void> {
-    const slot = this.slots[index];
-    if (!slot) return;
-    try {
-      const file = await this.api.drawings.createDrawing(this.file ? this.file.basename : `Sketchnote`, this.doc.page.ink, this.doc.page.palette);
-      const frame: DrawingElement = { id: newId(this.doc.elements), type: `drawing`, x: slot.x, y: slot.y, width: slot.width, height: slot.height, slot: index, path: file.path };
-      this.selected = new Set([frame.id]);
-      this.commitElements([...this.doc.elements, frame]);
-      await this.openNote(file);
-    } catch (e) {
-      new Notice(t(`Impossible d'ouvrir le dessin : {0}`, e instanceof Error ? e.message : String(e)));
+  // Deletes the selection. A zone frame that holds a drawing becomes an empty zone again (the drawing note stays in the vault); an empty zone frame stays, because the
+  // zones belong to the structure; every other element is removed.
+  protected deleteSelection(): void {
+    if (this.selected.size === 0) return;
+    const elements: SketchElement[] = [];
+    for (const el of this.doc.elements) {
+      if (!this.selected.has(el.id)) {
+        elements.push(el);
+      } else if (el.type === `drawing` && el.slot !== undefined) {
+        const zone = this.slots[el.slot];
+        elements.push(el.path !== null && zone ? zoneFrame(zone, el.slot, el.id) : el);
+      }
     }
+    this.selected.clear();
+    this.commitElements(elements);
   }
 
   // Opens the drawing of a frame in its own tab. A frame without a drawing note gets a new one; a frame whose note is gone asks first.
@@ -212,11 +196,12 @@ export class SketchnoteView extends CanvasView<SketchnoteDoc> {
     try {
       const store = this.api.drawings;
       if (el.path === null) {
-        const file = await store.createDrawing(this.file ? this.file.basename : `Sketchnote`, this.doc.page.ink, this.doc.page.palette);
+        const file = await store.createDrawing(this.file ? this.file.basename : `Sketchnote`, this.doc.page.ink, this.doc.page.palette, this.guideOf(el));
         this.commitElements(this.doc.elements.map((e) => (e.id === el.id && e.type === `drawing` ? { ...e, path: file.path } : e)));
         await this.openNote(file);
       } else if (store.exists(el.path)) {
         const file = this.app.vault.getAbstractFileByPath(el.path);
+        await store.setGuide(el.path, this.guideOf(el));
         if (file instanceof TFile) await this.openNote(file);
       } else {
         new ConfirmModal(
@@ -236,7 +221,7 @@ export class SketchnoteView extends CanvasView<SketchnoteDoc> {
   private async recreateDrawing(el: DrawingElement): Promise<void> {
     if (el.path === null) return;
     try {
-      const file = await this.api.drawings.createDrawing(this.file ? this.file.basename : `Sketchnote`, this.doc.page.ink, this.doc.page.palette, el.path);
+      const file = await this.api.drawings.createDrawing(this.file ? this.file.basename : `Sketchnote`, this.doc.page.ink, this.doc.page.palette, this.guideOf(el), el.path);
       await this.openNote(file);
     } catch (e) {
       new Notice(t(`Impossible d'ouvrir le dessin : {0}`, e instanceof Error ? e.message : String(e)));

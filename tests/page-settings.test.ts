@@ -3,12 +3,15 @@ import assert from "node:assert/strict";
 import { createEmptyDoc, MAX_PAGE_SIZE, MIN_PAGE_SIZE, PageSettings } from "../src/file-format";
 import { changeBackground, changeInk, changeOrientation, changePalette, changePreset, changeSize, changeStyle, clampSize, detectPreset, presetSize } from "../src/page-settings";
 
-// Returns a fresh A4 portrait page.
-const page = (): PageSettings => createEmptyDoc().page;
+// Returns a fresh A4 portrait page (the base of the rules below).
+const page = (): PageSettings => ({ ...createEmptyDoc().page, width: 794, height: 1123, orientation: `portrait` });
 
-test(`la page par defaut est un A4 portrait`, () => {
-  assert.equal(detectPreset(page()), `a4`);
-  assert.equal(page().orientation, `portrait`);
+test(`la page par defaut d'un nouveau sketchnote est un A4 paysage`, () => {
+  const fresh = createEmptyDoc().page;
+  assert.equal(detectPreset(fresh), `a4`);
+  assert.equal(fresh.orientation, `landscape`);
+  assert.equal(fresh.width, 1123);
+  assert.equal(fresh.height, 794);
 });
 
 test(`chaque format garde sa taille en portrait et la retourne en paysage`, () => {

@@ -40,12 +40,12 @@ export interface SketchnoteDoc {
 
 export type ParseResult = { ok: true; doc: SketchnoteDoc } | { ok: false; error: string };
 
-// Returns a new document with an A4 portrait white page and no element.
+// Returns a new document with an A4 landscape white page and no element.
 export function createEmptyDoc(): SketchnoteDoc {
   return {
     format: FORMAT_NAME,
     version: FORMAT_VERSION,
-    page: { width: 794, height: 1123, orientation: `portrait`, background: `#ffffff`, pattern: `blank`, ink: `#000000`, palette: defaultPaletteFor(`#000000`) },
+    page: { width: 1123, height: 794, orientation: `landscape`, background: `#ffffff`, pattern: `blank`, ink: `#000000`, palette: defaultPaletteFor(`#000000`) },
     layout: null,
     elements: [],
   };

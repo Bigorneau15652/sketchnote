@@ -92,6 +92,8 @@ export interface DrawingElement extends BaseElement {
   height: number;
   angle?: number;
   slot?: number;
+  // The shape of the dotted outline shown while the frame is empty: the shape of its zone (a rectangle by default).
+  shape?: `rect` | `ellipse`;
   path: string | null;
 }
 
@@ -202,7 +204,9 @@ function readElement(value: unknown): SketchElement | null {
     const slotOk = value.slot === undefined || (typeof value.slot === `number` && Number.isInteger(value.slot) && value.slot >= 0 && value.slot <= MAX_SLOT);
     if (!slotOk) return null;
     const slot = value.slot === undefined ? {} : { slot: value.slot as number };
-    return { ...head, type, x, y, width, height, ...(angle === 0 ? {} : { angle }), ...slot, path };
+    if (value.shape !== undefined && value.shape !== `rect` && value.shape !== `ellipse`) return null;
+    const shape = value.shape === undefined ? {} : { shape: value.shape as `rect` | `ellipse` };
+    return { ...head, type, x, y, width, height, ...(angle === 0 ? {} : { angle }), ...slot, ...shape, path };
   }
   const { stroke, strokeWidth } = value;
   if (!isSafeColor(stroke)) return null;

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createEmptyDrawing, contentBox, fitInFrame, parseSketchdraw, renameReferences, serializeSketchdraw } from "../src/drawing-file";
+import { createEmptyDrawing, contentBox, fitInFrame, guideBox, makeGuide, parseSketchdraw, renameReferences, serializeSketchdraw } from "../src/drawing-file";
 import { SketchElement } from "../src/elements";
 import { cleanName, DEFAULT_SETTINGS, normalizeFolder, readSettings, uniqueDrawingPath } from "../src/settings";
 import { defaultPaletteFor, isPalette } from "../src/color";
@@ -109,4 +109,28 @@ test(`le renommage d'un dessin met a jour les cadres qui le montrent et rien d'a
 
 test(`le renommage ne touche jamais un fichier qu'il ne comprend pas`, () => {
   for (const bad of [``, `pas du json`, `[]`, `{"format":"autre","elements":[]}`, `{"format":"sketchnote"}`]) assert.equal(renameReferences(bad, `a.sketchdraw`, `b.sketchdraw`), null, bad);
+});
+
+test(`le guide a les proportions de la zone et tient dans la surface de dessin`, () => {
+  const wide = makeGuide(400, 100, `rect`);
+  assert.ok(wide && wide.width === 1000 && wide.height === 250 && wide.shape === `rect`);
+  const tall = makeGuide(100, 400, `ellipse`);
+  assert.ok(tall && tall.height === 640 && tall.width === 160 && tall.shape === `ellipse`);
+  const oval = makeGuide(147.8, 99, `ellipse`);
+  assert.ok(oval && Math.abs(oval.width / oval.height - 147.8 / 99) < 0.01);
+  for (const bad of [0, -5, NaN, Infinity]) assert.equal(makeGuide(bad, 100, `rect`), null, String(bad));
+  const box = guideBox({ shape: `rect`, width: 1000, height: 600 });
+  assert.equal(box.x + box.w / 2, 1200);
+  assert.equal(box.y + box.h / 2, 900);
+});
+
+test(`le guide d'un dessin s'ecrit, se relit et est controle`, () => {
+  const doc = createEmptyDrawing(`#000000`, undefined, { shape: `ellipse`, width: 900, height: 600 });
+  const r = parseSketchdraw(serializeSketchdraw(doc));
+  assert.equal(r.ok, true);
+  if (r.ok) assert.deepEqual(r.doc.guide, { shape: `ellipse`, width: 900, height: 600 });
+  assert.equal(`guide` in createEmptyDrawing(), false);
+  for (const bad of [{ shape: `star`, width: 100, height: 100 }, { shape: `rect`, width: 5, height: 100 }, { shape: `rect`, width: 100, height: 99999 }, { shape: `rect`, width: `100`, height: 100 }, `x`, []]) {
+    assert.equal(parseSketchdraw(JSON.stringify({ ...createEmptyDrawing(), guide: bad })).ok, false, JSON.stringify(bad));
+  }
 });

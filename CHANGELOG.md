@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.1
+
+English
+
+Corrections of the drawing zones. Every zone of a structure now has its own frame from the start: a single click selects the zone (with its frame and handles, to move and resize it), a double click opens its drawing, created the first time. An empty zone shows its dotted outline (an oval stays an oval). As soon as a zone holds a drawing, its dotted outline disappears; a click on the drawing selects it with a rectangular dotted frame around the drawing, which can be moved and enlarged beyond the original zone, and a double click opens the drawing again. The pencil pictograms are gone. In the drawing window, a large dotted guide is centred on the surface, with the shape and the proportions of the zone of the page (an oval zone gives an oval guide, a long horizontal rectangle gives the same rectangle); it only helps to draw and the drawing may go outside of it. Delete on a zone that holds a drawing makes it an empty zone again (the drawing note stays in the vault); an empty zone is not deleted, because the zones belong to the structure. Adding a zone with the plus button adds its frame and keeps the other zones and their drawings in place; an empty zone keeps filling its zone when the page size changes. A page made by an earlier version gets the missing zone frames when it is opened. New pages are now A4 landscape. Files of the previous versions open without change.
+
+Français
+
+Corrections des zones de dessin. Chaque zone d'une structure a maintenant son propre cadre dès le départ : un seul clic sélectionne la zone (avec son cadre et ses poignées, pour la déplacer et la redimensionner), un double clic ouvre son dessin, créé la première fois. Une zone vide montre son pointillé (un ovale reste un ovale). Dès qu'une zone contient un dessin, son pointillé disparaît ; un clic sur le dessin le sélectionne avec un cadre rectangulaire en pointillé autour du dessin, que l'on peut déplacer et agrandir au-delà de la zone d'origine, et un double clic ouvre à nouveau le dessin. Les pictogrammes crayon disparaissent. Dans la fenêtre de dessin, un grand guide en pointillé est centré sur la surface, avec la forme et les proportions de la zone de la page (une zone ovale donne un guide ovale, un long rectangle horizontal donne le même rectangle) ; il aide seulement à dessiner et le dessin peut en sortir. Suppr sur une zone qui contient un dessin la remet en zone vide (la note de dessin reste dans le coffre) ; une zone vide n'est pas supprimée, car les zones appartiennent à la structure. Ajouter une zone avec le bouton plus ajoute son cadre et laisse les autres zones et leurs dessins en place ; une zone vide continue de remplir sa zone quand la taille de la page change. Une page faite par une version précédente reçoit à l'ouverture les cadres de zones qui lui manquent. Les nouvelles pages sont maintenant en A4 paysage. Les fichiers des versions précédentes s'ouvrent sans changement.
+
 ## 0.6.0
 
 English
