@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.1
+
+English
+
+Correction of the colour window. When the colour was black (or white), the wheel and the bars of the hue and the saturation were drawn in black (or white) too, so nothing could be chosen. The wheel and the bars are now always in full colour, whatever the luminance. Choosing a hue or a saturation (on the wheel or with the bars and fields) while the luminance is at the very bottom or the very top puts the luminance back to the middle, so that the colour appears; the luminance slider still goes down to black and up to white. Files of the previous versions open without change.
+
+Français
+
+Correction de la fenêtre de couleur. Quand la couleur était noire (ou blanche), le cercle et les barres de teinte et de saturation étaient dessinés en noir (ou en blanc) eux aussi, si bien que l'on ne pouvait plus rien choisir. Le cercle et les barres sont maintenant toujours en pleine couleur, quelle que soit la luminance. Choisir une teinte ou une saturation (sur le cercle, avec les barres ou les champs) alors que la luminance est tout en bas ou tout en haut remet la luminance au milieu, pour que la couleur apparaisse ; le curseur de luminance descend toujours jusqu'au noir et monte jusqu'au blanc. Les fichiers des versions précédentes s'ouvrent sans changement.
+
 ## 0.12.0
 
 English

@@ -90,3 +90,9 @@ export function hsToWheel(h: number, s: number, radius: number): [number, number
 // The luminance slider goes from -100 to 100 with 0 in the middle (the pure colour), like the sliders of photo editors; the luminance is 0 to 100 with 50 in the middle.
 export const sliderToLuminance = (v: number): number => clamp(50 + v / 2, 0, 100);
 export const luminanceToSlider = (l: number): number => Math.round(clamp((l - 50) * 2, -100, 100));
+
+// Returns the luminance to use when the user chooses a hue or a saturation: a colour at the very bottom (black) or the very top (white) of the luminance shows neither a hue nor
+// a saturation, so the luminance goes back to the middle, where the colours are pure. Any other luminance is kept.
+export function usableLuminance(l: number): number {
+  return l < 4 || l > 96 ? 50 : l;
+}
