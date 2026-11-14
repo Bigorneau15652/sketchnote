@@ -1,4 +1,4 @@
-// The colour window: a colour wheel (the hue is the angle, the saturation is the distance from the centre), sliders and fields for the hue, the saturation and the luminance,
+// The colour window: a single colour wheel (the hue is the angle, the saturation is the distance from the centre, and a small triangle on the edge shows the hue), sliders and fields for the hue, the saturation and the luminance,
 // a field for the hexadecimal code and an eyedropper that takes a colour anywhere on the screen. Every button is a pictogram whose name is its tooltip. The colour is
 // given back only when the check mark is used.
 import { App, Modal, setIcon, Setting } from "obsidian";
@@ -6,10 +6,10 @@ import { t } from "./i18n";
 import { Hsl, hexToHsl, hslToHex, hslToRgb, hsToWheel, luminanceToSlider, normalizeHex, sliderToLuminance, wheelToHs } from "./hsl";
 import { toHex6 } from "./page-background";
 
-// Size of the wheel in pixels, and the part of its radius that the ring of pure hues takes.
+// Size of the wheel in pixels, and the part of its radius that the colours fill: the margin around is where the triangle of the hue turns.
 const SIZE = 240;
 const RADIUS = SIZE / 2;
-const RING = 0.88;
+const DISC = 0.88;
 
 // The eyedropper of the browser, present on the computer versions of Obsidian.
 type EyeDropperCtor = new () => { open(): Promise<{ sRGBHex: string }> };
@@ -126,7 +126,7 @@ export class ColorModal extends Modal {
     this.numbers[key] = number;
   }
 
-  // Follows the pointer on the wheel: a press on the ring of pure hues sets the hue only, a press inside sets the hue and the saturation.
+  // Follows the pointer on the wheel: a press on the colours sets the hue and the saturation, a press in the margin around them (where the triangle turns) sets the hue only.
   private listenWheel(canvas: HTMLCanvasElement): void {
     let mode: `ring` | `disc` | null = null;
     const at = (e: PointerEvent): void => {
@@ -134,7 +134,7 @@ export class ColorModal extends Modal {
       const k = SIZE / Math.max(1, box.width);
       const dx = (e.clientX - box.left) * k - RADIUS;
       const dy = (e.clientY - box.top) * k - RADIUS;
-      const { h, s } = wheelToHs(dx, dy, RADIUS * RING);
+      const { h, s } = wheelToHs(dx, dy, RADIUS * DISC);
       if (mode === `ring`) this.set({ ...this.hsl, h });
       else this.set({ ...this.hsl, h, s });
     };
@@ -142,7 +142,7 @@ export class ColorModal extends Modal {
       const box = canvas.getBoundingClientRect();
       const k = SIZE / Math.max(1, box.width);
       const r = Math.hypot((e.clientX - box.left) * k - RADIUS, (e.clientY - box.top) * k - RADIUS);
-      mode = r > RADIUS * RING ? `ring` : `disc`;
+      mode = r > RADIUS * DISC ? `ring` : `disc`;
       canvas.setPointerCapture(e.pointerId);
       at(e);
     });
@@ -180,7 +180,7 @@ export class ColorModal extends Modal {
       this.drawnLuminance = Math.round(l);
       this.drawWheel(this.wheel, l);
     }
-    const [hx, hy] = hsToWheel(h, s, RADIUS * RING);
+    const [hx, hy] = hsToWheel(h, s, RADIUS * DISC);
     const hex = hslToHex(this.hsl);
     if (this.handle) {
       this.handle.style.left = `${((RADIUS + hx) / SIZE) * 100}%`;
@@ -188,9 +188,11 @@ export class ColorModal extends Modal {
       this.handle.style.background = hex;
     }
     if (this.tick) {
-      const [tx, ty] = hsToWheel(h, 100, (RADIUS * (RING + 1)) / 2);
+      // The triangle sits just outside the edge of the colours and points to the centre.
+      const [tx, ty] = hsToWheel(h, 100, RADIUS * DISC + 10);
       this.tick.style.left = `${((RADIUS + tx) / SIZE) * 100}%`;
       this.tick.style.top = `${((RADIUS + ty) / SIZE) * 100}%`;
+      this.tick.style.transform = `rotate(${90 - h}deg)`;
     }
     const values = { hue: Math.round(h) % 360, sat: Math.round(s), lum: luminanceToSlider(l) };
     for (const key of [`hue`, `sat`, `lum`] as const) {
@@ -209,20 +211,20 @@ export class ColorModal extends Modal {
     if (this.fresh) this.fresh.style.background = hex;
   }
 
-  // Draws the colour wheel at a luminance: pure hues on the ring, and inside the hue (angle) and the saturation (distance) at that luminance.
+  // Draws the colour wheel at a luminance: the hue (angle) and the saturation (distance) at that luminance.
   private drawWheel(canvas: HTMLCanvasElement, luminance: number): void {
     const ctx = canvas.getContext(`2d`);
     if (!ctx) return;
     const image = ctx.createImageData(SIZE, SIZE);
-    const disc = RADIUS * RING;
+    const disc = RADIUS * DISC;
     for (let y = 0; y < SIZE; y++) {
       for (let x = 0; x < SIZE; x++) {
         const dx = x + 0.5 - RADIUS;
         const dy = y + 0.5 - RADIUS;
         const r = Math.hypot(dx, dy);
-        if (r > RADIUS) continue;
+        if (r > disc) continue;
         const { h, s } = wheelToHs(dx, dy, disc);
-        const rgb = r > disc ? hslToRgb({ h, s: 100, l: 50 }) : hslToRgb({ h, s, l: luminance });
+        const rgb = hslToRgb({ h, s, l: luminance });
         const at = (y * SIZE + x) * 4;
         image.data[at] = rgb[0];
         image.data[at + 1] = rgb[1];

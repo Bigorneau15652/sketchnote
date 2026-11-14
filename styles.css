@@ -381,8 +381,7 @@
   cursor: crosshair;
 }
 
-.sketchnote-wheel-handle,
-.sketchnote-wheel-tick {
+.sketchnote-wheel-handle {
   position: absolute;
   width: 16px;
   height: 16px;
@@ -393,10 +392,17 @@
   pointer-events: none;
 }
 
+/* A small triangle on the edge of the wheel that points to the centre and shows the hue. */
 .sketchnote-wheel-tick {
-  width: 8px;
-  height: 8px;
-  margin: -4px 0 0 -4px;
+  position: absolute;
+  width: 0;
+  height: 0;
+  margin: -7px 0 0 -7px;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 14px solid #ffffff;
+  filter: drop-shadow(0 0 1px #000000) drop-shadow(0 0 1px #000000);
+  pointer-events: none;
 }
 
 .sketchnote-color-row {
