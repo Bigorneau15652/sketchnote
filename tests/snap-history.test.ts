@@ -129,7 +129,7 @@ test(`la structure est detectee comme modifiee des qu'un de ses traits a bouge`,
   // A content element changes nothing.
   const withContent = { ...doc, elements: [...doc.elements, rect(`u1`, 3, 3)] };
   assert.equal(structureEdited(withContent), false);
-  assert.equal(buildStructure(doc.layout!, doc.page).elements.length, doc.elements.length);
+  assert.equal(buildStructure(doc.layout!, doc.page).elements.length, doc.elements.filter((e) => e.group === `structure`).length);
 });
 
 test(`une structure non modifiee n'est pas vue comme modifiee apres ecriture et relecture du fichier`, () => {

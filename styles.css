@@ -158,26 +158,6 @@
 }
 
 
-/* Empty frame of a drawing on a page: a dashed frame with a hint. It is a guide, drawn in the page colours of the theme. */
-.sketchnote-frame-empty {
-  fill: rgba(127, 127, 127, 0.06);
-  stroke: rgba(127, 127, 127, 0.7);
-  stroke-width: 2;
-  stroke-dasharray: 10 8;
-}
-
-.sketchnote-frame-pencil {
-  fill: none;
-  stroke: rgba(127, 127, 127, 0.9);
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.sketchnote-frame-pencil.is-loading {
-  opacity: 0.45;
-}
-
 /* Toolbar of the drawing view, on the right: the tools, then the properties of the lines and fills. */
 .sketchdraw-side {
   flex: 0 0 auto;

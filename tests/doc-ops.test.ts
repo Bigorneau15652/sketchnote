@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { applySettings } from "../src/doc-ops";
 import { SketchElement } from "../src/elements";
 import { createEmptyDoc, SketchnoteDoc } from "../src/file-format";
-import { defaultLayout } from "../src/layout";
+import { buildStructure, defaultLayout } from "../src/layout";
 import { changeInk, changeSize, changeStyle } from "../src/page-settings";
 
 // A content element drawn by the user: it must never be touched by the structure.
@@ -12,13 +12,16 @@ const mine: SketchElement = { id: `u1`, type: `rect`, x: 10, y: 10, width: 50, h
 // Returns an empty document that holds one content element.
 const withContent = (): SketchnoteDoc => ({ ...createEmptyDoc(), elements: [mine] });
 
-test(`choisir une structure ajoute ses elements derriere les contenus`, () => {
+test(`choisir une structure ajoute ses traits derriere les contenus et un cadre pour chaque zone devant`, () => {
   const doc = withContent();
   const next = applySettings(doc, doc.page, defaultLayout(`linear`));
   assert.deepEqual(next.layout, defaultLayout(`linear`));
-  assert.ok(next.elements.length > 1);
-  assert.deepEqual(next.elements[next.elements.length - 1], mine);
-  assert.ok(next.elements.slice(0, -1).every((e) => e.group === `structure`));
+  const at = next.elements.indexOf(mine);
+  assert.ok(at > 0, `content is kept`);
+  assert.ok(next.elements.slice(0, at).every((e) => e.group === `structure`));
+  const frames = next.elements.filter((e) => e.type === `drawing`);
+  assert.equal(frames.length, buildStructure(defaultLayout(`linear`), next.page).slots.length);
+  assert.ok(frames.every((f) => f.type === `drawing` && f.path === null && f.slot !== undefined));
 });
 
 test(`retirer la structure supprime ses elements et garde les contenus`, () => {
@@ -54,7 +57,7 @@ test(`changer le trait par defaut recolore la structure sans la refaire`, () => 
   const b = applySettings(a, changeInk(a.page, `#00aa00`), a.layout);
   assert.equal(b.elements.length, a.elements.length);
   for (const e of b.elements) if (e.group === `structure`) assert.equal(e.stroke, `#00aa00`);
-  assert.deepEqual(b.elements[b.elements.length - 1], mine);
+  assert.deepEqual(b.elements.find((e) => e.id === mine.id), mine);
 });
 
 test(`passer au tableau noir donne une structure blanche`, () => {
@@ -75,5 +78,5 @@ test(`un element de l'utilisateur de la meme couleur que le trait n'est pas reco
   const doc: SketchnoteDoc = { ...createEmptyDoc(), elements: [{ ...mine, stroke: `#000000` }] };
   const a = applySettings(doc, doc.page, defaultLayout(`linear`));
   const b = applySettings(a, changeInk(a.page, `#123456`), a.layout);
-  assert.equal(b.elements[b.elements.length - 1].stroke, `#000000`);
+  assert.equal((b.elements.find((e) => e.id === mine.id) as { stroke: string }).stroke, `#000000`);
 });

@@ -1,6 +1,6 @@
 // The drawing notes of the vault: creating, copying, loading and keeping up to date the .sketchdraw files, and following their renaming.
 import { App, TFile, TAbstractFile } from "obsidian";
-import { createEmptyDrawing, parseSketchdraw, renameReferences, serializeSketchdraw, SketchdrawDoc } from "./drawing-file";
+import { createEmptyDrawing, DrawingGuide, parseSketchdraw, renameReferences, serializeSketchdraw, SketchdrawDoc } from "./drawing-file";
 import { uniqueDrawingPath } from "./settings";
 
 export class DrawingStore {
@@ -87,13 +87,29 @@ export class DrawingStore {
   }
 
   // Creates an empty drawing note in the folder of the drawings, with the ink and the palette of the page, and returns its file.
-  async createDrawing(sketchnoteName: string, ink: string, palette: string[], path?: string): Promise<TFile> {
+  async createDrawing(sketchnoteName: string, ink: string, palette: string[], guide: DrawingGuide | null, path?: string): Promise<TFile> {
     await this.ensureFolder(this.folder());
     const target = path ?? this.freePath(sketchnoteName);
-    const doc = createEmptyDrawing(ink, palette);
+    const doc = createEmptyDrawing(ink, palette, guide ?? undefined);
     const file = await this.app.vault.create(target, serializeSketchdraw(doc));
     this.cache.set(file.path, doc);
     return file;
+  }
+
+  // Gives a drawing note the guide of its zone (the proportions of the zone of the page), when that changed. The note is only written when the guide is different.
+  async setGuide(path: string, guide: DrawingGuide | null): Promise<void> {
+    const file = this.app.vault.getAbstractFileByPath(path);
+    if (!(file instanceof TFile) || guide === null) return;
+    try {
+      await this.app.vault.process(file, (data) => {
+        const result = parseSketchdraw(data);
+        const old = result.ok ? result.doc.guide : undefined;
+        if (!result.ok || (old && old.shape === guide.shape && old.width === guide.width && old.height === guide.height)) return data;
+        return serializeSketchdraw({ ...result.doc, guide });
+      });
+    } catch {
+      // The note cannot be rewritten now: it keeps its old guide.
+    }
   }
 
   // Copies a drawing note to a new note and returns the path of the copy, or null when the original cannot be read.

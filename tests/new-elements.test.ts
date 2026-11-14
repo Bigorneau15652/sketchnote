@@ -51,3 +51,11 @@ test(`les graines sont stables, differentes et valides`, () => {
     assert.ok(Number.isInteger(s) && s >= 1 && s <= 2147483647);
   }
 });
+
+test(`la forme du pointille d'un cadre est lue et controlee`, () => {
+  const make = (shape: unknown): unknown[] => [{ id: `c`, type: `drawing`, x: 0, y: 0, width: 10, height: 10, shape, path: null }];
+  assert.equal(readElements(make(`ellipse`)).ok, true);
+  assert.equal(readElements(make(`rect`)).ok, true);
+  assert.equal(readElements(make(undefined)).ok, true);
+  for (const bad of [`star`, 3, null]) assert.equal(readElements(make(bad)).ok, false, String(bad));
+});

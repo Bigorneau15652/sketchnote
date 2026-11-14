@@ -3,10 +3,10 @@
 import { setIcon, WorkspaceLeaf } from "obsidian";
 import { CanvasView, Tool } from "./canvas-view";
 import { toHex6 } from "./page-background";
-import { CANVAS_HEIGHT, CANVAS_WIDTH, contentBox, createEmptyDrawing, parseSketchdraw, serializeSketchdraw, SketchdrawDoc } from "./drawing-file";
-import { drawElements } from "./element-render";
+import { CANVAS_HEIGHT, CANVAS_WIDTH, contentBox, createEmptyDrawing, guideBox, parseSketchdraw, serializeSketchdraw, SketchdrawDoc } from "./drawing-file";
+import { drawElements, PLAIN } from "./element-render";
 import { SketchElement } from "./elements";
-import { Box } from "./geometry";
+import { Box, unionBox as unionBoxes } from "./geometry";
 import { brightness } from "./page-background";
 import { t } from "./i18n";
 import { PluginApi } from "./plugin-api";
@@ -87,14 +87,17 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     return { w: CANVAS_WIDTH, h: CANVAS_HEIGHT };
   }
 
-  // The part of the surface that fit shows: the drawing with a margin, at least 1000 by 700, or the middle of the surface when the drawing is empty.
+  // The part of the surface that fit shows: the guide of the zone (or the middle of the surface) and the drawing, with a margin, at least 1000 by 700 on a large window.
   protected fitBox(): Box {
-    const b = contentBox(this.doc, 40);
+    const content = contentBox(this.doc, 40);
+    const g = this.doc.guide ? guideBox(this.doc.guide) : null;
+    const guide = g ? { x: g.x - 60, y: g.y - 60, w: g.w + 120, h: g.h + 120 } : null;
+    const parts = [content, guide].filter((b): b is Box => b !== null);
+    const b = parts.length === 0 ? { x: CANVAS_WIDTH / 2 - 500, y: CANVAS_HEIGHT / 2 - 350, w: 1000, h: 700 } : unionBoxes(parts) as Box;
     // On a narrow window (a phone) the area shown is smaller, so that the drawing does not start at a tiny zoom.
     const s = this.scroller;
     const minW = s && s.clientWidth > 0 ? Math.min(1000, Math.max(320, s.clientWidth / 0.6)) : 1000;
     const minH = s && s.clientHeight > 0 ? Math.min(700, Math.max(220, s.clientHeight / 0.6)) : 700;
-    if (!b) return { x: CANVAS_WIDTH / 2 - minW / 2, y: CANVAS_HEIGHT / 2 - minH / 2, w: minW, h: minH };
     const w = Math.max(b.w, minW);
     const h = Math.max(b.h, minH);
     return { x: b.x + b.w / 2 - w / 2, y: b.y + b.h / 2 - h / 2, w, h };
@@ -102,11 +105,11 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
 
   // The surface is dark when the ink is light, so that a white drawing made for a chalkboard stays visible.
   protected renderSurface(zoom: number): RenderedPage {
-    return renderCanvas(CANVAS_WIDTH, CANVAS_HEIGHT, zoom, brightness(this.doc.ink) > 0.5);
+    return renderCanvas(CANVAS_WIDTH, CANVAS_HEIGHT, zoom, brightness(this.doc.ink) > 0.5, this.doc.guide ?? null);
   }
 
   protected drawContent(group: SVGElement): void {
-    drawElements(this.doc.elements, group, null);
+    drawElements(this.doc.elements, group, PLAIN);
   }
 
   protected creationTools(): CreationTool[] {

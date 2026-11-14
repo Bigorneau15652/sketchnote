@@ -2,8 +2,6 @@
 // Everything is drawn with the DOM into the group `ui` of the page and styled by CSS classes; none of it is part of the drawing.
 import type { SketchElement } from "./elements";
 import { Box, boxCorners, boxOf, centerOf, elementBounds, ROTATE_OFFSET, rotateHandlePos, rotatePoint, unionBox } from "./geometry";
-import type { Slot } from "./layout";
-import { slotStyle } from "./page-background";
 import { svgEl } from "./svg";
 
 export interface UiState {
@@ -16,8 +14,6 @@ export interface UiState {
   // Positions of the magnetism guide lines.
   guideX: number[];
   guideY: number[];
-  // The dotted zones of a page structure, and which ones already hold a drawing (the others show a pencil that invites a double click).
-  zones: { slots: Slot[]; occupied: boolean[]; background: string } | null;
 }
 
 // Empties a group.
@@ -35,41 +31,10 @@ function padded(box: Box, pad: number): Box {
   return { x: box.x - pad, y: box.y - pad, w: box.w + 2 * pad, h: box.h + 2 * pad };
 }
 
-// Path of the pencil pictogram, on a 24 by 24 grid.
-const PENCIL = `M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z M15 5l4 4`;
-
-// Draws the dotted zones of a structure, with a pencil in the empty ones. They help to place the drawings while editing and are never part of the page.
-function drawZones(ui: Element, zones: NonNullable<UiState[`zones`]>): void {
-  const style = slotStyle(zones.background);
-  const look = { fill: style.color, "fill-opacity": style.fillOpacity, stroke: style.color, "stroke-opacity": style.strokeOpacity, "stroke-width": 1.5, "stroke-dasharray": `8 6` };
-  zones.slots.forEach((s, i) => {
-    if (s.shape === `ellipse`) svgEl(`ellipse`, { cx: s.x + s.width / 2, cy: s.y + s.height / 2, rx: s.width / 2, ry: s.height / 2, ...look }, ui);
-    else svgEl(`rect`, { x: s.x, y: s.y, width: s.width, height: s.height, rx: 6, ...look }, ui);
-    if (zones.occupied[i]) return;
-    const size = Math.max(22, Math.min(48, Math.min(s.width, s.height) * 0.3));
-    const k = size / 24;
-    svgEl(
-      `path`,
-      {
-        d: PENCIL,
-        transform: `translate(${s.x + s.width / 2 - size / 2} ${s.y + s.height / 2 - size / 2}) scale(${k})`,
-        fill: `none`,
-        stroke: style.color,
-        "stroke-opacity": Math.min(1, style.strokeOpacity + 0.15),
-        "stroke-width": 1.6,
-        "stroke-linecap": `round`,
-        "stroke-linejoin": `round`,
-      },
-      ui,
-    );
-  });
-}
-
 // Draws the overlay into the group. One selected element gets its frame, four corner handles and a rotation handle; several get one frame around all of them.
 export function drawUi(ui: Element, st: UiState): void {
   clear(ui);
   const z = st.zoom;
-  if (st.zones) drawZones(ui, st.zones);
   for (const x of st.guideX) svgEl(`line`, { class: `sketchnote-snap-guide`, x1: x, y1: 0, x2: x, y2: st.pageHeight }, ui);
   for (const y of st.guideY) svgEl(`line`, { class: `sketchnote-snap-guide`, x1: 0, y1: y, x2: st.pageWidth, y2: y }, ui);
   if (st.selected.length === 1) {
