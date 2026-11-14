@@ -1,10 +1,6 @@
-// The effects of an element that the panel offers as choices: the shadows (a few presets), the opacity, the reflection, the line style and the border. Pure module.
+// The effects of an element that the panel offers as choices: the shadow, the opacity, the reflection, the line style and the border. Pure module.
 import type { Border, LineStyle, Shadow } from "./elements";
 import { MIN_OPACITY } from "./elements";
-
-// The shadows the menu offers. `custom` is a shadow read from a file that matches none of them.
-export type ShadowKind = `none` | `soft` | `strong` | `offset` | `custom`;
-export const SHADOW_KINDS: ShadowKind[] = [`none`, `soft`, `strong`, `offset`];
 
 // A border as a choice of the menu: `simple` is no particular border (a plain line).
 export type BorderKind = `simple` | Border;
@@ -13,25 +9,30 @@ export const BORDER_KINDS: BorderKind[] = [`simple`, `none`, `double`, `double-r
 // The corners of a rectangle as the buttons offer them: square, slightly rounded, rounded and very rounded (as round as the shortest side allows).
 export const CORNER_RADII = { square: 0, slight: 14, round: 40, pill: 1000 };
 
-const PRESETS: Record<`soft` | `strong` | `offset`, Shadow> = {
-  soft: { x: 4, y: 6, blur: 10, color: `#000000`, opacity: 0.3 },
-  strong: { x: 6, y: 10, blur: 16, color: `#000000`, opacity: 0.55 },
-  offset: { x: 8, y: 8, blur: 0, color: `#000000`, opacity: 0.4 },
-};
+// The shadow is set by two sliders: its size (0 for no shadow) and its strength. The size gives the distance of the shadow (down and to the right) and its blur together.
+export const SHADOW_MAX = 40;
+export const DEFAULT_SHADOW_OPACITY = 0.4;
+// The reflection: its depth (the part of the height of the element that it takes) and how much it fades, with the values that an element has when it does not say.
+export const DEFAULT_REFLECT_DEPTH = 0.6;
+export const DEFAULT_REFLECT_FADE = 1;
 
-// Returns the shadow of a preset, or undefined for no shadow.
-export function shadowOf(kind: ShadowKind): Shadow | undefined {
-  return kind === `soft` || kind === `strong` || kind === `offset` ? { ...PRESETS[kind] } : undefined;
+const tenth = (n: number): number => Math.round(n * 10) / 10;
+
+// Returns the shadow for a size and a strength, or undefined when the size is 0. A size of 8 gives the soft shadow (4 right, 6 down, a blur of about 10).
+export function shadowFrom(size: number, opacity: number): Shadow | undefined {
+  const k = Math.min(SHADOW_MAX, Math.max(0, size));
+  if (k <= 0) return undefined;
+  return { x: tenth(k * 0.5), y: tenth(k * 0.75), blur: tenth(k * 1.2), color: `#000000`, opacity: Math.min(1, Math.max(0.05, Math.round(opacity * 100) / 100)) };
 }
 
-// Returns which preset a shadow is: none when there is no shadow, `custom` when it matches none of them.
-export function kindOfShadow(shadow: Shadow | undefined): ShadowKind {
-  if (!shadow) return `none`;
-  for (const kind of [`soft`, `strong`, `offset`] as const) {
-    const p = PRESETS[kind];
-    if (p.x === shadow.x && p.y === shadow.y && p.blur === shadow.blur && p.opacity === shadow.opacity && p.color.toLowerCase() === shadow.color.toLowerCase()) return kind;
-  }
-  return `custom`;
+// Returns the size of a shadow, as the slider shows it (0 for no shadow).
+export function shadowSizeOf(shadow: Shadow | undefined): number {
+  return shadow ? Math.min(SHADOW_MAX, Math.max(1, Math.round(shadow.y / 0.75))) : 0;
+}
+
+// Returns the strength of a shadow, or the usual one when there is no shadow.
+export function shadowOpacityOf(shadow: Shadow | undefined): number {
+  return shadow ? shadow.opacity : DEFAULT_SHADOW_OPACITY;
 }
 
 // Brings an opacity into the range an element accepts, rounded to a hundredth.
@@ -42,13 +43,22 @@ export function cleanOpacity(value: number): number {
 // The fields of effects that a style gives to a new element: only the ones that differ from the defaults, so that a plain element stays as short as before.
 export interface StyleEffects {
   opacity: number;
-  shadow: ShadowKind;
+  shadowSize: number;
+  shadowOpacity: number;
   reflection: boolean;
+  reflectionDepth: number;
+  reflectionFade: number;
 }
 
-export function effectFields(style: StyleEffects): { opacity?: number; shadow?: Shadow; reflection?: true } {
-  const shadow = shadowOf(style.shadow);
-  return { ...(style.opacity < 1 ? { opacity: cleanOpacity(style.opacity) } : {}), ...(shadow ? { shadow } : {}), ...(style.reflection ? { reflection: true as const } : {}) };
+export function effectFields(style: StyleEffects): { opacity?: number; shadow?: Shadow; reflection?: true; reflectDepth?: number; reflectFade?: number } {
+  const shadow = shadowFrom(style.shadowSize, style.shadowOpacity);
+  return {
+    ...(style.opacity < 1 ? { opacity: cleanOpacity(style.opacity) } : {}),
+    ...(shadow ? { shadow } : {}),
+    ...(style.reflection ? { reflection: true as const } : {}),
+    ...(style.reflection && style.reflectionDepth !== DEFAULT_REFLECT_DEPTH ? { reflectDepth: style.reflectionDepth } : {}),
+    ...(style.reflection && style.reflectionFade !== DEFAULT_REFLECT_FADE ? { reflectFade: style.reflectionFade } : {}),
+  };
 }
 
 // Returns the line style field of a new element: only when it is not continuous.

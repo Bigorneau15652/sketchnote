@@ -16,7 +16,8 @@ export const MAX_FREEDRAW_POINTS = 5000;
 const MAX_COORD = 100000;
 const MIN_STROKE = 0.5;
 const MAX_STROKE = 40;
-const MAX_ROUGHNESS = 3;
+// The most imperfect the hand drawn look can be: the roughness of an element goes from 0 (a clean line) to this.
+export const MAX_ROUGHNESS = 3;
 const MAX_SEED = 2147483647;
 const MAX_PATH_LENGTH = 512;
 export const MIN_FILL_OPACITY = 0.05;
@@ -51,6 +52,10 @@ interface BaseElement {
   flipY?: boolean;
   // A faded copy of the element, upside down, under it.
   reflection?: boolean;
+  // How tall the reflection is, as a part of the height of the element (0.1 to 1, 0.6 when absent), and how much it fades away (0 for no fade, 1 for a fade to nothing, which is
+  // the default).
+  reflectDepth?: number;
+  reflectFade?: number;
   // Elements made by a page structure carry the group `structure`: choosing another structure replaces them.
   group?: `structure`;
   // The groups the element belongs to, from the innermost to the outermost (a group can hold other groups). A group is selected, moved, resized and turned as one
@@ -82,6 +87,8 @@ export interface LineElement extends BaseElement, Strokes {
   rounded?: boolean;
   // A text in the middle of the line, which cuts the line around it so that it can be read.
   label?: ShapeLabel;
+  // How much the line is tapered: 0 for a line of constant width (absent), up to 1 for a line that is as wide as set at its start and ends in a point at its end.
+  taper?: number;
 }
 
 // An arrow has the heads of its two ends. When they are absent the start has none and the end has an open arrow head.
@@ -90,6 +97,7 @@ export interface ArrowElement extends BaseElement, Strokes {
   points: Point[];
   rounded?: boolean;
   label?: ShapeLabel;
+  taper?: number;
   startHead?: Head;
   endHead?: Head;
 }
@@ -129,6 +137,18 @@ export interface EllipseElement extends BaseElement, Strokes, Fills {
   cy: number;
   rx: number;
   ry: number;
+  angle?: number;
+  border?: Border;
+  label?: ShapeLabel;
+}
+
+// An isosceles triangle in its box: the apex is in the middle of the top side, the base is the bottom side.
+export interface TriangleElement extends BaseElement, Strokes, Fills {
+  type: `triangle`;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
   angle?: number;
   border?: Border;
   label?: ShapeLabel;
@@ -192,7 +212,7 @@ export function isFontId(value: unknown): value is string {
 }
 
 export type PointsElement = LineElement | ArrowElement | FreedrawElement;
-export type ShapeElement = RectElement | EllipseElement | DiamondElement;
+export type ShapeElement = RectElement | EllipseElement | DiamondElement | TriangleElement;
 export type StrokedElement = PointsElement | ShapeElement;
 export type SketchElement = StrokedElement | DrawingElement | TextElement;
 
@@ -210,7 +230,7 @@ export function isStroked(el: SketchElement): el is StrokedElement {
 
 // Tells whether an element is a shape with an inside: a rectangle, an ellipse or a diamond.
 export function isShape(el: SketchElement): el is ShapeElement {
-  return el.type === `rect` || el.type === `ellipse` || el.type === `diamond`;
+  return el.type === `rect` || el.type === `ellipse` || el.type === `diamond` || el.type === `triangle`;
 }
 
 // Tells whether a value is a plain object (not null, not an array).
@@ -295,8 +315,16 @@ function readFill(value: Record<string, unknown>): { fill?: string; fillStyle?: 
 }
 
 // Reads the optional effects shared by every element (opacity, shadow, mirror, reflection). Returns null when a field is present and wrong, otherwise the fields present.
-function readEffects(value: Record<string, unknown>): Pick<BaseElement, `opacity` | `shadow` | `flipX` | `flipY` | `reflection`> | null {
-  const out: Pick<BaseElement, `opacity` | `shadow` | `flipX` | `flipY` | `reflection`> = {};
+function readEffects(value: Record<string, unknown>): Pick<BaseElement, `opacity` | `shadow` | `flipX` | `flipY` | `reflection` | `reflectDepth` | `reflectFade`> | null {
+  const out: Pick<BaseElement, `opacity` | `shadow` | `flipX` | `flipY` | `reflection` | `reflectDepth` | `reflectFade`> = {};
+  if (value.reflectDepth !== undefined) {
+    if (typeof value.reflectDepth !== `number` || !Number.isFinite(value.reflectDepth) || value.reflectDepth < 0.1 || value.reflectDepth > 1) return null;
+    if (value.reflectDepth !== 0.6) out.reflectDepth = value.reflectDepth;
+  }
+  if (value.reflectFade !== undefined) {
+    if (typeof value.reflectFade !== `number` || !Number.isFinite(value.reflectFade) || value.reflectFade < 0 || value.reflectFade > 1) return null;
+    if (value.reflectFade !== 1) out.reflectFade = value.reflectFade;
+  }
   if (value.opacity !== undefined) {
     if (typeof value.opacity !== `number` || !Number.isFinite(value.opacity) || value.opacity < MIN_OPACITY || value.opacity > 1) return null;
     if (value.opacity < 1) out.opacity = value.opacity;
@@ -394,9 +422,11 @@ function readElement(value: unknown): SketchElement | null {
     const lineLabel = readLabel(value.label);
     if (lineLabel === null) return null;
     const labelField = lineLabel ? { label: lineLabel } : {};
+    if (value.taper !== undefined && (typeof value.taper !== `number` || !Number.isFinite(value.taper) || value.taper < 0 || value.taper > 1)) return null;
+    const taperField = typeof value.taper === `number` && value.taper > 0 ? { taper: value.taper } : {};
     if (value.rounded !== undefined && typeof value.rounded !== `boolean`) return null;
     const rounded = value.rounded === true ? { rounded: true } : {};
-    if (type === `line`) return { ...base, type, points, ...rounded, ...labelField };
+    if (type === `line`) return { ...base, type, points, ...rounded, ...labelField, ...taperField };
     for (const h of [value.startHead, value.endHead]) if (h !== undefined && !HEADS.includes(h as Head)) return null;
     return {
       ...base,
@@ -404,6 +434,7 @@ function readElement(value: unknown): SketchElement | null {
       points,
       ...rounded,
       ...labelField,
+      ...taperField,
       ...(value.startHead !== undefined ? { startHead: value.startHead as Head } : {}),
       ...(value.endHead !== undefined ? { endHead: value.endHead as Head } : {}),
     };
@@ -417,7 +448,7 @@ function readElement(value: unknown): SketchElement | null {
   const label = readLabel(value.label);
   if (label === null) return null;
   const labelField = label ? { label } : {};
-  if (type === `rect` || type === `diamond`) {
+  if (type === `rect` || type === `diamond` || type === `triangle`) {
     const { x, y, width, height } = value;
     return isCoord(x) && isCoord(y) && isSize(width) && isSize(height) ? { ...base, ...fill, ...turn, ...border, ...labelField, type, x, y, width, height } : null;
   }

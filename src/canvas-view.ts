@@ -582,7 +582,7 @@ export abstract class CanvasView<D> extends TextFileView {
     const single = this.selected.size === 1 ? this.selectedElements()[0] : undefined;
     if (this.multi && (key === `enter` || key === `escape`)) {
       this.finishMulti();
-    } else if (key === `enter` && !mod && single && (single.type === `text` || single.type === `rect` || single.type === `ellipse` || single.type === `diamond` || single.type === `line` || single.type === `arrow`)) {
+    } else if (key === `enter` && !mod && single && (single.type === `text` || single.type === `rect` || single.type === `ellipse` || single.type === `diamond` || single.type === `triangle` || single.type === `line` || single.type === `arrow`)) {
       this.onActivate(single);
     } else if (key === ` `) {
       this.spaceDown = true;

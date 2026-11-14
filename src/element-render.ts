@@ -52,7 +52,7 @@ function drawStroked(el: Exclude<SketchElement, DrawingElement | TextElement>, p
   for (const p of pieces) {
     svgEl(`path`, { d: p.d, stroke: p.stroke, "stroke-width": p.strokeWidth, fill: p.fill, ...(p.opacity < 1 ? { opacity: p.opacity } : {}), ...(p.dash ? { "stroke-dasharray": p.dash } : {}), "stroke-linecap": `round`, "stroke-linejoin": `round` }, group);
   }
-  if ((el.type === `rect` || el.type === `ellipse` || el.type === `diamond`) && el.label) drawLabel(el, group, options.ink);
+  if ((el.type === `rect` || el.type === `ellipse` || el.type === `diamond` || el.type === `triangle`) && el.label) drawLabel(el, group, options.ink);
   if ((el.type === `line` || el.type === `arrow`) && el.label) drawLineLabel(el, turned);
 }
 
@@ -164,11 +164,14 @@ export function drawElement(el: SketchElement, parent: Element, options: RenderO
   drawBare(el, content, options);
   if (el.reflection === true) {
     const bottom = b.y + b.h;
-    const gradient = svgEl(`linearGradient`, { id: `${id}-g`, gradientUnits: `userSpaceOnUse`, x1: 0, y1: bottom, x2: 0, y2: bottom - Math.max(8, b.h * 0.6) }, defs);
+    // The depth is the part of the height of the element that the reflection takes; the fade is how much of the opacity is lost over that depth (all of it by default).
+    const depth = Math.max(8, b.h * (el.reflectDepth ?? 0.6));
+    const fade = el.reflectFade ?? 1;
+    const gradient = svgEl(`linearGradient`, { id: `${id}-g`, gradientUnits: `userSpaceOnUse`, x1: 0, y1: bottom, x2: 0, y2: bottom - depth }, defs);
     svgEl(`stop`, { offset: 0, "stop-color": `#ffffff`, "stop-opacity": 1 }, gradient);
-    svgEl(`stop`, { offset: 1, "stop-color": `#ffffff`, "stop-opacity": 0 }, gradient);
+    svgEl(`stop`, { offset: 1, "stop-color": `#ffffff`, "stop-opacity": 1 - fade }, gradient);
     const mask = svgEl(`mask`, { id: `${id}-m`, maskUnits: `userSpaceOnUse`, x: b.x - 40, y: b.y - 40, width: b.w + 80, height: b.h + 80 }, defs);
-    svgEl(`rect`, { x: b.x - 40, y: b.y - 40, width: b.w + 80, height: b.h + 80, fill: `url(#${id}-g)` }, mask);
+    svgEl(`rect`, { x: b.x - 40, y: bottom - depth, width: b.w + 80, height: depth, fill: `url(#${id}-g)` }, mask);
     const mirror = svgEl(`g`, { transform: `translate(0 ${2 * bottom + 4}) scale(1 -1)`, opacity: 0.45, mask: `url(#${id}-m)` }, outer);
     svgEl(`use`, { href: `#${id}-c` }, mirror);
   }

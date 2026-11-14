@@ -1,12 +1,17 @@
 // The text written inside a shape: the part of the shape that holds it, its colour and its lines. Pure module: the width of a piece of text is given by the caller (the browser
 // measures it), so this is tested without a page.
 import { drawnPoints } from "./curves";
-import type { ArrowElement, DiamondElement, EllipseElement, LineElement, Point, RectElement, ShapeLabel } from "./elements";
+import type { ArrowElement, DiamondElement, EllipseElement, LineElement, Point, RectElement, ShapeLabel, SketchElement, TriangleElement } from "./elements";
 import { hexToRgb } from "./hsl";
 import { Box } from "./geometry";
 import { LINE_HEIGHT, textLines, wrapLines } from "./text-layout";
 
-export type LabeledShape = RectElement | EllipseElement | DiamondElement;
+export type LabeledShape = RectElement | EllipseElement | DiamondElement | TriangleElement;
+
+// Tells whether an element is a shape that a text can be written in.
+export function isLabeledShape(el: SketchElement): el is LabeledShape {
+  return el.type === `rect` || el.type === `ellipse` || el.type === `diamond` || el.type === `triangle`;
+}
 
 // The smallest size, in page units, of the part of a shape that holds text.
 const MIN_ROOM = 8;
@@ -21,6 +26,9 @@ export function labelBox(el: LabeledShape): Box {
   } else if (el.type === `ellipse`) {
     const [w, h] = [2 * el.rx * Math.SQRT1_2, 2 * el.ry * Math.SQRT1_2];
     box = { x: el.cx - w / 2, y: el.cy - h / 2, w, h };
+  } else if (el.type === `triangle`) {
+    // The largest rectangle in an isosceles triangle sits on the base: half as wide and half as high.
+    box = { x: el.x + el.width / 4, y: el.y + el.height / 2, w: el.width / 2, h: el.height / 2 };
   } else {
     box = { x: el.x + el.width / 4, y: el.y + el.height / 4, w: el.width / 2, h: el.height / 2 };
   }

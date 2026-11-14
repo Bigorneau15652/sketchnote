@@ -19,7 +19,7 @@ export function translate(el: SketchElement, dx: number, dy: number): SketchElem
 // Returns a rectangle or an ellipse with a new box, keeping everything else. A text takes the size of its font from its height, so that it grows like a picture.
 function withBox(el: SketchElement, box: Box, scaleText = true): SketchElement {
   if (el.type === `text`) return { ...el, x: r2(box.x), y: r2(box.y), width: r2(box.w), height: r2(box.h), ...(scaleText ? { size: scaledSize(el.size, box.h / el.height) } : {}) };
-  if (el.type === `rect` || el.type === `diamond` || el.type === `drawing`) return { ...el, x: r2(box.x), y: r2(box.y), width: r2(box.w), height: r2(box.h) };
+  if (el.type === `rect` || el.type === `diamond` || el.type === `triangle` || el.type === `drawing`) return { ...el, x: r2(box.x), y: r2(box.y), width: r2(box.w), height: r2(box.h) };
   if (el.type === `ellipse`) return { ...el, cx: r2(box.x + box.w / 2), cy: r2(box.y + box.h / 2), rx: r2(box.w / 2), ry: r2(box.h / 2) };
   return el;
 }
@@ -74,7 +74,7 @@ export function resizeElement(el: SketchElement, corner: 0 | 1 | 2 | 3, pointer:
 // rotated. The element is stretched or squashed along that side only; with keepRatio it keeps its proportions instead (the other side follows, about its middle). A text zone
 // changes its width so that the text wraps again, and its top and bottom change the size of the letters; with keepRatio its letters grow with it.
 export function resizeSide(el: SketchElement, side: Side, pointer: Point, keepRatio: boolean): SketchElement {
-  if (el.type !== `rect` && el.type !== `ellipse` && el.type !== `diamond` && !(el.type === `text` && el.zone === true)) return el;
+  if (el.type !== `rect` && el.type !== `ellipse` && el.type !== `diamond` && el.type !== `triangle` && !(el.type === `text` && el.zone === true)) return el;
   const { box, angle } = boxOf(el);
   const c = centerOf(box);
   const local = rotatePoint(pointer, c, -angle);
