@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SketchElement } from "../src/elements";
 import { applyStyle, applyStyleToIds, cleanPatch, defaultStyle, MAX_WIDTH, MIN_WIDTH, STROKE_WIDTHS, styleOf } from "../src/style";
-import { addPenPoint, CREATION_TOOLS, elementFromDrag, MIN_FRAME, penElement, pointElement } from "../src/tools";
+import { addPenPoint, CREATION_TOOLS, elementFromDrag, penElement, pointElement } from "../src/tools";
 
 const style = defaultStyle(`#000000`);
 const none = { shift: false, alt: false };
@@ -118,12 +118,6 @@ test(`un glisser trop petit ne cree rien`, () => {
   assert.equal(elementFromDrag(`ellipse`, [5, 5], [5, 50], none, style, `x`, 1), null);
 });
 
-test(`le cadre d'un dessin a une taille minimale et pas de chemin`, () => {
-  assert.equal(elementFromDrag(`frame`, [0, 0], [MIN_FRAME - 1, 200], none, style, `f`, 1), null);
-  const f = elementFromDrag(`frame`, [300, 200], [100, 50], none, style, `f`, 1);
-  assert.ok(f && f.type === `drawing` && f.path === null && f.x === 100 && f.y === 50 && f.width === 200 && f.height === 150);
-});
-
 test(`le point est un petit disque plein de la couleur du trait`, () => {
   const p = pointElement([10, 20], { ...style, stroke: `#ff0000` }, `p`, 1);
   assert.equal(p.fill, `#ff0000`);
@@ -148,5 +142,6 @@ test(`le stylo garde les points assez eloignes et un clic donne un petit trait`,
 });
 
 test(`les outils de creation sont ceux attendus`, () => {
-  assert.deepEqual(CREATION_TOOLS, [`rect`, `diamond`, `ellipse`, `line`, `arrow`, `pen`, `point`, `frame`]);
+  assert.deepEqual(CREATION_TOOLS, [`rect`, `diamond`, `ellipse`, `line`, `arrow`, `pen`, `point`]);
+  assert.equal(elementFromDrag(`frame` as never, [0, 0], [200, 200], none, style, `f`, 1), null);
 });

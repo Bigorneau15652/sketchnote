@@ -73,7 +73,10 @@ test(`un dossier est nettoye ou refuse`, () => {
   assert.equal(normalizeFolder(` Sketchnote/Dessins/ `), `Sketchnote/Dessins`);
   assert.equal(normalizeFolder(`a\\b`), `a/b`);
   assert.equal(normalizeFolder(`a//b`), `a/b`);
-  for (const bad of [``, `   `, `/abs`, `../x`, `a/../b`, `a/./b`, `a:b`, `a*b`, `a|b`, `x`.repeat(300), 5, null]) assert.equal(normalizeFolder(bad), null, String(bad));
+  for (const bad of [``, `   `, `/`, `../x`, `/../x`, `a/../b`, `a/./b`, `a:b`, `a*b`, `a|b`, `C:/x`, `x`.repeat(300), 5, null]) assert.equal(normalizeFolder(bad), null, String(bad));
+  // A slash at the start means the root of the vault, as in the field of the settings.
+  assert.equal(normalizeFolder(`/dessin`), `dessin`);
+  assert.equal(normalizeFolder(`/Sketchnote/Dessins/`), `Sketchnote/Dessins`);
 });
 
 test(`les reglages invalides reprennent la valeur par defaut`, () => {

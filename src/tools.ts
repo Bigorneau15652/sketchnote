@@ -1,18 +1,16 @@
 // Creation of elements from a gesture (a drag from one point to another, or the points of a pen stroke), with the same keys as Excalidraw:
 // Shift for a square, a circle or a line at a multiple of 15 degrees, Alt to start from the centre. Pure module.
-import type { DiamondElement, DrawingElement, EllipseElement, FreedrawElement, Point, RectElement, SketchElement } from "./elements";
+import type { DiamondElement, EllipseElement, FreedrawElement, Point, RectElement, SketchElement } from "./elements";
 import type { ToolStyle } from "./style";
 
-export type CreationTool = `rect` | `diamond` | `ellipse` | `line` | `arrow` | `pen` | `point` | `frame`;
-export const CREATION_TOOLS: CreationTool[] = [`rect`, `diamond`, `ellipse`, `line`, `arrow`, `pen`, `point`, `frame`];
+export type CreationTool = `rect` | `diamond` | `ellipse` | `line` | `arrow` | `pen` | `point`;
+export const CREATION_TOOLS: CreationTool[] = [`rect`, `diamond`, `ellipse`, `line`, `arrow`, `pen`, `point`];
 
 export interface Modifiers {
   shift: boolean;
   alt: boolean;
 }
 
-// Smallest size of a frame for a drawing, in page units.
-export const MIN_FRAME = 40;
 const r2 = (n: number): number => Math.round(n * 100) / 100;
 
 // Returns the box of a drag between two points: from corner to corner, or from the centre with Alt, as a square with Shift.
@@ -51,12 +49,6 @@ function fillOf(style: ToolStyle): { fill?: string; fillStyle?: `solid` | `hachu
 
 // Builds the element that a drag from `start` to `end` makes with a tool, or null when the drag is too small to be an element.
 export function elementFromDrag(tool: CreationTool, start: Point, end: Point, mods: Modifiers, style: ToolStyle, id: string, seed: number): SketchElement | null {
-  if (tool === `frame`) {
-    const b = dragBox(start, end, { shift: false, alt: false });
-    if (b.w < MIN_FRAME || b.h < MIN_FRAME) return null;
-    const frame: DrawingElement = { id, type: `drawing`, x: r2(b.x), y: r2(b.y), width: r2(b.w), height: r2(b.h), path: null };
-    return frame;
-  }
   if (tool === `rect` || tool === `diamond`) {
     const b = dragBox(start, end, mods);
     if (b.w < 2 || b.h < 2) return null;

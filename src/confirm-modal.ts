@@ -1,21 +1,19 @@
-// A small window that asks a yes or no question before an action that would lose work.
+// A small window that asks a yes or no question before an action that would lose work. Its two buttons are pictograms: a cross and a check mark.
 import { App, Modal, Setting } from "obsidian";
 import { t } from "./i18n";
 
 export class ConfirmModal extends Modal {
   private readonly title: string;
   private readonly message: string;
-  private readonly confirmLabel: string;
   private readonly onConfirm: () => void;
   private readonly onCancel: () => void;
   private answered = false;
 
-  // Creates the window with its texts and the two functions to call.
-  constructor(app: App, title: string, message: string, confirmLabel: string, onConfirm: () => void, onCancel: () => void) {
+  // Creates the window with its title and message and the two functions to call.
+  constructor(app: App, title: string, message: string, onConfirm: () => void, onCancel: () => void) {
     super(app);
     this.title = title;
     this.message = message;
-    this.confirmLabel = confirmLabel;
     this.onConfirm = onConfirm;
     this.onCancel = onCancel;
   }
@@ -25,10 +23,11 @@ export class ConfirmModal extends Modal {
     this.setTitle(this.title);
     this.contentEl.createEl(`p`, { text: this.message });
     new Setting(this.contentEl)
-      .addButton((b) => b.setButtonText(t(`Annuler`)).onClick(() => this.close()))
+      .addButton((b) => b.setIcon(`x`).setTooltip(t(`Annuler`)).onClick(() => this.close()))
       .addButton((b) =>
         b
-          .setButtonText(this.confirmLabel)
+          .setIcon(`check`)
+          .setTooltip(t(`Confirmer`))
           .setWarning()
           .onClick(() => {
             this.answered = true;

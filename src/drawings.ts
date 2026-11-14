@@ -62,19 +62,22 @@ export class DrawingStore {
     return this.app.vault.getAbstractFileByPath(path) instanceof TFile;
   }
 
-  // Creates the folders of a path if they do not exist yet.
-  private async ensureFolder(folder: string): Promise<void> {
+  // Creates the folders of a path if they do not exist yet. Returns true when at least one folder was created.
+  async ensureFolder(folder: string): Promise<boolean> {
+    let created = false;
     let current = ``;
     for (const part of folder.split(`/`)) {
       current = current === `` ? part : `${current}/${part}`;
       if (!this.app.vault.getAbstractFileByPath(current)) {
         try {
           await this.app.vault.createFolder(current);
+          created = true;
         } catch {
           // The folder appeared in the meantime: nothing to do.
         }
       }
     }
+    return created;
   }
 
   // Returns a free path for a new drawing note named after a sketchnote.

@@ -6,12 +6,12 @@ export interface SketchnoteSettings {
 
 export const DEFAULT_SETTINGS: SketchnoteSettings = { drawingsFolder: `Sketchnote dessins` };
 
-// Returns a folder path of the vault in its clean form (slashes, no slash at the ends), or null when it is not acceptable: empty, absolute,
-// with `..`, or with characters that a file name cannot hold.
+// Returns a folder path of the vault in its clean form (slashes, no slash at the ends), or null when it is not acceptable: empty, with `..`, with a drive
+// letter, or with characters that a file name cannot hold. A leading slash (`/dessin`) is accepted and means the root of the vault.
 export function normalizeFolder(value: unknown): string | null {
   if (typeof value !== `string`) return null;
   const parts = value.trim().replace(/\\/g, `/`).split(`/`).map((p) => p.trim()).filter((p) => p !== ``);
-  if (parts.length === 0 || value.trim().startsWith(`/`) || value.length > 200) return null;
+  if (parts.length === 0 || value.length > 200 || /^[A-Za-z]:/.test(parts[0])) return null;
   for (const part of parts) {
     if (part === `.` || part === `..` || /[<>:"|?*\u0000-\u001f]/.test(part)) return null;
   }

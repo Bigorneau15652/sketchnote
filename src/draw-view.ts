@@ -139,11 +139,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
 
   // Adds the Back button at the start of the bottom bar.
   protected buildBarStart(bar: HTMLElement): void {
-    const back = bar.createEl(`button`, { cls: `sketchnote-bar-button` });
-    setIcon(back.createSpan({ cls: `sketchnote-bar-icon` }), `arrow-left`);
-    back.createSpan({ cls: `sketchnote-bar-label`, text: t(`Retour`) });
-    back.setAttribute(`aria-label`, t(`Retour au sketchnote`));
-    back.addEventListener(`click`, () => void this.goBack());
+    this.button(bar, `arrow-left`, t(`Retour au sketchnote`), () => void this.goBack());
   }
 
   // Saves the drawing, closes its tab and goes back to the tab of the page it was opened from.
@@ -181,28 +177,28 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.buildProps(props);
   }
 
-  // Builds the properties panel: stroke colour, fill, width and style.
+  // Builds the properties panel: stroke colour, fill, width and style. Every choice is a pictogram; its name is the tooltip.
   private buildProps(props: HTMLElement): void {
     this.panelButtons.length = 0;
-    this.section(props, t(`Trait`));
+    this.sectionIcon(props, `pencil-line`, t(`Couleur du trait`));
     const strokeRow = props.createDiv({ cls: `sketchdraw-swatches` });
     this.strokeSwatches.length = 0;
     this.strokeColor = this.colorInput(props, (c) => this.change({ stroke: c }));
     this.fillSwatches.length = 0;
 
-    this.section(props, t(`Remplissage`));
+    this.sectionIcon(props, `paint-bucket`, t(`Remplissage`));
     const fillKinds = props.createDiv({ cls: `sketchdraw-row` });
-    this.panelButton(fillKinds, t(`Aucun`), (s) => s.fill === null, () => this.change({ fill: null }));
-    this.panelButton(fillKinds, t(`Uni`), (s) => s.fill !== null && s.fillStyle === `solid`, () => this.change({ fill: this.style?.fill ?? this.doc.palette[1], fillStyle: `solid` }));
-    this.panelButton(fillKinds, t(`Hachuré`), (s) => s.fill !== null && s.fillStyle === `hachure`, () => this.change({ fill: this.style?.fill ?? this.doc.palette[1], fillStyle: `hachure` }));
+    this.panelButton(fillKinds, `sketchnote-fill-none`, t(`Aucun remplissage`), (s) => s.fill === null, () => this.change({ fill: null }));
+    this.panelButton(fillKinds, `sketchnote-fill-solid`, t(`Remplissage uni`), (s) => s.fill !== null && s.fillStyle === `solid`, () => this.change({ fill: this.style?.fill ?? this.doc.palette[1], fillStyle: `solid` }));
+    this.panelButton(fillKinds, `sketchnote-fill-hachure`, t(`Remplissage hachuré`), (s) => s.fill !== null && s.fillStyle === `hachure`, () => this.change({ fill: this.style?.fill ?? this.doc.palette[1], fillStyle: `hachure` }));
     const fillRow = props.createDiv({ cls: `sketchdraw-swatches` });
     this.fillColor = this.colorInput(props, (c) => this.change({ fill: c }));
 
-    this.section(props, t(`Épaisseur`));
+    this.sectionIcon(props, `sketchnote-width-medium`, t(`Épaisseur`));
     const widths = props.createDiv({ cls: `sketchdraw-row` });
-    this.panelButton(widths, t(`Fin`), (s) => s.strokeWidth === STROKE_WIDTHS.thin, () => this.change({ strokeWidth: STROKE_WIDTHS.thin }));
-    this.panelButton(widths, t(`Moyen`), (s) => s.strokeWidth === STROKE_WIDTHS.medium, () => this.change({ strokeWidth: STROKE_WIDTHS.medium }));
-    this.panelButton(widths, t(`Épais`), (s) => s.strokeWidth === STROKE_WIDTHS.thick, () => this.change({ strokeWidth: STROKE_WIDTHS.thick }));
+    this.panelButton(widths, `sketchnote-width-thin`, t(`Trait fin`), (s) => s.strokeWidth === STROKE_WIDTHS.thin, () => this.change({ strokeWidth: STROKE_WIDTHS.thin }));
+    this.panelButton(widths, `sketchnote-width-medium`, t(`Trait moyen`), (s) => s.strokeWidth === STROKE_WIDTHS.medium, () => this.change({ strokeWidth: STROKE_WIDTHS.medium }));
+    this.panelButton(widths, `sketchnote-width-thick`, t(`Trait épais`), (s) => s.strokeWidth === STROKE_WIDTHS.thick, () => this.change({ strokeWidth: STROKE_WIDTHS.thick }));
     const range = props.createEl(`input`, { cls: `sketchdraw-range`, type: `range` });
     range.min = String(MIN_WIDTH);
     range.max = String(MAX_WIDTH);
@@ -211,10 +207,10 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     range.addEventListener(`input`, () => this.change({ strokeWidth: Number(range.value) }));
     this.widthInput = range;
 
-    this.section(props, t(`Style`));
+    this.sectionIcon(props, `brush`, t(`Style`));
     const looks = props.createDiv({ cls: `sketchdraw-row` });
-    this.panelButton(looks, t(`Dessin`), (s) => s.roughness > 0, () => this.change({ roughness: 1 }));
-    this.panelButton(looks, t(`Net`), (s) => s.roughness === 0, () => this.change({ roughness: 0 }));
+    this.panelButton(looks, `sketchnote-style-sketch`, t(`Dessiné à la main`), (s) => s.roughness > 0, () => this.change({ roughness: 1 }));
+    this.panelButton(looks, `sketchnote-style-clean`, t(`Net`), (s) => s.roughness === 0, () => this.change({ roughness: 0 }));
 
     this.swatchRows = { stroke: strokeRow, fill: fillRow };
     this.refreshSwatches();
@@ -222,14 +218,20 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
 
   private swatchRows: { stroke: HTMLElement; fill: HTMLElement } | null = null;
 
-  // Adds a small title to the panel.
-  private section(parent: HTMLElement, title: string): void {
-    parent.createDiv({ cls: `sketchdraw-title`, text: title });
+  // Adds a small pictogram that heads a section of the panel. Its name is the tooltip.
+  private sectionIcon(parent: HTMLElement, icon: string, label: string): void {
+    const head = parent.createDiv({ cls: `sketchdraw-title` });
+    setIcon(head, icon);
+    head.setAttribute(`aria-label`, label);
+    head.setAttribute(`title`, label);
   }
 
-  // Adds a text button of the panel that shows as active when its test is true for the current style.
-  private panelButton(parent: HTMLElement, label: string, test: (s: ToolStyle) => boolean, onClick: () => void): void {
-    const b = parent.createEl(`button`, { cls: `sketchdraw-chip`, text: label });
+  // Adds a pictogram button of the panel that shows as active when its test is true for the current style.
+  private panelButton(parent: HTMLElement, icon: string, label: string, test: (s: ToolStyle) => boolean, onClick: () => void): void {
+    const b = parent.createEl(`button`, { cls: `sketchdraw-chip` });
+    setIcon(b, icon);
+    b.setAttribute(`aria-label`, label);
+    b.setAttribute(`title`, label);
     b.addEventListener(`click`, onClick);
     this.panelButtons.push({ el: b, test });
   }
