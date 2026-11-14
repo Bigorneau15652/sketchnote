@@ -12,8 +12,8 @@ export function panelKinds(tool: string, selected: SketchElement[]): Set<string>
     const made: Record<string, string> = { line: `new-line`, pen: `freedraw`, point: `new-point` };
     return new Set([made[tool] ?? tool]);
   }
-  // A shape that has a text written in it also gets the settings of a text.
-  return new Set(selected.flatMap((e) => ((e.type === `rect` || e.type === `ellipse` || e.type === `diamond`) && e.label ? [e.type, `text`] : [e.type])));
+  // A shape or a line that has a text written in it also gets the settings of a text.
+  return new Set(selected.flatMap((e) => ((e.type === `rect` || e.type === `ellipse` || e.type === `diamond` || e.type === `line` || e.type === `arrow`) && e.label ? [e.type, `text`] : [e.type])));
 }
 
 const SHAPES = [`rect`, `diamond`, `ellipse`];

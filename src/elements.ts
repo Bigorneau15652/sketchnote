@@ -80,6 +80,8 @@ export interface LineElement extends BaseElement, Strokes {
   points: Point[];
   // Rounded edges: a smooth curve goes through the points instead of straight segments.
   rounded?: boolean;
+  // A text in the middle of the line, which cuts the line around it so that it can be read.
+  label?: ShapeLabel;
 }
 
 // An arrow has the heads of its two ends. When they are absent the start has none and the end has an open arrow head.
@@ -87,6 +89,7 @@ export interface ArrowElement extends BaseElement, Strokes {
   type: `arrow`;
   points: Point[];
   rounded?: boolean;
+  label?: ShapeLabel;
   startHead?: Head;
   endHead?: Head;
 }
@@ -388,15 +391,19 @@ function readElement(value: unknown): SketchElement | null {
     const points = readPoints(value.points, type === `freedraw` ? MAX_FREEDRAW_POINTS : MAX_POINTS);
     if (points === null) return null;
     if (type === `freedraw`) return { ...base, type, points };
+    const lineLabel = readLabel(value.label);
+    if (lineLabel === null) return null;
+    const labelField = lineLabel ? { label: lineLabel } : {};
     if (value.rounded !== undefined && typeof value.rounded !== `boolean`) return null;
     const rounded = value.rounded === true ? { rounded: true } : {};
-    if (type === `line`) return { ...base, type, points, ...rounded };
+    if (type === `line`) return { ...base, type, points, ...rounded, ...labelField };
     for (const h of [value.startHead, value.endHead]) if (h !== undefined && !HEADS.includes(h as Head)) return null;
     return {
       ...base,
       type,
       points,
       ...rounded,
+      ...labelField,
       ...(value.startHead !== undefined ? { startHead: value.startHead as Head } : {}),
       ...(value.endHead !== undefined ? { endHead: value.endHead as Head } : {}),
     };

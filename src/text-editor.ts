@@ -17,7 +17,9 @@ export interface TextEditorOptions {
   measure: (line: string) => number;
   // Writing in a zone (a text zone, or the inside of a shape): the text area has the size of the zone (in drawing units) and the text wraps to its width. When `centered` is
   // true the text is centred in height too, like the text of a shape; `lineCount` gives the number of lines of a text once wrapped, to do so.
-  zone?: { width: number; height: number; centered: boolean; lineCount: (text: string) => number };
+  zone?: { width: number; height: number; centered: boolean; lineCount: (text: string) => number; autoHeight?: boolean };
+  // The text of a line: the text area grows around the point (left and top) instead of from it, and it has a background of that colour, since the line is cut under the text.
+  around?: { background: string };
   // Called once with the text when the writing ends.
   onDone: (text: string) => void;
 }
@@ -31,8 +33,16 @@ export function openTextEditor(doc: Document, o: TextEditorOptions): () => void 
   area.spellcheck = false;
   area.setAttribute(`wrap`, o.zone ? `soft` : `off`);
   if (o.zone) area.classList.add(`is-zone`);
+  // The text written inside a shape has no frame at all, only the cursor; a text zone has its dotted frame.
+  if (o.zone?.centered) area.classList.add(`is-label`);
   area.style.left = `${o.left}px`;
   area.style.top = `${o.top}px`;
+  if (o.around) {
+    area.classList.add(`is-around`);
+    area.style.transform = `translate(-50%, -50%)`;
+    area.style.setProperty(`background`, o.around.background, `important`);
+    area.style.setProperty(`padding`, `${6 * o.zoom}px`, `important`);
+  }
   area.style.fontFamily = o.font;
   area.style.fontSize = `${o.size * o.zoom}px`;
   area.style.lineHeight = `${LINE_HEIGHT}`;
@@ -42,9 +52,12 @@ export function openTextEditor(doc: Document, o: TextEditorOptions): () => void 
   // Fits the text area to its text: the widest line and one row for each line.
   const fit = (): void => {
     if (o.zone) {
+      const rows = Math.max(1, o.zone.lineCount(area.value));
+      // A text zone has the height of its lines: the dotted frame grows when the text wraps to one more line.
+      const height = o.zone.autoHeight ? rows * o.size * LINE_HEIGHT : o.zone.height;
       area.style.width = `${Math.ceil(o.zone.width * o.zoom)}px`;
-      area.style.height = `${Math.ceil(o.zone.height * o.zoom)}px`;
-      const free = o.zone.height - o.zone.lineCount(area.value) * o.size * LINE_HEIGHT;
+      area.style.height = `${Math.ceil(height * o.zoom)}px`;
+      const free = height - rows * o.size * LINE_HEIGHT;
       area.style.paddingTop = o.zone.centered && free > 0 ? `${Math.floor((free / 2) * o.zoom)}px` : `0px`;
       return;
     }
@@ -80,6 +93,6 @@ export function openTextEditor(doc: Document, o: TextEditorOptions): () => void 
   doc.body.appendChild(area);
   fit();
   area.focus();
-  area.select();
+  if (o.initial !== ``) area.select();
   return finish;
 }

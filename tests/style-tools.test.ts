@@ -226,3 +226,12 @@ test(`la police, la taille et l'alignement du panneau s'appliquent au texte d'un
   // The colour of the stroke does not touch the text; the shape keeps its own settings.
   assert.equal((applyStyle(shape, { stroke: `#ff0000` }) as unknown as { label: { text: string } }).label.text, `Bonjour`);
 });
+
+test(`la police et la taille du panneau s'appliquent aussi au texte d'un trait`, () => {
+  const line = { id: `l`, type: `line`, points: [[0, 0], [100, 0]], stroke: `#000000`, strokeWidth: 3, label: { text: `Oui`, font: `caveat`, size: 32 } } as SketchElement;
+  const next = applyStyle(line, { font: `patrick-hand`, fontSize: 52, align: `right` }) as unknown as { label: { font: string; size: number; align?: string; text: string } };
+  assert.deepEqual([next.label.font, next.label.size, next.label.align, next.label.text], [`patrick-hand`, 52, `right`, `Oui`]);
+  assert.deepEqual([styleOf(line)?.font, styleOf(line)?.fontSize, styleOf(line)?.align], [`caveat`, 32, `center`]);
+  const plain = { id: `p`, type: `line`, points: [[0, 0], [100, 0]], stroke: `#000000`, strokeWidth: 3 } as SketchElement;
+  assert.equal(`label` in applyStyle(plain, { fontSize: 52 }), false);
+});

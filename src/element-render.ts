@@ -1,9 +1,9 @@
 // Draws the elements of a page or of a drawing into an SVG group. Built with the DOM only: nothing is ever parsed from text.
 // A hand drawn or clean line comes from shape-paths; a frame of a drawing shows the drawing it points to, fitted to its width.
-import { DrawingElement, isStroked, SketchElement, TextElement } from "./elements";
+import { ArrowElement, DrawingElement, isStroked, LineElement, SketchElement, TextElement } from "./elements";
 import { boxOf, elementBounds } from "./geometry";
 import { fontStack } from "./fonts";
-import { labelColor, labelLayout, LabeledShape } from "./labels";
+import { labelColor, labelLayout, LabeledShape, lineLabelLayout } from "./labels";
 import { measureLine } from "./measure";
 import { lineMiddle, textLines, wrapLines } from "./text-layout";
 import { contentBox, fitInFrame, SketchdrawDoc } from "./drawing-file";
@@ -53,6 +53,32 @@ function drawStroked(el: Exclude<SketchElement, DrawingElement | TextElement>, p
     svgEl(`path`, { d: p.d, stroke: p.stroke, "stroke-width": p.strokeWidth, fill: p.fill, ...(p.opacity < 1 ? { opacity: p.opacity } : {}), ...(p.dash ? { "stroke-dasharray": p.dash } : {}), "stroke-linecap": `round`, "stroke-linejoin": `round` }, group);
   }
   if ((el.type === `rect` || el.type === `ellipse` || el.type === `diamond`) && el.label) drawLabel(el, group, options.ink);
+  if ((el.type === `line` || el.type === `arrow`) && el.label) drawLineLabel(el, turned);
+}
+
+// Draws the text in the middle of a line or an arrow, and cuts the line around it (a mask that takes a box out of the line, so that the page or the shape behind shows through)
+// to make the text readable. The text is horizontal and has the colour of the line.
+function drawLineLabel(el: LineElement | ArrowElement, parent: Element): void {
+  const label = el.label;
+  if (!label) return;
+  const layout = lineLabelLayout(el, label, measureLine);
+  effectCount++;
+  const id = `skcut${effectCount}`;
+  const b = elementBounds(el);
+  const pad = el.strokeWidth * 4 + 60;
+  const defs = svgEl(`defs`, {}, parent);
+  const mask = svgEl(`mask`, { id, maskUnits: `userSpaceOnUse`, x: b.x - pad, y: b.y - pad, width: b.w + 2 * pad, height: b.h + 2 * pad }, defs);
+  svgEl(`rect`, { x: b.x - pad, y: b.y - pad, width: b.w + 2 * pad, height: b.h + 2 * pad, fill: `#ffffff` }, mask);
+  svgEl(`rect`, { x: layout.cut.x, y: layout.cut.y, width: layout.cut.w, height: layout.cut.h, fill: `#000000` }, mask);
+  // The line (everything drawn so far in the group of the element) is masked: its paths are moved into a group that carries the mask.
+  const cutGroup = svgEl(`g`, { mask: `url(#${id})` }, parent);
+  for (const child of Array.from(parent.children)) if (child !== defs && child !== cutGroup) cutGroup.appendChild(child);
+  const anchor = layout.align === `center` ? `middle` : layout.align === `right` ? `end` : `start`;
+  const text = svgEl(`text`, { class: `sketchnote-text sketchnote-label`, "font-family": fontStack(label.font), "font-size": label.size, fill: el.stroke, "text-anchor": anchor, "dominant-baseline": `central`, style: `white-space:pre` }, parent);
+  layout.lines.forEach((line, i) => {
+    const row = svgEl(`tspan`, { x: layout.anchorX, y: layout.top + lineMiddle(i, label.size) }, text);
+    row.textContent = line === `` ? ` ` : line;
+  });
 }
 
 // Draws the text written inside a shape: its lines wrapped to the part of the shape that holds them, centred in height, in the colour that suits the fill.

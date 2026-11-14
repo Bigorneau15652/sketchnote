@@ -5,7 +5,9 @@ import { newId, SketchElement } from "./elements";
 import { blockBox, Box, Side, boxesIntersect, boxOf, centerOf, elementBounds, hitBoxHandle, hitHandle, hitTop, insideShape, unionBox } from "./geometry";
 import { canUngroup, expandToGroups, groupAction, groupElements, topGroupId, ungroupElements } from "./groups";
 import { flipElements } from "./flip";
-import { insertPointAt, lockAngle, midpointIndexAt, movePointTo, nearestOnLine, pointIndexAt, removePointAt } from "./linear";
+import { measureLine } from "./measure";
+import { refitText } from "./text-layout";
+import { insertPointAt, lockAngle, midpointIndexAt, movePointTo, pointIndexAt, removePointAt } from "./linear";
 import { History } from "./history";
 import { t } from "./i18n";
 import { RenderedPage } from "./page-render";
@@ -580,7 +582,7 @@ export abstract class CanvasView<D> extends TextFileView {
     const single = this.selected.size === 1 ? this.selectedElements()[0] : undefined;
     if (this.multi && (key === `enter` || key === `escape`)) {
       this.finishMulti();
-    } else if (key === `enter` && !mod && single && (single.type === `text` || single.type === `rect` || single.type === `ellipse` || single.type === `diamond`)) {
+    } else if (key === `enter` && !mod && single && (single.type === `text` || single.type === `rect` || single.type === `ellipse` || single.type === `diamond` || single.type === `line` || single.type === `arrow`)) {
       this.onActivate(single);
     } else if (key === ` `) {
       this.spaceDown = true;
@@ -951,14 +953,10 @@ export abstract class CanvasView<D> extends TextFileView {
     const same = last !== null && last.id === el.id && now - last.time < 400 && Math.hypot(e.clientX - last.x, e.clientY - last.y) < 10;
     this.lastClick = same ? null : { id: el.id, time: now, x: e.clientX, y: e.clientY };
     if (!same) return;
-    // A double click on a line or an arrow adds a point on it, where it was clicked.
+    // A double click on a line or an arrow writes a text in the middle of it (a point is added by dragging the small round handle in the middle of a segment).
     if ((el.type === `line` || el.type === `arrow`) && topGroupId(el, this.editingGroup) === null) {
-      const hit = nearestOnLine(el, this.pagePoint(e));
-      if (hit) {
-        this.activePoint = { id: el.id, index: hit.segment + 1 };
-        this.selected = new Set([el.id]);
-        this.commitElements(this.elementsOf(this.doc).map((x) => (x.id === el.id ? insertPointAt(el, hit.segment + 1, hit.point) : x)));
-      }
+      this.selected = new Set([el.id]);
+      this.onActivate(el);
       return;
     }
     // A double click on a member of a group edits the group: the member is selected alone. On anything else it activates the element (opens its drawing).
@@ -1099,7 +1097,9 @@ export abstract class CanvasView<D> extends TextFileView {
   // Replaces one element of the document during a gesture, without recording anything yet.
   private replaceElement(next: SketchElement): void {
     if (!this.baseDoc) return;
-    this.doc = this.withElements(this.baseDoc, this.elementsOf(this.baseDoc).map((el) => (el.id === next.id ? next : el)));
+    // A text zone has the height of its lines: it is measured again when its width or its letters change.
+    const fitted = next.type === `text` && next.zone === true ? refitText(next, measureLine) : next;
+    this.doc = this.withElements(this.baseDoc, this.elementsOf(this.baseDoc).map((el) => (el.id === fitted.id ? fitted : el)));
     this.renderContent();
     this.renderUi();
   }

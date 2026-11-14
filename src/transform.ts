@@ -72,7 +72,7 @@ export function resizeElement(el: SketchElement, corner: 0 | 1 | 2 | 3, pointer:
 
 // Resizes an element by dragging the middle of one of its sides (0 top, 1 right, 2 bottom, 3 left): the opposite side stays where it is on the page, even when the element is
 // rotated. The element is stretched or squashed along that side only; with keepRatio it keeps its proportions instead (the other side follows, about its middle). A text zone
-// only changes its zone, so that the text wraps again; with keepRatio its letters grow with it.
+// changes its width so that the text wraps again, and its top and bottom change the size of the letters; with keepRatio its letters grow with it.
 export function resizeSide(el: SketchElement, side: Side, pointer: Point, keepRatio: boolean): SketchElement {
   if (el.type !== `rect` && el.type !== `ellipse` && el.type !== `diamond` && !(el.type === `text` && el.zone === true)) return el;
   const { box, angle } = boxOf(el);
@@ -96,7 +96,9 @@ export function resizeSide(el: SketchElement, side: Side, pointer: Point, keepRa
   // The middle of the opposite side stays; the box grows from it along the moving axis and about its middle along the other one.
   const centreLocal: Point = horizontal ? [edge + (sign * nw) / 2, c[1]] : [c[0], edge + (sign * nh) / 2];
   const centre = rotatePoint(centreLocal, c, angle);
-  return withBox(el, { x: centre[0] - nw / 2, y: centre[1] - nh / 2, w: nw, h: nh }, keepRatio);
+  // The top and the bottom of a text zone change the size of the letters (the text fills the new height); its left and right change the width only, and the text wraps again.
+  const letters = keepRatio || (el.type === `text` && !horizontal);
+  return withBox(el, { x: centre[0] - nw / 2, y: centre[1] - nh / 2, w: nw, h: nh }, letters);
 }
 
 // Brings an angle in degrees into the range from -180 to 180.

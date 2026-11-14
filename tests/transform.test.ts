@@ -195,9 +195,15 @@ test(`une forme tournee garde son cote oppose en place sur la page`, () => {
   assert.ok(Math.abs(out.x + out.width / 2 - 200) < 0.01 && Math.abs(out.y + out.height / 2 - 200) < 0.01);
 });
 
-test(`une zone de texte garde la taille de ses lettres quand on tire un cote, et la grossit avec Maj ou un angle`, () => {
+test(`le cote d'une zone de texte change sa largeur, le haut et le bas changent la taille des lettres, Maj ou un angle grossit tout`, () => {
   const wider = resizeSide(zone, 1, [500, 0], false) as unknown as { width: number; size: number };
   assert.deepEqual([wider.width, wider.size], [400, 20]);
+  // The bottom: the letters fill the new height (twice as high: twice as big), the width stays.
+  const taller = resizeSide(zone, 2, [0, 300], false) as unknown as { width: number; height: number; size: number; y: number };
+  assert.deepEqual([taller.width, taller.height, taller.size, taller.y], [200, 200, 40, 100]);
+  // The top keeps the bottom where it is.
+  const up = resizeSide(zone, 0, [0, 0], false) as unknown as { width: number; height: number; size: number; y: number };
+  assert.deepEqual([up.width, up.height, up.size, up.y], [200, 200, 40, 0]);
   const bigger = resizeSide(zone, 1, [500, 0], true) as unknown as { width: number; height: number; size: number };
   assert.deepEqual([bigger.width, bigger.height, bigger.size], [400, 200, 40]);
   const corner = resizeElement(zone, 2, [500, 300], false) as unknown as { size: number; width: number; height: number };

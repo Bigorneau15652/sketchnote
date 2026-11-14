@@ -49,3 +49,11 @@ test(`une forme qui contient un texte montre aussi les reglages de texte`, () =>
   assert.ok(sectionShown(`fill`, kinds) && sectionShown(`border`, kinds));
   assert.equal(sectionShown(`text`, panelKinds(`select`, [make(`rect`)])), false);
 });
+
+test(`un trait ou une fleche qui contient un texte montre aussi les reglages de texte`, () => {
+  for (const type of [`line`, `arrow`]) {
+    const labelled = { ...make(type), label: { text: `a`, font: `caveat`, size: 20 } } as SketchElement;
+    assert.ok(sectionShown(`text`, panelKinds(`select`, [labelled])), type);
+    assert.equal(sectionShown(`text`, panelKinds(`select`, [make(type)])), false, type);
+  }
+});
