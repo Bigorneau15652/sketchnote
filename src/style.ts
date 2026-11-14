@@ -1,5 +1,6 @@
 // The look of the lines and fills that the user chooses, and how a choice is applied to elements. Pure module.
-import { FillStyle, Head, HEADS, headOf, isShape, isStroked, MIN_FILL_OPACITY, SketchElement } from "./elements";
+import { FillStyle, Head, HEADS, headOf, isFontId, isShape, isStroked, MAX_FONT_SIZE, MIN_FILL_OPACITY, MIN_FONT_SIZE, SketchElement, TEXT_ALIGNS, TextAlign } from "./elements";
+import { DEFAULT_FONT } from "./fonts";
 import { isSafeColor } from "./color";
 
 export interface ToolStyle {
@@ -16,6 +17,10 @@ export interface ToolStyle {
   rounded: boolean;
   startHead: Head;
   endHead: Head;
+  // The font, its size and the alignment of texts.
+  font: string;
+  fontSize: number;
+  align: TextAlign;
 }
 
 export type StylePatch = Partial<ToolStyle>;
@@ -24,10 +29,12 @@ export type StylePatch = Partial<ToolStyle>;
 export const STROKE_WIDTHS = { thin: 3, medium: 5, thick: 9 };
 export const MIN_WIDTH = 1;
 export const MAX_WIDTH = 24;
+// Sizes of text proposed by the buttons: small, medium, large and very large.
+export const TEXT_SIZES = { small: 20, medium: 32, large: 52, huge: 84 };
 
 // Returns the style of a new drawing: a thin hand drawn line in the ink colour of the page, with no fill.
 export function defaultStyle(ink: string): ToolStyle {
-  return { stroke: isSafeColor(ink) ? ink : `#000000`, fill: null, fillStyle: `solid`, fillOpacity: 1, strokeWidth: STROKE_WIDTHS.thin, roughness: 1, rounded: false, startHead: `none`, endHead: `arrow` };
+  return { stroke: isSafeColor(ink) ? ink : `#000000`, fill: null, fillStyle: `solid`, fillOpacity: 1, strokeWidth: STROKE_WIDTHS.thin, roughness: 1, rounded: false, startHead: `none`, endHead: `arrow`, font: DEFAULT_FONT, fontSize: TEXT_SIZES.medium, align: `left` };
 }
 
 // Returns a style patch with every value checked: unknown or invalid values are dropped.
@@ -42,11 +49,15 @@ export function cleanPatch(patch: StylePatch): StylePatch {
   if (typeof patch.rounded === `boolean`) out.rounded = patch.rounded;
   if (patch.startHead !== undefined && HEADS.includes(patch.startHead)) out.startHead = patch.startHead;
   if (patch.endHead !== undefined && HEADS.includes(patch.endHead)) out.endHead = patch.endHead;
+  if (isFontId(patch.font)) out.font = patch.font;
+  if (typeof patch.fontSize === `number` && Number.isFinite(patch.fontSize)) out.fontSize = Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, Math.round(patch.fontSize)));
+  if (patch.align !== undefined && TEXT_ALIGNS.includes(patch.align)) out.align = patch.align;
   return out;
 }
 
 // Applies a style patch to one element. A drawing frame has no style and is returned as it is. The fill only applies to shapes; a line keeps its stroke only.
 export function applyStyle(el: SketchElement, patch: StylePatch): SketchElement {
+  if (el.type === `text`) return applyTextStyle(el, cleanPatch(patch));
   if (!isStroked(el)) return el;
   const p = cleanPatch(patch);
   let next = { ...el } as typeof el;
@@ -86,6 +97,20 @@ export function applyStyle(el: SketchElement, patch: StylePatch): SketchElement 
   return next;
 }
 
+// Applies the parts of a style patch that concern a text: its colour, its font, its size and its alignment. The size of its box is measured again by the caller.
+function applyTextStyle(el: Extract<SketchElement, { type: `text` }>, p: StylePatch): SketchElement {
+  let next = { ...el };
+  if (p.stroke !== undefined) next.stroke = p.stroke;
+  if (p.font !== undefined) next.font = p.font;
+  if (p.fontSize !== undefined) next.size = p.fontSize;
+  if (p.align !== undefined) {
+    const { align: _a, ...rest } = next;
+    void _a;
+    next = (p.align === `left` ? rest : { ...rest, align: p.align }) as typeof next;
+  }
+  return next;
+}
+
 // Applies a style patch to the selected elements of a list. The other elements are returned as they are.
 export function applyStyleToIds(elements: SketchElement[], ids: Set<string>, patch: StylePatch): SketchElement[] {
   return elements.map((e) => (ids.has(e.id) ? applyStyle(e, patch) : e));
@@ -93,6 +118,7 @@ export function applyStyleToIds(elements: SketchElement[], ids: Set<string>, pat
 
 // Returns the style an element currently has, or null for a drawing frame. A line has no fill.
 export function styleOf(el: SketchElement): ToolStyle | null {
+  if (el.type === `text`) return { ...defaultStyle(el.stroke), font: el.font, fontSize: el.size, align: el.align ?? `left` };
   if (!isStroked(el)) return null;
   const fill = isShape(el) && el.fill !== undefined ? el.fill : null;
   const fillStyle: FillStyle = isShape(el) && el.fillStyle ? el.fillStyle : `solid`;
@@ -101,5 +127,5 @@ export function styleOf(el: SketchElement): ToolStyle | null {
   const rounded = linear && el.rounded === true;
   const startHead: Head = el.type === `arrow` ? headOf(el, `start`) : `none`;
   const endHead: Head = el.type === `arrow` ? headOf(el, `end`) : `arrow`;
-  return { stroke: el.stroke, fill, fillStyle, fillOpacity, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0, rounded, startHead, endHead };
+  return { stroke: el.stroke, fill, fillStyle, fillOpacity, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0, rounded, startHead, endHead, font: DEFAULT_FONT, fontSize: TEXT_SIZES.medium, align: `left` };
 }

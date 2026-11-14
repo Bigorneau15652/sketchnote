@@ -17,7 +17,7 @@ import { normalizeAngle, resizeElement, rotateAbout, rotateBy, scaleAbout, trans
 import { MAX_FREEDRAW_POINTS } from "./elements";
 import { clampZoom, fitZoom, pinchZoom, sliderToZoom, stepZoom, zoomToSlider } from "./viewport";
 
-export type Tool = `select` | `hand` | CreationTool;
+export type Tool = `select` | `hand` | `text` | CreationTool;
 export type Point = [number, number];
 
 type Gesture =
@@ -50,6 +50,8 @@ export abstract class CanvasView<D> extends TextFileView {
   protected selected = new Set<string>();
   // The group that the user is editing (after a double click on one of its members): its members are selected one by one instead of as a block.
   protected editingGroup: string | null = null;
+  // A press with the Text tool, waiting for the release of the pointer to open the writing.
+  private pendingText: { pointerId: number; at: Point } | null = null;
   // The point of the selected line or arrow that was clicked last: the Delete key removes it.
   protected activePoint: { id: string; index: number } | null = null;
   // A line or an arrow being drawn point by point (clicks): the committed points, the document before it was started. The last point follows the pointer until the next click.
@@ -136,6 +138,9 @@ export abstract class CanvasView<D> extends TextFileView {
   protected onSelectionChanged(): void {}
 
   // Called when an element is double clicked (or double tapped) with the selection tool.
+  // Writes a text at a point of the surface (the Text tool). Does nothing by default: only the drawings have texts.
+  protected writeText(_at: Point): void {}
+
   protected onActivate(_el: SketchElement): void {
     void _el;
   }
@@ -517,8 +522,11 @@ export abstract class CanvasView<D> extends TextFileView {
     const key = e.key.toLowerCase();
     const step = e.shiftKey ? 10 : 1;
     const letter = !mod && !e.altKey ? this.toolKeys()[key] : undefined;
+    const single = this.selected.size === 1 ? this.selectedElements()[0] : undefined;
     if (this.multi && (key === `enter` || key === `escape`)) {
       this.finishMulti();
+    } else if (key === `enter` && !mod && single && single.type === `text`) {
+      this.onActivate(single);
     } else if (key === ` `) {
       this.spaceDown = true;
       this.updateCursor();
@@ -621,6 +629,12 @@ export abstract class CanvasView<D> extends TextFileView {
     if (this.multi) {
       this.baseDoc = null;
       this.multiClick(p, e.shiftKey);
+      return;
+    }
+    if (this.tool === `text`) {
+      // The writing starts when the pointer is released: the press moves the focus to the surface, which would take it away from the text area at once.
+      this.baseDoc = null;
+      this.pendingText = { pointerId: e.pointerId, at: p };
       return;
     }
     if (this.tool !== `select` && CREATION_TOOLS.includes(this.tool as CreationTool) && this.creationTools().includes(this.tool as CreationTool)) {
@@ -1005,6 +1019,12 @@ export abstract class CanvasView<D> extends TextFileView {
   private onPointerUp(e: PointerEvent): void {
     this.pointers.delete(e.pointerId);
     if (this.pointers.size < 2) this.pinch = null;
+    if (this.pendingText && this.pendingText.pointerId === e.pointerId) {
+      const at = this.pendingText.at;
+      this.pendingText = null;
+      this.writeText(at);
+      return;
+    }
     const g = this.gesture;
     if (!g || g.pointerId !== e.pointerId) return;
     this.gesture = null;

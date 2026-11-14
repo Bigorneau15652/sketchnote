@@ -1,5 +1,5 @@
 // Pure transformations of elements: move, resize from a corner and rotate. Each function returns a new element and never changes its argument.
-import { hasPoints } from "./elements";
+import { hasPoints, MAX_FONT_SIZE, MIN_FONT_SIZE } from "./elements";
 import type { Point, SketchElement } from "./elements";
 import { Box, boxOf, centerOf, rotatePoint } from "./geometry";
 
@@ -16,11 +16,17 @@ export function translate(el: SketchElement, dx: number, dy: number): SketchElem
   return { ...el, x: r2(el.x + dx), y: r2(el.y + dy) };
 }
 
-// Returns a rectangle or an ellipse with a new box, keeping everything else.
+// Returns a rectangle or an ellipse with a new box, keeping everything else. A text takes the size of its font from its height, so that it grows like a picture.
 function withBox(el: SketchElement, box: Box): SketchElement {
+  if (el.type === `text`) return { ...el, x: r2(box.x), y: r2(box.y), width: r2(box.w), height: r2(box.h), size: scaledSize(el.size, box.h / el.height) };
   if (el.type === `rect` || el.type === `diamond` || el.type === `drawing`) return { ...el, x: r2(box.x), y: r2(box.y), width: r2(box.w), height: r2(box.h) };
   if (el.type === `ellipse`) return { ...el, cx: r2(box.x + box.w / 2), cy: r2(box.y + box.h / 2), rx: r2(box.w / 2), ry: r2(box.h / 2) };
   return el;
+}
+
+// Returns a font size multiplied by a factor, rounded to one decimal and kept in the range of the sizes of a file.
+function scaledSize(size: number, k: number): number {
+  return Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, Math.round(size * k * 10) / 10));
 }
 
 // Resizes a line or an arrow by moving one corner of its box. The opposite corner stays where it is. An axis along which the box has no size is left alone.
@@ -46,7 +52,7 @@ function resizeLine(el: SketchElement, corner: number, pointer: Point, keepRatio
 export function resizeElement(el: SketchElement, corner: 0 | 1 | 2 | 3, pointer: Point, keepRatio: boolean): SketchElement {
   if (hasPoints(el)) return resizeLine(el, corner, pointer, keepRatio);
   // A drawing frame always keeps the proportions of its drawing, like a picture.
-  if (el.type === `drawing`) keepRatio = true;
+  if (el.type === `drawing` || el.type === `text`) keepRatio = true;
   const { box, angle } = boxOf(el);
   const [sx, sy] = SIGNS[corner];
   const c = centerOf(box);
@@ -99,7 +105,8 @@ export function scaleAbout(el: SketchElement, anchor: Point, k: number): SketchE
   const c = at([el.x + el.width / 2, el.y + el.height / 2]);
   const width = r2(el.width * k);
   const height = r2(el.height * k);
-  return { ...el, x: r2(c[0] - width / 2), y: r2(c[1] - height / 2), width, height };
+  const moved = { ...el, x: r2(c[0] - width / 2), y: r2(c[1] - height / 2), width, height };
+  return el.type === `text` ? { ...moved, size: scaledSize(el.size, k) } as SketchElement : moved;
 }
 
 // Turns an element around a point by an angle in degrees, as part of a block: its centre goes round the point and the element turns by the same angle (a line has

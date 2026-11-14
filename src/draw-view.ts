@@ -5,14 +5,19 @@ import { CanvasView, Tool } from "./canvas-view";
 import { toHex6 } from "./page-background";
 import { CANVAS_HEIGHT, CANVAS_WIDTH, contentBox, createEmptyDrawing, guideBox, parseSketchdraw, serializeSketchdraw, SketchdrawDoc } from "./drawing-file";
 import { drawElements, PLAIN } from "./element-render";
-import { Head, HEADS, SketchElement } from "./elements";
+import { Head, HEADS, Point, SketchElement, TextElement } from "./elements";
+import { fontStack } from "./fonts";
+import { openTextEditor } from "./text-editor";
+import { refitText } from "./text-layout";
 import { Box, unionBox as unionBoxes } from "./geometry";
 import { brightness } from "./page-background";
 import { t } from "./i18n";
 import { PluginApi } from "./plugin-api";
 import { renderCanvas, RenderedPage } from "./page-render";
-import { applyStyleToIds, cleanPatch, defaultStyle, MAX_WIDTH, MIN_WIDTH, StylePatch, STROKE_WIDTHS, styleOf, ToolStyle } from "./style";
-import { CreationTool } from "./tools";
+import { applyStyleToIds, cleanPatch, defaultStyle, MAX_WIDTH, MIN_WIDTH, StylePatch, STROKE_WIDTHS, styleOf, TEXT_SIZES, ToolStyle } from "./style";
+import { CreationTool, textElement } from "./tools";
+import { hitTop } from "./geometry";
+import { newId } from "./elements";
 import { VIEW_TYPE as PAGE_VIEW_TYPE } from "./view";
 
 export const DRAW_VIEW_TYPE = `sketchdraw-view`;
@@ -29,12 +34,24 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   private strokeColor: HTMLInputElement | null = null;
   private fillColor: HTMLInputElement | null = null;
   private lockButton: HTMLElement | null = null;
+  // The text being written (hidden while the text area is over it) and the function that ends the writing.
+  private editingText: string | null = null;
+  private finishEditor: (() => void) | null = null;
+  private unsubscribeFonts: (() => void) | null = null;
 
   // Creates the view inside a workspace leaf, with the services of the plugin.
   constructor(leaf: WorkspaceLeaf, api: PluginApi) {
     super(leaf, createEmptyDrawing());
     this.api = api;
     this.style = defaultStyle(`#000000`);
+  }
+
+  // Ends a text being written and stops following the list of fonts when the view closes.
+  async onClose(): Promise<void> {
+    this.finishEditor?.();
+    this.unsubscribeFonts?.();
+    this.unsubscribeFonts = null;
+    await super.onClose();
   }
 
   // Returns the identifier of the view type.
@@ -110,7 +127,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   }
 
   protected drawContent(group: SVGElement): void {
-    drawElements(this.doc.elements, group, PLAIN);
+    drawElements(this.editingText === null ? this.doc.elements : this.doc.elements.filter((e) => e.id !== this.editingText), group, PLAIN);
   }
 
   protected creationTools(): CreationTool[] {
@@ -118,7 +135,73 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   }
 
   protected toolKeys(): Record<string, Tool> {
-    return { v: `select`, h: `hand`, r: `rect`, d: `diamond`, o: `ellipse`, a: `arrow`, l: `line`, p: `pen`, [`.`]: `point` };
+    return { v: `select`, h: `hand`, r: `rect`, d: `diamond`, o: `ellipse`, a: `arrow`, l: `line`, p: `pen`, t: `text`, [`.`]: `point` };
+  }
+
+  // The Text tool: a click on a text edits it, a click elsewhere starts a new text there.
+  protected writeText(p: Point): void {
+    const hit = hitTop(this.doc.elements, p, 6 / this.zoom);
+    if (hit && hit.type === `text`) this.editText(hit, p);
+    else this.editText(null, p);
+  }
+
+  // A double click on a text, or Enter on a selected text, edits it.
+  protected onActivate(el: SketchElement): void {
+    if (el.type === `text`) this.editText(el, [el.x, el.y]);
+  }
+
+  // Opens the writing of a text over the surface: a new one at a point, or the text of an element, which is hidden while it is written. The writing ends with Escape, Ctrl+Enter
+  // or a click elsewhere: the text is then kept, changed or (when empty) removed, as one change that can be undone.
+  private editText(el: TextElement | null, at: Point): void {
+    if (!this.svg) return;
+    this.finishEditor?.();
+    const style = this.currentStyle();
+    const font = el ? el.font : style.font;
+    const size = el ? el.size : style.fontSize;
+    const color = el ? el.stroke : style.stroke;
+    const align = el ? el.align ?? `left` : style.align;
+    const x = el ? el.x : at[0];
+    const y = el ? el.y : at[1] - (size * 1.25) / 2;
+    const box = this.svg.getBoundingClientRect();
+    this.editingText = el ? el.id : null;
+    this.selected = el ? new Set([el.id]) : new Set();
+    this.renderContent();
+    this.renderUi();
+    this.finishEditor = openTextEditor(this.contentEl.ownerDocument, {
+      left: box.left + x * this.zoom,
+      top: box.top + y * this.zoom,
+      zoom: this.zoom,
+      font: fontStack(font),
+      size,
+      color,
+      align,
+      initial: el ? el.text : ``,
+      measure: (line) => this.api.fonts.measure(line, font, size),
+      onDone: (text) => this.endText(el, [x, y], text, style),
+    });
+  }
+
+  // Keeps the result of the writing of a text.
+  private endText(el: TextElement | null, at: Point, text: string, style: ToolStyle): void {
+    this.finishEditor = null;
+    this.editingText = null;
+    const clean = text.replace(/\s+$/, ``);
+    const measure = this.api.fonts.measure;
+    if (el) {
+      if (clean === ``) {
+        this.selected = new Set();
+        this.commitElements(this.doc.elements.filter((e) => e.id !== el.id));
+      } else if (clean !== el.text) this.commitElements(this.doc.elements.map((e) => (e.id === el.id ? refitText({ ...el, text: clean }, measure) : e)));
+      else this.renderContent();
+    } else if (clean !== ``) {
+      const made = textElement(at, clean, style, newId(this.doc.elements), measure);
+      this.commitElements([...this.doc.elements, made]);
+      this.selected = new Set([made.id]);
+      if (!this.toolLocked) this.tool = `select`;
+    } else this.renderContent();
+    this.renderUi();
+    this.updateBar();
+    this.contentEl.focus({ preventScroll: true });
   }
 
   // A drawing cannot hold a frame of a drawing.
@@ -167,6 +250,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.toolButton(tools, `line`, `minus`, t(`Trait`));
     this.toolButton(tools, `pen`, `pencil`, t(`Stylo libre`));
     this.toolButton(tools, `point`, `dot`, t(`Point`));
+    this.toolButton(tools, `text`, `type`, t(`Texte`));
     const lock = this.button(tools, `unlock`, t(`Garder l'outil actif après chaque tracé`), () => {
       this.toolLocked = !this.toolLocked;
       setIcon(lock, this.toolLocked ? `lock` : `unlock`);
@@ -179,26 +263,32 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     const props = side.createDiv({ cls: `sketchdraw-props` });
     this.props = props;
     this.buildProps(props);
+    this.unsubscribeFonts = this.api.fonts.onChange(() => this.refreshFontList());
   }
 
-  // Builds the properties panel: stroke colour, fill, width and style. Every choice is a pictogram; its name is the tooltip.
+  // Builds the properties panel. It is made of sections, each one shown only for the elements it concerns (the edges for lines and arrows, the heads for arrows, the font for
+  // texts, the fill and the width for everything but texts). Every choice is a pictogram; its name is the tooltip.
   private buildProps(props: HTMLElement): void {
     this.panelButtons.length = 0;
-    this.sectionIcon(props, `pencil-line`, t(`Couleur du trait`));
-    const strokeRow = props.createDiv({ cls: `sketchdraw-swatches` });
+    this.sections.length = 0;
     this.strokeSwatches.length = 0;
-    this.strokeColor = this.colorInput(props, (c) => this.change({ stroke: c }));
     this.fillSwatches.length = 0;
 
-    this.sectionIcon(props, `paint-bucket`, t(`Remplissage`));
-    const fillKinds = props.createDiv({ cls: `sketchdraw-row` });
+    const colour = this.section(props, () => true);
+    this.sectionIcon(colour, `pencil-line`, t(`Couleur du trait`));
+    const strokeRow = colour.createDiv({ cls: `sketchdraw-swatches` });
+    this.strokeColor = this.colorInput(colour, (c) => this.change({ stroke: c }));
+
+    const fillSec = this.section(props, (k) => k !== `text`);
+    this.sectionIcon(fillSec, `paint-bucket`, t(`Remplissage`));
+    const fillKinds = fillSec.createDiv({ cls: `sketchdraw-row` });
     this.panelButton(fillKinds, `sketchnote-fill-none`, t(`Aucun remplissage`), (s) => s.fill === null, () => this.change({ fill: null }));
     this.panelButton(fillKinds, `sketchnote-fill-solid`, t(`Remplissage uni`), (s) => s.fill !== null && s.fillStyle === `solid`, () => this.change({ fill: this.style?.fill ?? this.doc.palette[1], fillStyle: `solid` }));
     this.panelButton(fillKinds, `sketchnote-fill-hachure`, t(`Remplissage hachuré`), (s) => s.fill !== null && s.fillStyle === `hachure`, () => this.change({ fill: this.style?.fill ?? this.doc.palette[1], fillStyle: `hachure` }));
-    const fillRow = props.createDiv({ cls: `sketchdraw-swatches` });
-    this.fillColor = this.colorInput(props, (c) => this.change({ fill: c }));
+    const fillRow = fillSec.createDiv({ cls: `sketchdraw-swatches` });
+    this.fillColor = this.colorInput(fillSec, (c) => this.change({ fill: c }));
     // The transparency of the fill: 0 is opaque, the line keeps its colour and stays opaque.
-    const alpha = props.createEl(`input`, { cls: `sketchdraw-range sketchdraw-alpha`, type: `range` });
+    const alpha = fillSec.createEl(`input`, { cls: `sketchdraw-range sketchdraw-alpha`, type: `range` });
     alpha.min = `0`;
     alpha.max = `95`;
     alpha.step = `5`;
@@ -207,12 +297,13 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     alpha.addEventListener(`input`, () => this.change({ fillOpacity: 1 - Number(alpha.value) / 100 }));
     this.transparencyInput = alpha;
 
-    this.sectionIcon(props, `sketchnote-width-medium`, t(`Épaisseur`));
-    const widths = props.createDiv({ cls: `sketchdraw-row` });
+    const widthSec = this.section(props, (k) => k !== `text`);
+    this.sectionIcon(widthSec, `sketchnote-width-medium`, t(`Épaisseur`));
+    const widths = widthSec.createDiv({ cls: `sketchdraw-row` });
     this.panelButton(widths, `sketchnote-width-thin`, t(`Trait fin`), (s) => s.strokeWidth === STROKE_WIDTHS.thin, () => this.change({ strokeWidth: STROKE_WIDTHS.thin }));
     this.panelButton(widths, `sketchnote-width-medium`, t(`Trait moyen`), (s) => s.strokeWidth === STROKE_WIDTHS.medium, () => this.change({ strokeWidth: STROKE_WIDTHS.medium }));
     this.panelButton(widths, `sketchnote-width-thick`, t(`Trait épais`), (s) => s.strokeWidth === STROKE_WIDTHS.thick, () => this.change({ strokeWidth: STROKE_WIDTHS.thick }));
-    const range = props.createEl(`input`, { cls: `sketchdraw-range`, type: `range` });
+    const range = widthSec.createEl(`input`, { cls: `sketchdraw-range`, type: `range` });
     range.min = String(MIN_WIDTH);
     range.max = String(MAX_WIDTH);
     range.step = `1`;
@@ -220,44 +311,80 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     range.addEventListener(`input`, () => this.change({ strokeWidth: Number(range.value) }));
     this.widthInput = range;
 
-    this.sectionIcon(props, `brush`, t(`Style`));
-    const looks = props.createDiv({ cls: `sketchdraw-row` });
+    const lookSec = this.section(props, (k) => k !== `text`);
+    this.sectionIcon(lookSec, `brush`, t(`Style`));
+    const looks = lookSec.createDiv({ cls: `sketchdraw-row` });
     this.panelButton(looks, `sketchnote-style-sketch`, t(`Dessiné à la main`), (s) => s.roughness > 0, () => this.change({ roughness: 1 }));
     this.panelButton(looks, `sketchnote-style-clean`, t(`Net`), (s) => s.roughness === 0, () => this.change({ roughness: 0 }));
 
     // Sections shown only for lines and arrows: the edges, then the head at each end of an arrow.
-    this.linearSections.length = 0;
-    const edgeIcon = this.sectionIcon(props, `sketchnote-edge-round`, t(`Bords`));
-    const edges = props.createDiv({ cls: `sketchdraw-row` });
+    const edgeSec = this.section(props, (k) => k === `line` || k === `arrow`);
+    this.sectionIcon(edgeSec, `sketchnote-edge-round`, t(`Bords`));
+    const edges = edgeSec.createDiv({ cls: `sketchdraw-row` });
     this.panelButton(edges, `sketchnote-edge-sharp`, t(`Bords droits`), (s) => !s.rounded, () => this.change({ rounded: false }));
     this.panelButton(edges, `sketchnote-edge-round`, t(`Bords arrondis`), (s) => s.rounded, () => this.change({ rounded: true }));
-    this.linearSections.push({ els: [edgeIcon, edges], arrowOnly: false });
-    const headsIcon = this.sectionIcon(props, `sketchnote-head-arrow`, t(`Pointes`));
-    const startRow = props.createDiv({ cls: `sketchdraw-row sketchdraw-heads-start` });
-    const endRow = props.createDiv({ cls: `sketchdraw-row` });
+    const headSec = this.section(props, (k) => k === `arrow`);
+    this.sectionIcon(headSec, `sketchnote-head-arrow`, t(`Pointes`));
+    const startRow = headSec.createDiv({ cls: `sketchdraw-row sketchdraw-heads-start` });
+    const endRow = headSec.createDiv({ cls: `sketchdraw-row` });
     for (const kind of HEADS) {
       const name = headName(kind);
       this.panelButton(startRow, `sketchnote-head-${kind}`, `${t(`Pointe au début`)} : ${name}`, (s) => s.startHead === kind, () => this.change({ startHead: kind }));
       this.panelButton(endRow, `sketchnote-head-${kind}`, `${t(`Pointe à la fin`)} : ${name}`, (s) => s.endHead === kind, () => this.change({ endHead: kind }));
     }
-    this.linearSections.push({ els: [headsIcon, startRow, endRow], arrowOnly: true });
+
+    // The section of the texts: the font (a list, each name written in its own font), the size and the alignment.
+    const textSec = this.section(props, (k) => k === `text`);
+    this.sectionIcon(textSec, `type`, t(`Police`));
+    const select = textSec.createEl(`select`, { cls: `dropdown sketchdraw-font` });
+    select.setAttribute(`aria-label`, t(`Police`));
+    select.setAttribute(`title`, t(`Police`));
+    select.addEventListener(`change`, () => this.change({ font: select.value }));
+    this.fontSelect = select;
+    this.refreshFontList();
+    const sizes = textSec.createDiv({ cls: `sketchdraw-row` });
+    this.panelButton(sizes, `sketchnote-size-small`, t(`Texte petit`), (s) => s.fontSize === TEXT_SIZES.small, () => this.change({ fontSize: TEXT_SIZES.small }));
+    this.panelButton(sizes, `sketchnote-size-medium`, t(`Texte moyen`), (s) => s.fontSize === TEXT_SIZES.medium, () => this.change({ fontSize: TEXT_SIZES.medium }));
+    this.panelButton(sizes, `sketchnote-size-large`, t(`Texte grand`), (s) => s.fontSize === TEXT_SIZES.large, () => this.change({ fontSize: TEXT_SIZES.large }));
+    this.panelButton(sizes, `sketchnote-size-huge`, t(`Texte très grand`), (s) => s.fontSize === TEXT_SIZES.huge, () => this.change({ fontSize: TEXT_SIZES.huge }));
+    const aligns = textSec.createDiv({ cls: `sketchdraw-row` });
+    this.panelButton(aligns, `align-left`, t(`Aligné à gauche`), (s) => s.align === `left`, () => this.change({ align: `left` }));
+    this.panelButton(aligns, `align-center`, t(`Centré`), (s) => s.align === `center`, () => this.change({ align: `center` }));
+    this.panelButton(aligns, `align-right`, t(`Aligné à droite`), (s) => s.align === `right`, () => this.change({ align: `right` }));
 
     this.swatchRows = { stroke: strokeRow, fill: fillRow };
     this.refreshSwatches();
   }
 
-  // The sections of the panel that only lines and arrows use.
-  private linearSections: { els: HTMLElement[]; arrowOnly: boolean }[] = [];
+  // The sections of the panel, each with the test that tells for which kind of element it is shown.
+  private readonly sections: { el: HTMLElement; show: (kind: string) => boolean }[] = [];
+  private fontSelect: HTMLSelectElement | null = null;
 
-  // Shows the edge and head sections when a line or an arrow is selected or about to be drawn.
-  private syncLinearSections(): void {
-    const one = this.selectedElements()[0];
-    const kind = this.tool !== `select` ? this.tool : this.selected.size === 1 && one ? one.type : this.tool;
-    const linear = kind === `line` || kind === `arrow`;
-    for (const sec of this.linearSections) {
-      const show = linear && (!sec.arrowOnly || kind === `arrow`);
-      for (const el of sec.els) el.toggleClass(`sketchdraw-hidden`, !show);
+  // Adds a section to the panel.
+  private section(props: HTMLElement, show: (kind: string) => boolean): HTMLElement {
+    const el = props.createDiv({ cls: `sketchdraw-section` });
+    this.sections.push({ el, show });
+    return el;
+  }
+
+  // Fills the list of fonts: the built-in fonts, then the imported ones, each name in its own font.
+  private refreshFontList(): void {
+    const select = this.fontSelect;
+    if (!select) return;
+    select.empty();
+    for (const f of this.api.fonts.entries()) {
+      const option = select.createEl(`option`, { text: f.name });
+      option.value = f.id;
+      option.style.fontFamily = fontStack(f.id);
     }
+    select.value = this.currentStyle().font;
+  }
+
+  // Shows the sections that concern the kind of element selected or about to be drawn.
+  private syncSections(): void {
+    const one = this.selectedElements()[0];
+    const kind = this.tool !== `select` ? this.tool : this.selected.size === 1 && one ? one.type : this.selected.size > 1 ? `mixed` : this.tool;
+    for (const sec of this.sections) sec.el.toggleClass(`sketchdraw-hidden`, !sec.show(kind));
   }
 
   private swatchRows: { stroke: HTMLElement; fill: HTMLElement } | null = null;
@@ -319,7 +446,8 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     const clean = cleanPatch(patch);
     if (this.style) this.style = { ...this.style, ...clean };
     if (this.selected.size > 0) {
-      const next = applyStyleToIds(this.doc.elements, this.selected, clean);
+      // A text takes the size of its box again when its font or its size changed.
+      const next = applyStyleToIds(this.doc.elements, this.selected, clean).map((e) => (e.type === `text` ? refitText(e, this.api.fonts.measure) : e));
       if (next.some((e, i) => e !== this.doc.elements[i])) this.commitElements(next);
     }
     this.lastPanel = ``;
@@ -335,7 +463,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   // Shows in the panel which choices are active. Does nothing when nothing changed since the last time.
   private syncPanel(): void {
     const s = this.currentStyle();
-    this.syncLinearSections();
+    this.syncSections();
     const key = JSON.stringify(s);
     if (key === this.lastPanel) return;
     this.lastPanel = key;
@@ -343,6 +471,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     for (const sw of this.strokeSwatches) sw.toggleClass(`is-active`, sw.dataset.color === toHex6(s.stroke));
     for (const sw of this.fillSwatches) sw.toggleClass(`is-active`, s.fill !== null && sw.dataset.color === toHex6(s.fill));
     if (this.widthInput) this.widthInput.value = String(Math.round(s.strokeWidth));
+    if (this.fontSelect) this.fontSelect.value = s.font;
     if (this.transparencyInput) this.transparencyInput.value = String(Math.round((1 - s.fillOpacity) * 20) * 5);
     if (this.strokeColor) this.strokeColor.value = toHex6(s.stroke);
     if (this.fillColor) this.fillColor.value = toHex6(s.fill ?? `#ffffff`);

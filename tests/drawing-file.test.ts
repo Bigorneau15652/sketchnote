@@ -82,7 +82,9 @@ test(`un dossier est nettoye ou refuse`, () => {
 test(`les reglages invalides reprennent la valeur par defaut`, () => {
   assert.deepEqual(readSettings(undefined), DEFAULT_SETTINGS);
   assert.deepEqual(readSettings({ drawingsFolder: `../x` }), DEFAULT_SETTINGS);
-  assert.deepEqual(readSettings({ drawingsFolder: `Mes dessins` }), { drawingsFolder: `Mes dessins` });
+  assert.deepEqual(readSettings({ drawingsFolder: `Mes dessins` }), { ...DEFAULT_SETTINGS, drawingsFolder: `Mes dessins` });
+  assert.deepEqual(readSettings({ fontsFolder: `Mes polices` }), { ...DEFAULT_SETTINGS, fontsFolder: `Mes polices` });
+  assert.deepEqual(readSettings({ fontsFolder: `../x` }), DEFAULT_SETTINGS);
 });
 
 test(`le nom d'un dessin est unique, sans caracteres interdits`, () => {
