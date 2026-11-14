@@ -47,7 +47,6 @@ export class PageModal extends Modal {
         this.app,
         t(`Remplacer la structure ?`),
         t(`Vous avez modifié ce que la structure avait dessiné (séparations, flèches ou liens). Ce changement la redessine et ces modifications sont perdues. Le bouton Annuler de la barre du bas permet de les retrouver.`),
-        t(`Remplacer`),
         () => this.commitChange(page, layout),
         () => this.build(),
       ).open();

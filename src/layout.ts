@@ -59,6 +59,32 @@ export function normalizeLayout(layout: LayoutSettings): LayoutSettings {
   return { type: layout.type, count: clampInt(layout.count, l.min, l.max, l.default), rows: clampInt(layout.rows, ROW_LIMITS.min, ROW_LIMITS.max, ROW_LIMITS.default) };
 }
 
+// Returns the settings with one more zone, or null when the structure is already at its largest. The modular structure adds a column first, then a row.
+export function addZone(layout: LayoutSettings): LayoutSettings | null {
+  const l = LAYOUT_LIMITS[layout.type];
+  if (layout.count < l.max) return normalizeLayout({ ...layout, count: layout.count + 1 });
+  if (layout.type === `modular` && layout.rows < ROW_LIMITS.max) return normalizeLayout({ ...layout, rows: layout.rows + 1 });
+  return null;
+}
+
+// Returns the number of the slot that holds a point, or -1 when the point is in no slot. A rectangle slot holds the points inside it; an ellipse slot the points
+// inside its ellipse.
+export function slotIndexAt(slots: Slot[], p: Point): number {
+  let best = -1;
+  let bestArea = Infinity;
+  slots.forEach((s, i) => {
+    const inside =
+      s.shape === `rect`
+        ? p[0] >= s.x && p[0] <= s.x + s.width && p[1] >= s.y && p[1] <= s.y + s.height
+        : ((p[0] - (s.x + s.width / 2)) / (s.width / 2)) ** 2 + ((p[1] - (s.y + s.height / 2)) / (s.height / 2)) ** 2 <= 1;
+    if (inside && s.width * s.height < bestArea) {
+      best = i;
+      bestArea = s.width * s.height;
+    }
+  });
+  return best;
+}
+
 // Tells whether two structure settings are the same (both absent counts as the same).
 export function sameLayout(a: LayoutSettings | null, b: LayoutSettings | null): boolean {
   if (a === null || b === null) return a === b;

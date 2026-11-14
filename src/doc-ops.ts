@@ -1,7 +1,30 @@
 // Pure operations on a whole document: applying new page settings and a new structure together.
 import type { SketchnoteDoc, PageSettings } from "./file-format";
-import { isStroked } from "./elements";
-import { buildStructure, LayoutSettings, sameLayout } from "./layout";
+import { isStroked, SketchElement } from "./elements";
+import { buildStructure, LayoutSettings, sameLayout, Slot } from "./layout";
+
+// Moves and scales the frames of drawings so that each one keeps its place in its slot when the slots change (another number of zones, another structure, another
+// page size). A frame keeps its distance from the centre of its slot and its size, both in proportion to the slot, so that a drawing made larger than its slot stays
+// larger. A frame whose slot does not exist any more becomes a free frame.
+export function remapFrames(elements: SketchElement[], oldSlots: Slot[], newSlots: Slot[]): SketchElement[] {
+  return elements.map((el) => {
+    if (el.type !== `drawing` || el.slot === undefined) return el;
+    const from = oldSlots[el.slot];
+    const to = newSlots[el.slot];
+    if (!to) {
+      const { slot: _s, ...free } = el;
+      void _s;
+      return free;
+    }
+    if (!from || from.width <= 0) return el;
+    const k = to.width / from.width;
+    const cx = to.x + to.width / 2 + (el.x + el.width / 2 - (from.x + from.width / 2)) * k;
+    const cy = to.y + to.height / 2 + (el.y + el.height / 2 - (from.y + from.height / 2)) * k;
+    const width = Math.round(el.width * k * 100) / 100;
+    const height = Math.round(el.height * k * 100) / 100;
+    return { ...el, x: Math.round((cx - width / 2) * 100) / 100, y: Math.round((cy - height / 2) * 100) / 100, width, height };
+  });
+}
 
 // Returns the document with new page settings and a new structure (or none).
 // The elements of the structure (group `structure`) are made again when the structure or the page size changes, and removed when the structure is removed.
@@ -12,7 +35,9 @@ export function applySettings(doc: SketchnoteDoc, page: PageSettings, layout: La
   if (layout === null) return { ...doc, page, layout: null, elements: own };
   const sizeChanged = page.width !== doc.page.width || page.height !== doc.page.height;
   if (sizeChanged || !sameLayout(doc.layout, layout)) {
-    return { ...doc, page, layout, elements: [...buildStructure(layout, page).elements, ...own] };
+    const next = buildStructure(layout, page);
+    const moved = doc.layout === null ? own : remapFrames(own, buildStructure(doc.layout, doc.page).slots, next.slots);
+    return { ...doc, page, layout, elements: [...next.elements, ...moved] };
   }
   if (page.ink !== doc.page.ink) {
     const elements = doc.elements.map((e) => (e.group === `structure` && isStroked(e) && e.stroke === doc.page.ink ? { ...e, stroke: page.ink } : e));

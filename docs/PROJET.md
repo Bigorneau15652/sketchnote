@@ -38,9 +38,13 @@ Déplacer la page : touche Espace maintenue avec glisser, bouton Main de la barr
 
 ## Décisions d'Olivier pour les dessins (version 0.5.0)
 
-Organisation comme dans Bigorneau : une page de travail et des pages de dessin. La page reste un fichier .sketchnote unique ; chaque élément graphique est un cadre qui renvoie vers une note de dessin séparée, un fichier .sketchdraw (JSON). Le cadre se crée sur la page (bouton Dessin de la barre du bas), un double clic crée la note et l'ouvre dans un autre onglet, avec la barre d'outils à droite. Le sketchnote est donc composé de plusieurs notes de dessin (cette décision remplace l'idée de départ de tout mettre dans un seul fichier).
+Organisation comme dans Bigorneau : une page de travail et des pages de dessin. La page reste un fichier .sketchnote unique ; chaque élément graphique est un cadre qui renvoie vers une note de dessin séparée, un fichier .sketchdraw (JSON). Le sketchnote est donc composé de plusieurs notes de dessin (cette décision remplace l'idée de départ de tout mettre dans un seul fichier).
 
-Dossier des notes de dessin : un réglage du plugin (par défaut Sketchnote dessins), un dossier unique où retrouver tous les dessins. Un nom de dessin est « Nom du sketchnote - dessin N ». Supprimer un cadre ne supprime pas la note de dessin.
+Les zones de dessin sont les emplacements en pointillés de la structure (version 0.6.0). On ne trace pas de zone à la main : un double clic dans un emplacement ouvre son dessin, créé la première fois, dans un autre onglet avec la barre d'outils à droite. Le dessin peut ensuite être agrandi sur la page au-delà de son emplacement. Le bouton plus de la barre du bas ajoute une zone à la structure (comme augmenter le nombre dans les réglages de la page). Le bouton œil affiche ou masque les zones en pointillés. Un dessin suit son emplacement quand la structure ou la taille de la page change. Une page sans structure n'a pas de zone de dessin.
+
+Règle d'interface : aucun bouton avec du texte, seulement des pictogrammes (nom en infobulle). Le menu sandwich ouvre les réglages de la page, l'œil affiche ou masque, chaque bouton ou menu a son pictogramme.
+
+Dossier des notes de dessin : un réglage du plugin (par défaut Sketchnote dessins), un dossier unique où retrouver tous les dessins. La cellule du réglage propose les dossiers du coffre et crée le dossier s'il n'existe pas. Un nom de dessin est « Nom du sketchnote - dessin N ». Supprimer un cadre ne supprime pas la note de dessin.
 
 Dupliquer un cadre (Ctrl ou Cmd avec D, bouton Dupliquer de la barre du bas, commande de la palette Dupliquer la sélection à laquelle Olivier peut donner un raccourci) crée une copie indépendante de la note de dessin. Un cadre se redimensionne proportionnellement comme une image et prend les proportions du dessin après chaque modification (la largeur reste, la hauteur s'adapte).
 
@@ -48,4 +52,4 @@ Lignes et flèches : le même fonctionnement qu'Excalidraw, sans inventer une au
 
 ## Plan des versions
 
-0.1.0 squelette et installation par BRAT (faite). 0.2.0 la page (faite). 0.3.0 les sept structures (faite). 0.4.0 sélection, poignées, annuler (faite). 0.5.0 cadres de dessin, notes de dessin, éditeur avec outils de base, propriétés, palette (faite). 0.6.0 lignes et flèches comme sur Excalidraw (points multiples, courbes, coudes, pointes). 0.7.0 texte et polices manuscrites. 0.8.0 bibliothèque de dessins (Lucide et Tabler) et images. 0.9.0 exports (PNG, SVG, PDF) et intégration dans les notes. 0.10.0 audit de performance et de sécurité. 1.0.0 publication dans le répertoire communautaire.
+0.1.0 squelette et installation par BRAT (faite). 0.2.0 la page (faite). 0.3.0 les sept structures (faite). 0.4.0 sélection, poignées, annuler (faite). 0.5.0 notes de dessin, éditeur avec outils de base, propriétés, palette (faite). 0.6.0 les zones de dessin sont les emplacements de la structure, bouton plus, œil, interface en pictogrammes, réglage du dossier amélioré (faite). 0.7.0 lignes et flèches comme sur Excalidraw (points multiples, courbes, coudes, pointes). 0.8.0 texte et polices manuscrites. 0.9.0 bibliothèque de dessins (Lucide et Tabler) et images. 0.10.0 exports (PNG, SVG, PDF) et intégration dans les notes. 0.11.0 audit de performance et de sécurité. 1.0.0 publication dans le répertoire communautaire.

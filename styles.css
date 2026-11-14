@@ -150,17 +150,13 @@
   display: inline-flex;
 }
 
-.sketchnote-zoom-level {
-  min-width: 64px;
-  justify-content: center;
+.sketchnote-zoom-text {
+  min-width: 44px;
+  text-align: center;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
 }
 
-/* On a narrow window the Page button keeps only its icon. */
-@media (max-width: 480px) {
-  .sketchnote-bar-label {
-    display: none;
-  }
-}
 
 /* Empty frame of a drawing on a page: a dashed frame with a hint. It is a guide, drawn in the page colours of the theme. */
 .sketchnote-frame-empty {
@@ -170,9 +166,16 @@
   stroke-dasharray: 10 8;
 }
 
-.sketchnote-frame-label {
-  fill: rgba(127, 127, 127, 0.9);
-  font-family: var(--font-interface);
+.sketchnote-frame-pencil {
+  fill: none;
+  stroke: rgba(127, 127, 127, 0.9);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sketchnote-frame-pencil.is-loading {
+  opacity: 0.45;
 }
 
 /* Toolbar of the drawing view, on the right: the tools, then the properties of the lines and fills. */
@@ -204,9 +207,14 @@
 }
 
 .sketchdraw-title {
+  display: flex;
   margin-top: 6px;
-  font-size: var(--font-ui-smaller);
   color: var(--text-muted);
+}
+
+.sketchdraw-title .svg-icon {
+  width: 16px;
+  height: 16px;
 }
 
 .sketchdraw-swatches,
@@ -238,9 +246,11 @@
 
 .sketchdraw-chip {
   flex: 1 1 auto;
-  min-height: 28px;
-  padding: 2px 8px;
-  font-size: var(--font-ui-smaller);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 2px 6px;
 }
 
 .sketchdraw-chip.is-active {

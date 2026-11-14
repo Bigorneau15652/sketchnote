@@ -3,6 +3,7 @@ import { Notice, Plugin, TFile, WorkspaceLeaf, normalizePath } from "obsidian";
 import { CanvasView } from "./canvas-view";
 import { DRAW_VIEW_TYPE, SketchdrawView } from "./draw-view";
 import { DrawingStore } from "./drawings";
+import { registerIcons } from "./custom-icons";
 import { createEmptyDoc, serializeSketchnote } from "./file-format";
 import { setLanguage, t } from "./i18n";
 import { PluginApi } from "./plugin-api";
@@ -12,13 +13,14 @@ import { SketchnoteView, VIEW_TYPE } from "./view";
 
 export default class SketchnotePlugin extends Plugin {
   settingsData: SketchnoteSettings = { ...DEFAULT_SETTINGS };
-  private drawings!: DrawingStore;
+  drawings!: DrawingStore;
   private readonly origins = new Map<string, WorkspaceLeaf>();
 
   // Starts the plugin: settings, language, views, file extensions, commands, settings page and vault events.
   async onload(): Promise<void> {
     this.settingsData = readSettings(await this.loadData());
     setLanguage(`auto`);
+    registerIcons();
     this.drawings = new DrawingStore(this.app, () => this.settingsData.drawingsFolder);
     const api: PluginApi = { drawings: this.drawings, settings: () => this.settingsData, origins: this.origins };
     this.registerView(VIEW_TYPE, (leaf) => new SketchnoteView(leaf, api));

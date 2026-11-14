@@ -5,6 +5,7 @@ import { newId, SketchElement } from "./elements";
 import { Box, boxesIntersect, boxOf, centerOf, elementBounds, hitHandle, hitTop, unionBox } from "./geometry";
 import { History } from "./history";
 import { t } from "./i18n";
+import type { Slot } from "./layout";
 import { RenderedPage } from "./page-render";
 import { drawUi } from "./selection-render";
 import { cloneElements, moveElements, reorder, removeElements } from "./selection-ops";
@@ -19,7 +20,8 @@ export type Tool = `select` | `hand` | CreationTool;
 export type Point = [number, number];
 
 type Gesture =
-  | { kind: `pan`; pointerId: number; lastX: number; lastY: number }
+  // A pan that starts on the empty surface with a finger can still be a tap: `tap` is the page position of the press, `travel` how far the finger went.
+  | { kind: `pan`; pointerId: number; lastX: number; lastY: number; tap: Point | null; travel: number }
   | { kind: `move`; pointerId: number; start: Point; startClient: Point; ids: Set<string>; box: Box; moved: boolean }
   | { kind: `resize`; pointerId: number; orig: SketchElement; corner: 0 | 1 | 2 | 3; moved: boolean }
   | { kind: `rotate`; pointerId: number; orig: SketchElement; center: Point; startAngle: number; moved: boolean }
@@ -118,6 +120,16 @@ export abstract class CanvasView<D> extends TextFileView {
 
   // Called when the selection or the buttons need to be shown again.
   protected onSelectionChanged(): void {}
+
+  // The dotted zones to draw, and which ones are taken. A page with a structure returns them; a drawing returns null.
+  protected zones(): { slots: Slot[]; occupied: boolean[]; background: string } | null {
+    return null;
+  }
+
+  // Called when the empty surface is double clicked (or double tapped) with the selection tool, with the position on the surface.
+  protected onEmptyActivate(_p: Point): void {
+    void _p;
+  }
 
   // Called when an element is double clicked (or double tapped) with the selection tool.
   protected onActivate(_el: SketchElement): void {
@@ -239,10 +251,8 @@ export abstract class CanvasView<D> extends TextFileView {
     slider.addEventListener(`input`, () => this.setZoom(sliderToZoom(Number(slider.value))));
     this.zoomSlider = slider;
     this.button(bar, `zoom-in`, t(`Zoom avant`), () => this.setZoom(stepZoom(this.zoom, 1)));
-    const level = bar.createEl(`button`, { cls: `sketchnote-bar-button sketchnote-zoom-level` });
-    level.setAttribute(`aria-label`, t(`Ajuster la page à la fenêtre`));
-    level.addEventListener(`click`, () => this.fitView());
-    this.zoomLabel = level;
+    this.button(bar, `maximize`, t(`Ajuster à la fenêtre`), () => this.fitView());
+    this.zoomLabel = bar.createSpan({ cls: `sketchnote-zoom-text` });
 
     const actions = bar.createDiv({ cls: `sketchnote-selection-actions` });
     this.button(actions, `copy`, t(`Dupliquer`), () => void this.duplicateSelection());
@@ -324,6 +334,7 @@ export abstract class CanvasView<D> extends TextFileView {
       marquee: this.marquee,
       guideX: this.guideX,
       guideY: this.guideY,
+      zones: this.zones(),
     });
   }
 
@@ -550,7 +561,7 @@ export abstract class CanvasView<D> extends TextFileView {
     if (e.button !== 0 && e.button !== 1) return;
     this.baseDoc = this.doc;
     if (e.button === 1 || this.spaceDown || this.tool === `hand`) {
-      this.gesture = { kind: `pan`, pointerId: e.pointerId, lastX: e.clientX, lastY: e.clientY };
+      this.gesture = { kind: `pan`, pointerId: e.pointerId, lastX: e.clientX, lastY: e.clientY, tap: null, travel: 0 };
       this.updateCursor();
       return;
     }
@@ -623,10 +634,9 @@ export abstract class CanvasView<D> extends TextFileView {
       this.updateBar();
       return;
     }
-    this.lastClick = null;
     const base = e.shiftKey ? new Set(this.selected) : new Set<string>();
     if (!e.shiftKey) this.selected.clear();
-    if (touch) this.gesture = { kind: `pan`, pointerId: e.pointerId, lastX: e.clientX, lastY: e.clientY };
+    if (touch) this.gesture = { kind: `pan`, pointerId: e.pointerId, lastX: e.clientX, lastY: e.clientY, tap: p, travel: 0 };
     else this.gesture = { kind: `marquee`, pointerId: e.pointerId, start: p, current: p, base };
     this.renderUi();
     this.updateBar();
@@ -640,6 +650,16 @@ export abstract class CanvasView<D> extends TextFileView {
     const same = last !== null && last.id === el.id && now - last.time < 400 && Math.hypot(e.clientX - last.x, e.clientY - last.y) < 10;
     this.lastClick = same ? null : { id: el.id, time: now, x: e.clientX, y: e.clientY };
     if (same) this.onActivate(el);
+  }
+
+  // Called when a click ends on the empty surface. The second click of a double click, close in time and in place, activates the surface at that point (a double click in a
+  // dotted zone opens its drawing). Any other click is remembered.
+  private registerEmptyClick(p: Point, e: PointerEvent): void {
+    const now = Date.now();
+    const last = this.lastClick;
+    const same = last !== null && last.id === `` && now - last.time < 400 && Math.hypot(e.clientX - last.x, e.clientY - last.y) < 10;
+    this.lastClick = same ? null : { id: ``, time: now, x: e.clientX, y: e.clientY };
+    if (same) this.onEmptyActivate(p);
   }
 
   // Returns the angle in degrees of the direction from a centre to a point.
@@ -662,6 +682,7 @@ export abstract class CanvasView<D> extends TextFileView {
     if (g.kind === `pan` && this.scroller) {
       this.scroller.scrollLeft -= e.clientX - g.lastX;
       this.scroller.scrollTop -= e.clientY - g.lastY;
+      g.travel += Math.abs(e.clientX - g.lastX) + Math.abs(e.clientY - g.lastY);
       g.lastX = e.clientX;
       g.lastY = e.clientY;
     } else if (g.kind === `create`) {
@@ -746,6 +767,10 @@ export abstract class CanvasView<D> extends TextFileView {
     if (g.kind === `move` && !g.moved && g.ids.size === 1) {
       const clicked = this.elementsOf(this.doc).find((el) => g.ids.has(el.id));
       if (clicked) this.registerClick(clicked, e);
+    } else if (g.kind === `marquee` && Math.hypot(g.current[0] - g.start[0], g.current[1] - g.start[1]) * this.zoom < 4) {
+      this.registerEmptyClick(g.start, e);
+    } else if (g.kind === `pan` && g.tap !== null && g.travel < 6) {
+      this.registerEmptyClick(g.tap, e);
     } else {
       this.lastClick = null;
     }

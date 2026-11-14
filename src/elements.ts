@@ -14,6 +14,7 @@ const MAX_STROKE = 40;
 const MAX_ROUGHNESS = 3;
 const MAX_SEED = 2147483647;
 const MAX_PATH_LENGTH = 512;
+const MAX_SLOT = 999;
 
 interface BaseElement {
   id: string;
@@ -81,7 +82,8 @@ export interface DiamondElement extends BaseElement, Strokes, Fills {
 }
 
 // A frame on a page that shows a drawing kept in its own note. The path is the path of the drawing note in the vault, or null while the
-// drawing has not been created yet.
+// drawing has not been created yet. The slot is the number of the slot of the page structure (the dotted zone) that the frame belongs to: when the
+// structure changes, the frame follows its slot.
 export interface DrawingElement extends BaseElement {
   type: `drawing`;
   x: number;
@@ -89,6 +91,7 @@ export interface DrawingElement extends BaseElement {
   width: number;
   height: number;
   angle?: number;
+  slot?: number;
   path: string | null;
 }
 
@@ -196,7 +199,10 @@ function readElement(value: unknown): SketchElement | null {
     const angle = readAngle(value.angle);
     const path = value.path === null ? null : isSafeDrawingPath(value.path) ? value.path : undefined;
     if (angle === null || path === undefined) return null;
-    return { ...head, type, x, y, width, height, ...(angle === 0 ? {} : { angle }), path };
+    const slotOk = value.slot === undefined || (typeof value.slot === `number` && Number.isInteger(value.slot) && value.slot >= 0 && value.slot <= MAX_SLOT);
+    if (!slotOk) return null;
+    const slot = value.slot === undefined ? {} : { slot: value.slot as number };
+    return { ...head, type, x, y, width, height, ...(angle === 0 ? {} : { angle }), ...slot, path };
   }
   const { stroke, strokeWidth } = value;
   if (!isSafeColor(stroke)) return null;

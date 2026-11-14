@@ -1,8 +1,7 @@
 // Draws the surface of a page as an SVG element, from its settings: the page colour, the repeating tile of its style, the dotted frames of its structure.
 // The elements are drawn into the group `content` by the view. Built with the DOM only: no markup text is ever parsed.
 import { PageSettings } from "./file-format";
-import type { Slot } from "./layout";
-import { backgroundSpec, slotStyle, TileShape } from "./page-background";
+import { backgroundSpec, TileShape } from "./page-background";
 import { svgEl } from "./svg";
 
 export interface RenderedPage {
@@ -22,19 +21,8 @@ function drawShape(shape: TileShape, parent: Element, prefix: string): void {
   svgEl(shape.tag, attrs, parent);
 }
 
-// Draws the slots of a structure as dotted frames in their own group. They help to place the contents while editing and are never part of the drawing.
-function drawSlots(slots: Slot[], background: string, parent: Element): void {
-  const style = slotStyle(background);
-  const group = svgEl(`g`, { class: `sketchnote-guides`, "pointer-events": `none` }, parent);
-  const look = { fill: style.color, "fill-opacity": style.fillOpacity, stroke: style.color, "stroke-opacity": style.strokeOpacity, "stroke-width": 1.5, "stroke-dasharray": `8 6` };
-  for (const s of slots) {
-    if (s.shape === `ellipse`) svgEl(`ellipse`, { cx: s.x + s.width / 2, cy: s.y + s.height / 2, rx: s.width / 2, ry: s.height / 2, ...look }, group);
-    else svgEl(`rect`, { x: s.x, y: s.y, width: s.width, height: s.height, rx: 6, ...look }, group);
-  }
-}
-
-// Builds the SVG of a page at a given zoom: the page colour, the repeating tile of its style, an empty group for the elements, the slots and the editor overlay.
-export function renderPage(page: PageSettings, zoom: number, slots: Slot[] = []): RenderedPage {
+// Builds the SVG of a page at a given zoom: the page colour, the repeating tile of its style, an empty group for the elements and the editor overlay.
+export function renderPage(page: PageSettings, zoom: number): RenderedPage {
   const { width, height } = page;
   const spec = backgroundSpec(page);
   const svg = svgEl(`svg`, { class: `sketchnote-page`, width: width * zoom, height: height * zoom, viewBox: `0 0 ${width} ${height}` });
@@ -54,7 +42,6 @@ export function renderPage(page: PageSettings, zoom: number, slots: Slot[] = [])
   }
   for (const shape of spec.overlay) drawShape(shape, svg, prefix);
   const content = svgEl(`g`, { class: `sketchnote-content` }, svg);
-  if (slots.length > 0) drawSlots(slots, page.background, svg);
   const ui = svgEl(`g`, { class: `sketchnote-ui`, "pointer-events": `none` }, svg);
   return { svg, content, ui };
 }
