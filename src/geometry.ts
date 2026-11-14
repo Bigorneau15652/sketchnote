@@ -1,6 +1,7 @@
 // Pure geometry of the elements: boxes, rotation, hit tests and the position of the handles of a selected element.
 import { drawnPoints } from "./curves";
 import { hasPoints, isShape, isStroked } from "./elements";
+import { isClosedStroke } from "./tidy";
 import type { Point, SketchElement } from "./elements";
 
 export interface Box {
@@ -114,6 +115,16 @@ function insideTriangle(p: Point, t: [Point, Point, Point]): boolean {
   return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0));
 }
 
+// Tells whether a point is inside a closed polygon (a ray going to the right crosses its sides an odd number of times).
+function insidePolygon(p: Point, poly: Point[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [a, b] = [poly[i], poly[j]];
+    if (a[1] > p[1] !== b[1] > p[1] && p[0] < ((b[0] - a[0]) * (p[1] - a[1])) / (b[1] - a[1]) + a[0]) inside = !inside;
+  }
+  return inside;
+}
+
 // Tells whether a point touches an element, with a tolerance in page units. A line is touched on its stroke, a shape on its outline (and inside
 // when it has a fill), a drawing frame anywhere inside.
 export function hitElement(el: SketchElement, p: Point, tolerance: number): boolean {
@@ -121,6 +132,8 @@ export function hitElement(el: SketchElement, p: Point, tolerance: number): bool
   if (hasPoints(el)) {
     const pts = el.type === `freedraw` ? el.points : drawnPoints(el);
     for (let i = 0; i + 1 < pts.length; i++) if (distToSegment(p, pts[i], pts[i + 1]) <= reach) return true;
+    // A closed stroke with a fill is touched inside too.
+    if (el.type === `freedraw` && el.fill !== undefined && isClosedStroke(pts, el.strokeWidth)) return insidePolygon(p, pts);
     return false;
   }
   const { box, angle } = boxOf(el);

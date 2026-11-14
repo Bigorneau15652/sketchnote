@@ -1,6 +1,7 @@
 // The elements that can be drawn on a page or in a drawing, and the strict reading of them from a file.
 // No dependency on Obsidian: tested without the application.
 import { isSafeColor } from "./color";
+import { isClosedStroke, MAX_REGULARITY } from "./tidy";
 
 export type Point = [number, number];
 // How a fill is drawn: solid, with hatching lines, with dots or with a grid (crossed hatching).
@@ -105,9 +106,11 @@ export interface ArrowElement extends BaseElement, Strokes {
 }
 
 // A line drawn freehand with the pen.
-export interface FreedrawElement extends BaseElement, Strokes {
+export interface FreedrawElement extends BaseElement, Strokes, Fills {
   type: `freedraw`;
   points: Point[];
+  // How much the stroke is tidied, from 0 (as drawn, not stored) to MAX_REGULARITY (the clean shape it was meant to be). A stroke that comes back to its start can have a fill.
+  regularity?: number;
 }
 
 // A text written inside a shape (a rectangle, an ellipse or a diamond). It belongs to the shape: it moves, turns, is copied and deleted with it. It is centred in the
@@ -233,6 +236,11 @@ export function isStroked(el: SketchElement): el is StrokedElement {
 // Tells whether an element is a shape with an inside: a rectangle, an ellipse or a diamond.
 export function isShape(el: SketchElement): el is ShapeElement {
   return el.type === `rect` || el.type === `ellipse` || el.type === `diamond` || el.type === `triangle`;
+}
+
+// Tells whether an element can have a fill: a shape, or a pen stroke that comes back to its start.
+export function canFill(el: SketchElement): el is ShapeElement | FreedrawElement {
+  return isShape(el) || (el.type === `freedraw` && isClosedStroke(el.points, el.strokeWidth));
 }
 
 // Tells whether a value is a plain object (not null, not an array).
@@ -424,7 +432,12 @@ function readElement(value: unknown): SketchElement | null {
   if (type === `line` || type === `arrow` || type === `freedraw`) {
     const points = readPoints(value.points, type === `freedraw` ? MAX_FREEDRAW_POINTS : MAX_POINTS);
     if (points === null) return null;
-    if (type === `freedraw`) return { ...base, type, points };
+    if (type === `freedraw`) {
+      const fillOfStroke = readFill(value);
+      if (fillOfStroke === null) return null;
+      if (value.regularity !== undefined && (typeof value.regularity !== `number` || !Number.isFinite(value.regularity) || value.regularity < 0 || value.regularity > MAX_REGULARITY)) return null;
+      return { ...base, ...fillOfStroke, type, points, ...(typeof value.regularity === `number` && value.regularity > 0 ? { regularity: value.regularity } : {}) };
+    }
     const lineLabel = readLabel(value.label);
     if (lineLabel === null) return null;
     const labelField = lineLabel ? { label: lineLabel } : {};

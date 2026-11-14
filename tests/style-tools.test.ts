@@ -9,7 +9,7 @@ const none = { shift: false, alt: false };
 const rect: SketchElement = { id: `r`, type: `rect`, x: 0, y: 0, width: 10, height: 10, stroke: `#000000`, strokeWidth: 3 };
 
 test(`le style par defaut est un trait fin noir a main levee sans remplissage`, () => {
-  assert.deepEqual(style, { stroke: `#000000`, fill: null, fillStyle: `solid`, fillOpacity: 1, strokeWidth: STROKE_WIDTHS.thin, roughness: 1, rounded: false, startHead: `none`, endHead: `arrow`, font: `caveat`, fontSize: 32, align: `left`, opacity: 1, shadow: false, shadowDistance: 10, shadowBlur: 10, shadowOpacity: 0.4, shadowColor: `#000000`, reflection: false, reflectionDepth: 0.6, reflectionFade: 1, reflectionGap: 0, taper: 0, lineStyle: `solid`, border: `simple`, radius: 0 });
+  assert.deepEqual(style, { stroke: `#000000`, fill: null, fillStyle: `solid`, fillOpacity: 1, strokeWidth: STROKE_WIDTHS.thin, roughness: 1, rounded: false, startHead: `none`, endHead: `arrow`, font: `caveat`, fontSize: 32, align: `left`, opacity: 1, shadow: false, shadowDistance: 10, shadowBlur: 10, shadowOpacity: 0.4, shadowColor: `#000000`, reflection: false, reflectionDepth: 0.6, reflectionFade: 1, reflectionGap: 0, regularity: 0, taper: 0, lineStyle: `solid`, border: `simple`, radius: 0 });
   assert.equal(defaultStyle(`#ffffff`).stroke, `#ffffff`);
   assert.equal(defaultStyle(`red`).stroke, `#000000`);
 });
@@ -49,7 +49,7 @@ test(`une ligne ne prend pas de remplissage et un cadre de dessin n'a pas de sty
 
 test(`le style d'un element est relu tel qu'il est`, () => {
   const s = styleOf({ ...rect, fill: `#abc`, fillStyle: `hachure`, roughness: 1 } as SketchElement);
-  assert.deepEqual(s, { stroke: `#000000`, fill: `#abc`, fillStyle: `hachure`, fillOpacity: 1, strokeWidth: 3, roughness: 1, rounded: false, startHead: `none`, endHead: `none`, font: `caveat`, fontSize: 32, align: `left`, opacity: 1, shadow: false, shadowDistance: 10, shadowBlur: 10, shadowOpacity: 0.4, shadowColor: `#000000`, reflection: false, reflectionDepth: 0.6, reflectionFade: 1, reflectionGap: 0, taper: 0, lineStyle: `solid`, border: `simple`, radius: 0 });
+  assert.deepEqual(s, { stroke: `#000000`, fill: `#abc`, fillStyle: `hachure`, fillOpacity: 1, strokeWidth: 3, roughness: 1, rounded: false, startHead: `none`, endHead: `none`, font: `caveat`, fontSize: 32, align: `left`, opacity: 1, shadow: false, shadowDistance: 10, shadowBlur: 10, shadowOpacity: 0.4, shadowColor: `#000000`, reflection: false, reflectionDepth: 0.6, reflectionFade: 1, reflectionGap: 0, regularity: 0, taper: 0, lineStyle: `solid`, border: `simple`, radius: 0 });
   assert.equal(styleOf(rect)?.fill, null);
 });
 
