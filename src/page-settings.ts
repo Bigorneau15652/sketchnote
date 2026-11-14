@@ -21,7 +21,7 @@ export const STYLE_DEFAULTS: Record<Pattern, { background: string; ink: string }
   grid: { background: `#ffffff`, ink: `#000000` },
   dots: { background: `#ffffff`, ink: `#000000` },
   craft: { background: `#c8a678`, ink: `#000000` },
-  chalkboard: { background: `#2f3b36`, ink: `#ffffff` },
+  chalkboard: { background: `#2a3631`, ink: `#ffffff` },
 };
 
 // Returns the orientation that matches a width and a height. A square keeps the given fallback.

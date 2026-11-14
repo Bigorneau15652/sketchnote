@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.1
+
+English
+
+The chalkboard background looks like a real chalkboard: a fine grain, a few very soft wide marks of the eraser and slightly darker borders, instead of a repeating pattern of oval stains. The default chalkboard colour is a little darker. Pages already saved keep their colour.
+
+Français
+
+Le fond tableau noir ressemble à un vrai tableau noir : un grain fin, quelques larges traces d'effaceur très douces et des bords un peu plus sombres, à la place d'un motif répété de taches ovales. La couleur par défaut du tableau noir est un peu plus sombre. Les pages déjà enregistrées gardent leur couleur.
+
 ## 0.2.0
 
 English
