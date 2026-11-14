@@ -1,7 +1,10 @@
 // The view that opens a .sketchnote file: the page in a scrollable frame, and a bar of buttons at the bottom (page settings and zoom).
 import { setIcon, TextFileView, WorkspaceLeaf } from "obsidian";
-import { createEmptyDoc, PageSettings, parseSketchnote, serializeSketchnote, SketchnoteDoc } from "./file-format";
+import { applySettings } from "./doc-ops";
+import { createEmptyDoc, parseSketchnote, serializeSketchnote, SketchnoteDoc } from "./file-format";
 import { t } from "./i18n";
+import { buildStructure, LayoutSettings } from "./layout";
+import { PageSettings } from "./file-format";
 import { PageModal } from "./page-modal";
 import { renderPage } from "./page-render";
 import { clampZoom, fitZoom, pinchZoom, stepZoom } from "./viewport";
@@ -160,12 +163,12 @@ export class SketchnoteView extends TextFileView {
 
   // Opens the window of page settings.
   private openPageSettings(): void {
-    new PageModal(this.app, this.doc.page, (page) => this.updatePage(page)).open();
+    new PageModal(this.app, this.doc.page, this.doc.layout, (page, layout) => this.updatePage(page, layout)).open();
   }
 
-  // Stores new page settings, draws the page again and asks Obsidian to save the file.
-  private updatePage(page: PageSettings): void {
-    this.doc = { ...this.doc, page };
+  // Stores new page settings and structure, draws the page again and asks Obsidian to save the file.
+  private updatePage(page: PageSettings, layout: LayoutSettings | null): void {
+    this.doc = applySettings(this.doc, page, layout);
     this.render();
     this.requestSave();
   }
@@ -181,7 +184,8 @@ export class SketchnoteView extends TextFileView {
       return;
     }
     if (this.fitted) this.zoom = this.computeFit();
-    const { svg } = renderPage(this.doc.page, this.zoom);
+    const slots = this.doc.layout ? buildStructure(this.doc.layout, this.doc.page).slots : [];
+    const { svg } = renderPage(this.doc.page, this.zoom, this.doc.elements, slots);
     scroller.appendChild(svg);
     this.svg = svg;
     this.showZoom();

@@ -1,6 +1,9 @@
 // The .sketchnote file format: one JSON document that holds the page, its structure and all its elements.
 // This file has no dependency on Obsidian, so it is tested without the application.
+import { isSafeColor } from "./color";
+import { ElementsResult, readElements, SketchElement } from "./elements";
 import { t } from "./i18n";
+import { LayoutSettings, readLayout } from "./layout";
 
 export const FORMAT_NAME = `sketchnote`;
 export const FORMAT_VERSION = 1;
@@ -27,10 +30,10 @@ export interface SketchnoteDoc {
   format: typeof FORMAT_NAME;
   version: number;
   page: PageSettings;
-  // Structure of the page (linear, radial...). Filled from version 0.3.0.
-  layout: null;
-  // Elements of the page. Filled from version 0.4.0.
-  elements: unknown[];
+  // Structure of the page (linear, radial...), or null when the page has none.
+  layout: LayoutSettings | null;
+  // Elements of the page, drawn in this order (the first one is at the back).
+  elements: SketchElement[];
 }
 
 export type ParseResult = { ok: true; doc: SketchnoteDoc } | { ok: false; error: string };
@@ -51,10 +54,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === `object` && value !== null && !Array.isArray(value);
 }
 
-// Tells whether a value is a CSS colour written as #rgb, #rrggbb or #rrggbbaa. Nothing else is accepted, so a colour can never carry code.
-export function isSafeColor(value: unknown): value is string {
-  return typeof value === `string` && /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(value);
-}
+export { isSafeColor };
 
 // Tells whether a value is a page dimension in the allowed range.
 function isPageSize(value: unknown): value is number {
@@ -94,8 +94,13 @@ export function parseSketchnote(text: string): ParseResult {
   if (raw.version !== FORMAT_VERSION) return { ok: false, error: t(`Version de fichier non prise en charge : {0}.`, String(raw.version)) };
   const page = readPage(raw.page);
   if (page === null) return { ok: false, error: t(`La page du sketchnote est invalide.`) };
-  const elements = Array.isArray(raw.elements) ? raw.elements : [];
-  return { ok: true, doc: { format: FORMAT_NAME, version: FORMAT_VERSION, page, layout: null, elements } };
+  const layout = raw.layout === undefined || raw.layout === null ? null : readLayout(raw.layout);
+  if (layout === undefined) return { ok: false, error: t(`La structure du sketchnote est invalide.`) };
+  const elements: ElementsResult = readElements(raw.elements);
+  if (!elements.ok) {
+    return { ok: false, error: `tooMany` in elements ? t(`Trop d'éléments sur la page.`) : t(`Élément {0} invalide.`, elements.index) };
+  }
+  return { ok: true, doc: { format: FORMAT_NAME, version: FORMAT_VERSION, page, layout, elements: elements.elements } };
 }
 
 // Writes a document as the text of a .sketchnote file.

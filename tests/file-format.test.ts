@@ -87,3 +87,35 @@ test(`une couleur de trait invalide est refusee`, () => {
     assert.equal(parseSketchnote(fileWith((d) => ((d.page as Record<string, unknown>).ink = bad))).ok, false, String(bad));
   }
 });
+
+test(`une structure et des elements s'ecrivent puis se relisent a l'identique`, () => {
+  const doc = createEmptyDoc();
+  doc.layout = { type: `modular`, count: 3, rows: 2 };
+  doc.elements = [{ id: `s1`, group: `structure`, type: `line`, points: [[1, 2], [3, 4]], stroke: `#000000`, strokeWidth: 3 }];
+  const result = parseSketchnote(serializeSketchnote(doc));
+  assert.equal(result.ok, true);
+  if (result.ok) assert.deepEqual(result.doc, doc);
+});
+
+test(`une structure inconnue est refusee et ses nombres sont bornes`, () => {
+  assert.equal(parseSketchnote(fileWith((d) => (d.layout = { type: `spirale`, count: 3 }))).ok, false);
+  assert.equal(parseSketchnote(fileWith((d) => (d.layout = `radial`))).ok, false);
+  const r = parseSketchnote(fileWith((d) => (d.layout = { type: `radial`, count: 999 })));
+  assert.equal(r.ok, true);
+  if (r.ok) assert.equal(r.doc.layout?.count, 12);
+});
+
+test(`un element invalide refuse le fichier avec son numero`, () => {
+  const r = parseSketchnote(fileWith((d) => (d.elements = [{ id: `a`, type: `rect`, x: 0, y: 0, width: 5, height: 5, stroke: `#000`, strokeWidth: 1 }, { id: `b`, type: `rect` }])));
+  assert.equal(r.ok, false);
+  if (!r.ok) assert.ok(r.error.includes(`2`));
+});
+
+test(`un fichier 0.2 sans structure ni element se relit`, () => {
+  const r = parseSketchnote(fileWith((d) => { delete d.layout; delete d.elements; }));
+  assert.equal(r.ok, true);
+  if (r.ok) {
+    assert.equal(r.doc.layout, null);
+    assert.deepEqual(r.doc.elements, []);
+  }
+});

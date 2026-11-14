@@ -1,11 +1,13 @@
 // Draws a page as an SVG element, from its settings. Built with the DOM only: no markup text is ever parsed.
+import { arrowHeadPoints, SketchElement } from "./elements";
 import { PageSettings } from "./file-format";
-import { backgroundSpec, TileShape } from "./page-background";
+import type { Slot } from "./layout";
+import { backgroundSpec, slotStyle, TileShape } from "./page-background";
 import { svgEl } from "./svg";
 
 export interface RenderedPage {
   svg: SVGElement;
-  // Group that will hold the elements of the page (from version 0.4.0).
+  // Group that holds the elements of the page.
   content: SVGElement;
 }
 
@@ -18,8 +20,38 @@ function drawShape(shape: TileShape, parent: Element, prefix: string): void {
   svgEl(shape.tag, attrs, parent);
 }
 
+// Turns a list of points into the text of an SVG points attribute.
+function pointsText(points: [number, number][]): string {
+  return points.map((p) => `${p[0]},${p[1]}`).join(` `);
+}
+
+// Draws one element of the page into a parent. Strokes are round and clean (the hand-drawn style comes with the drawing tools).
+function drawElement(el: SketchElement, parent: Element): void {
+  const look = { stroke: el.stroke, "stroke-width": el.strokeWidth, "stroke-linecap": `round`, "stroke-linejoin": `round`, fill: `none` };
+  if (el.type === `line` || el.type === `arrow`) {
+    svgEl(`polyline`, { points: pointsText(el.points), ...look }, parent);
+    const head = el.type === `arrow` ? arrowHeadPoints(el.points, el.strokeWidth) : null;
+    if (head) svgEl(`polyline`, { points: pointsText(head), ...look }, parent);
+  } else if (el.type === `rect`) {
+    svgEl(`rect`, { x: el.x, y: el.y, width: el.width, height: el.height, ...look }, parent);
+  } else {
+    svgEl(`ellipse`, { cx: el.cx, cy: el.cy, rx: el.rx, ry: el.ry, ...look }, parent);
+  }
+}
+
+// Draws the slots of a structure as dotted frames in their own group. They help to place the contents while editing and are never part of the drawing.
+function drawSlots(slots: Slot[], background: string, parent: Element): void {
+  const style = slotStyle(background);
+  const group = svgEl(`g`, { class: `sketchnote-guides`, "pointer-events": `none` }, parent);
+  const look = { fill: style.color, "fill-opacity": style.fillOpacity, stroke: style.color, "stroke-opacity": style.strokeOpacity, "stroke-width": 1.5, "stroke-dasharray": `8 6` };
+  for (const s of slots) {
+    if (s.shape === `ellipse`) svgEl(`ellipse`, { cx: s.x + s.width / 2, cy: s.y + s.height / 2, rx: s.width / 2, ry: s.height / 2, ...look }, group);
+    else svgEl(`rect`, { x: s.x, y: s.y, width: s.width, height: s.height, rx: 6, ...look }, group);
+  }
+}
+
 // Builds the SVG of a page at a given zoom: the page colour, the repeating tile of its style and an empty group for the elements.
-export function renderPage(page: PageSettings, zoom: number): RenderedPage {
+export function renderPage(page: PageSettings, zoom: number, elements: SketchElement[] = [], slots: Slot[] = []): RenderedPage {
   const { width, height } = page;
   const spec = backgroundSpec(page);
   const svg = svgEl(`svg`, { class: `sketchnote-page`, width: width * zoom, height: height * zoom, viewBox: `0 0 ${width} ${height}` });
@@ -39,5 +71,7 @@ export function renderPage(page: PageSettings, zoom: number): RenderedPage {
   }
   for (const shape of spec.overlay) drawShape(shape, svg, prefix);
   const content = svgEl(`g`, { class: `sketchnote-content` }, svg);
+  for (const el of elements) drawElement(el, content);
+  if (slots.length > 0) drawSlots(slots, page.background, svg);
   return { svg, content };
 }
