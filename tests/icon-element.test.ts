@@ -76,7 +76,8 @@ test(`une icone est dessinee a la main levee dans sa boite, avec la largeur de t
   assert.ok(made.pieces.length >= 2, `des traits`);
   assert.ok(made.pieces.every((p) => p.stroke === `#000000` || p.stroke === `none`));
   // The view box (24) is put in the box of the element (96): a scale of 4 and a move to its corner.
-  assert.match(made.transform ?? ``, /^translate\(100 50\) scale\(4 4\) translate\(0 0\)$/);
+  assert.match(made.inner ?? ``, /^translate\(100 50\) scale\(4 4\) translate\(0 0\)$/);
+  assert.equal(made.transform, null, `the placing is inside the mirror of the element, so a mirrored icon stays in its box`);
   // The lines have the width that the element says once they are scaled.
   const outline = made.pieces.find((p) => p.outline === true);
   assert.ok(outline && Math.abs(outline.strokeWidth * 4 - 4) < 0.01, `largeur ${outline?.strokeWidth}`);
@@ -86,14 +87,15 @@ test(`une icone est dessinee a la main levee dans sa boite, avec la largeur de t
   const again = elementPaths(make({ roughness: 0 })).pieces.map((p) => p.d).join(`|`);
   assert.notEqual(wild, clean);
   assert.equal(clean, again, `le meme dessin a chaque fois`);
-  // A rotation is a transform before the placing.
-  assert.match(elementPaths(make({ angle: 30 })).transform ?? ``, /^rotate\(30 148 98\) translate\(100 50\)/);
+  // A rotation is the transform of the element, and the placing is inside it.
+  assert.equal(elementPaths(make({ angle: 30 })).transform, `rotate(30 148 98)`);
+  assert.match(elementPaths(make({ angle: 30 })).inner ?? ``, /^translate\(100 50\)/);
   // The wobble is as large as on a shape, not four times larger: the points of the hand drawn drawing stay near the clean ones.
   const nums = (d: string): number[] => (d.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
   const spread = Math.max(...nums(wild.split(`|`).join(` `))) - Math.min(...nums(wild.split(`|`).join(` `)));
   assert.ok(spread < 40, `reste dans le dessin de 24: ${spread}`);
   // A wider box makes a wider drawing.
-  assert.match(elementPaths(make({ width: 48, height: 96 })).transform ?? ``, /scale\(2 4\)/);
+  assert.match(elementPaths(make({ width: 48, height: 96 })).inner ?? ``, /scale\(2 4\)/);
 });
 
 test(`le remplissage d'une icone va aux formes fermees, les formes pleines d'un fichier gardent leur couleur`, () => {

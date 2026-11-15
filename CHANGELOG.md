@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.25.2
+
+English
+
+Mirror. An icon that is flipped horizontally or vertically was drawn outside its box and seemed not to move or to disappear: the placing of its drawing in its box was applied before the mirror. It is now applied inside it, like for the other shapes, so a flipped icon stays in its box and is mirrored.
+
+Français
+
+Retournement. Une icône retournée horizontalement ou verticalement était dessinée hors de sa boîte et semblait ne pas bouger ou disparaître : la mise en place de son dessin dans sa boîte était appliquée avant le retournement. Elle l'est maintenant à l'intérieur de celui-ci, comme pour les autres formes : une icône retournée reste dans sa boîte et son dessin est inversé.
+
 ## 0.25.1
 
 English

@@ -48,9 +48,10 @@ function mirrored(el: SketchElement, parent: Element): Element {
 
 // Draws one element with a stroke (everything except a drawing frame and a text).
 function drawStroked(el: Exclude<SketchElement, DrawingElement | TextElement>, parent: Element, options: RenderOptions): void {
-  const { pieces, transform, holes } = elementPaths(el);
+  const { pieces, transform, holes, inner } = elementPaths(el);
   const turned = svgEl(`g`, transform ? { transform } : {}, parent);
-  const group = mirrored(el, turned);
+  const placed = mirrored(el, turned);
+  const group = inner ? svgEl(`g`, { transform: inner }, placed) : placed;
   // The gaps of a brush with little paint on it cut the pieces of the brush with a mask (white everywhere, black in the gaps); a soft edge is a blur of the piece.
   let target: Element = group;
   let defs: Element | null = null;

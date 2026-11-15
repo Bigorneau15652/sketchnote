@@ -33,6 +33,8 @@ export interface ElementPaths {
   // For a stroke whose brush has gaps (little paint on it) or soft edges: the data of the gaps (empty for none) and the box that holds the stroke with room for them.
   holes?: { d: string; box: { x: number; y: number; w: number; h: number } };
   transform: string | null;
+  // For an icon: the transform that puts its view box in its box. It is applied inside the mirror of the element, which is written in page units.
+  inner?: string;
 }
 
 // Path commands and numbers only. Anything else in a generated path is refused, so that nothing but a drawing can come out of the libraries.
@@ -316,7 +318,7 @@ function iconPaths(el: IconElement, opts: Record<string, unknown>): ElementPaths
     pieces.push(...(shape.stroke ? made : made.filter((p) => p.outline !== true)));
   });
   const place = `translate(${r2(el.x)} ${r2(el.y)}) scale(${Math.round(sx * 10000) / 10000} ${Math.round(sy * 10000) / 10000}) translate(${-vx} ${-vy})`;
-  return { pieces, transform: turned ? `${turned} ${place}` : place };
+  return { pieces, transform: turned, inner: place };
 }
 
 // Computes the paths of an element.
