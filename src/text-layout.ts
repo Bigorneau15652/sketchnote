@@ -1,6 +1,7 @@
 // The layout of a text: its lines and the size of its box. The width of a line comes from a function given by the caller (the browser measures it), so that this
 // module does not need the page and can be tested.
 import type { TextElement } from "./elements";
+import { DEFAULT_WARP_AMOUNT, layoutWarp } from "./text-warp";
 
 // Height of a line, as a multiple of the font size.
 export const LINE_HEIGHT = 1.25;
@@ -22,6 +23,16 @@ export function layoutText(text: string, size: number, measure: (line: string) =
 
 // Returns a text with the size of its box measured again (after a change of its text, its font or its size). Its top left corner stays where it is.
 export function refitText(el: TextElement, measure: (line: string, font: string, size: number) => number): TextElement {
+  // A text with a distortion or written vertically has the box of its letters once they are placed.
+  if (el.warp !== undefined || el.vertical === true) {
+    const layout = layoutWarp(
+      { text: el.text, size: el.size, align: el.align ?? `left`, zone: el.zone === true, width: el.width, height: el.height, vertical: el.vertical === true, warp: el.warp ?? null, amount: el.warpAmount ?? DEFAULT_WARP_AMOUNT },
+      (ch) => measure(ch, el.font, el.size),
+    );
+    // A zone keeps the side that the user drew (the width, or the height of a vertical zone) and follows the letters on the other one.
+    if (el.zone === true) return el.vertical === true ? { ...el, width: Math.round(layout.box.w * 100) / 100 } : { ...el, height: Math.round(layout.box.h * 100) / 100 };
+    return { ...el, width: layout.box.w, height: layout.box.h };
+  }
   // A text zone keeps its width: the text wraps to it, and the height of the zone follows the lines (it grows when the text wraps to one more line).
   if (el.zone === true) {
     const rows = wrapLines(el.text, el.width, (line) => measure(line, el.font, el.size)).length;

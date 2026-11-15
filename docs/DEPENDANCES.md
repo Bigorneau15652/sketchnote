@@ -10,6 +10,8 @@ Polices manuscrites embarquées depuis la version 0.9.0 (accord d'Olivier du 14 
 
 Polices ajoutées par l'utilisateur (version 0.9.0) : fichiers .ttf et .otf déposés dans un dossier du coffre (réglage Dossier des polices), ou importés depuis un zip, comme dans le plugin Bigorneau du même auteur. Le plugin ne livre aucune de ces polices et ne télécharge rien : la fenêtre Ajouter une police donne seulement des liens vers des sites de polices libres, que l'utilisateur ouvre dans son navigateur. Le plugin lit lui-même le nom de la famille de chaque fichier (src/font-file.ts) et lit les archives zip (src/zip.ts) sans bibliothèque. La licence de chaque police importée reste de la responsabilité de l'utilisateur.
 
-À venir, avec leur licence au moment voulu : Lucide (ISC) et Tabler icons (MIT) en version 0.10.0.
+Distorsions du texte (version 0.23.0) : aucune bibliothèque ajoutée. La bibliothèque opentype.js (MIT), acceptée par Olivier le 14 novembre 2026, n'est pas embarquée : elle ne lit pas le WOFF2 des polices du plugin et le navigateur mesure déjà chaque lettre. Si une déformation à l'intérieur des lettres devient nécessaire, ce choix sera rediscuté avec Olivier.
+
+À venir, avec leur licence au moment voulu : Lucide (ISC) et Tabler icons (MIT).
 
 Avis pour l'audit : npm audit signale esbuild (serveur de développement, non utilisé) et moment (dépendance interne du paquet obsidian, non embarquée dans main.js).

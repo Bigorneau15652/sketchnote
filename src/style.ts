@@ -5,6 +5,7 @@ import { BORDER_KINDS, BorderKind, cleanOpacity, CORNER_RADII, DEFAULT_REFLECT_D
 import { isSafeColor } from "./color";
 import { BrushKind, cleanParam, fieldsOf, isBrush, paramsFromFields, paramsOf, sparseParams } from "./brushes";
 import { MAX_REGULARITY } from "./tidy";
+import { cleanWarpAmount, DEFAULT_WARP_AMOUNT, isWarpKind, WarpKind } from "./text-warp";
 
 export interface ToolStyle {
   stroke: string;
@@ -47,6 +48,10 @@ export interface ToolStyle {
   reflectionDepth: number;
   reflectionFade: number;
   reflectionGap: number;
+  // The distortion of a text (`none` for no distortion), its strength from -1 to 1, and whether it is written vertically.
+  warp: WarpKind | `none`;
+  warpAmount: number;
+  vertical: boolean;
   // How much lines and arrows are tapered, from 0 (constant width) to 1.
   taper: number;
   lineStyle: LineStyle;
@@ -64,7 +69,7 @@ export const MAX_WIDTH = 24;
 export const TEXT_SIZES = { small: 20, medium: 32, large: 52, huge: 84 };
 
 // The effects of an element that has none: opaque, no shadow, no reflection, a continuous line, a simple border and square corners.
-const PLAIN_EFFECTS = { opacity: 1, shadow: false, shadowDistance: DEFAULT_SHADOW.distance, shadowBlur: DEFAULT_SHADOW.blur, shadowOpacity: DEFAULT_SHADOW.opacity, shadowColor: DEFAULT_SHADOW.color, reflection: false, reflectionDepth: DEFAULT_REFLECT_DEPTH, reflectionFade: DEFAULT_REFLECT_FADE, reflectionGap: DEFAULT_REFLECT_GAP, taper: 0, lineStyle: `solid` as LineStyle, border: `simple` as BorderKind, radius: 0 };
+const PLAIN_EFFECTS = { opacity: 1, shadow: false, shadowDistance: DEFAULT_SHADOW.distance, shadowBlur: DEFAULT_SHADOW.blur, shadowOpacity: DEFAULT_SHADOW.opacity, shadowColor: DEFAULT_SHADOW.color, reflection: false, reflectionDepth: DEFAULT_REFLECT_DEPTH, reflectionFade: DEFAULT_REFLECT_FADE, reflectionGap: DEFAULT_REFLECT_GAP, taper: 0, warp: `none` as WarpKind | `none`, warpAmount: DEFAULT_WARP_AMOUNT, vertical: false, lineStyle: `solid` as LineStyle, border: `simple` as BorderKind, radius: 0 };
 
 // Returns the settings of a brush in the names of the style: the usual ones of the brush, replaced by those that are given.
 export function brushStyle(brush: BrushKind, stored: Partial<Record<`flow` | `hardness` | `spacing` | `form` | `rotation` | `grain` | `dynamics`, number>>): Pick<ToolStyle, `flow` | `hardness` | `spacing` | `form` | `brushAngle` | `grain` | `dynamics`> {
@@ -96,6 +101,9 @@ export function cleanPatch(patch: StylePatch): StylePatch {
     if (typeof v === `number` && Number.isFinite(v)) out[key] = cleanParam(key, v);
   }
   if (typeof patch.brushAngle === `number` && Number.isFinite(patch.brushAngle)) out.brushAngle = cleanParam(`rotation`, patch.brushAngle);
+  if (patch.warp === `none` || isWarpKind(patch.warp)) out.warp = patch.warp;
+  if (typeof patch.warpAmount === `number` && Number.isFinite(patch.warpAmount)) out.warpAmount = cleanWarpAmount(patch.warpAmount);
+  if (typeof patch.vertical === `boolean`) out.vertical = patch.vertical;
   if (typeof patch.regularity === `number` && Number.isFinite(patch.regularity)) out.regularity = Math.min(MAX_REGULARITY, Math.max(0, Math.round(patch.regularity * 10) / 10));
   if (typeof patch.roughness === `number` && Number.isFinite(patch.roughness)) out.roughness = Math.min(MAX_ROUGHNESS, Math.max(0, Math.round(patch.roughness * 10) / 10));
   if (typeof patch.rounded === `boolean`) out.rounded = patch.rounded;
@@ -270,6 +278,19 @@ function applyTextStyle(el: Extract<SketchElement, { type: `text` }>, p: StylePa
     void _a;
     next = (p.align === `left` ? rest : { ...rest, align: p.align }) as typeof next;
   }
+  // The distortion and the strength: choosing `none` takes both away; a strength only counts with a distortion, and the usual one is not kept.
+  if (p.warp !== undefined || p.warpAmount !== undefined) {
+    const kind: WarpKind | undefined = p.warp === `none` ? undefined : p.warp ?? next.warp;
+    const amount = p.warpAmount ?? (p.warp !== undefined ? DEFAULT_WARP_AMOUNT : next.warpAmount ?? DEFAULT_WARP_AMOUNT);
+    const { warp: _w, warpAmount: _m, ...rest } = next;
+    void [_w, _m];
+    next = (kind === undefined ? rest : { ...rest, warp: kind, ...(amount !== DEFAULT_WARP_AMOUNT ? { warpAmount: amount } : {}) }) as typeof next;
+  }
+  if (p.vertical !== undefined) {
+    const { vertical: _v, ...rest } = next;
+    void _v;
+    next = (p.vertical ? { ...rest, vertical: true } : rest) as typeof next;
+  }
   return next;
 }
 
@@ -280,7 +301,7 @@ export function applyStyleToIds(elements: SketchElement[], ids: Set<string>, pat
 
 // Returns the style an element currently has, or null for a drawing frame. A line has no fill.
 export function styleOf(el: SketchElement): ToolStyle | null {
-  if (el.type === `text`) return { ...defaultStyle(el.stroke), font: el.font, fontSize: el.size, align: el.align ?? `left`, ...effectsOfElement(el) };
+  if (el.type === `text`) return { ...defaultStyle(el.stroke), font: el.font, fontSize: el.size, align: el.align ?? `left`, warp: el.warp ?? `none`, warpAmount: el.warpAmount ?? DEFAULT_WARP_AMOUNT, vertical: el.vertical === true, ...effectsOfElement(el) };
   if (!isStroked(el)) return null;
   const fill = canFill(el) && el.fill !== undefined ? el.fill : null;
   const fillStyle: FillStyle = canFill(el) && el.fillStyle ? el.fillStyle : `solid`;
@@ -289,7 +310,7 @@ export function styleOf(el: SketchElement): ToolStyle | null {
   const rounded = linear && el.rounded === true;
   const startHead: Head = el.type === `arrow` ? headOf(el, `start`) : `none`;
   const endHead: Head = el.type === `arrow` ? headOf(el, `end`) : `none`;
-  return { stroke: el.stroke, fill, fillStyle, fillOpacity, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0, regularity: el.type === `freedraw` ? el.regularity ?? 0 : 0, brush: el.type === `freedraw` ? el.brush ?? `round` : `round`, ...(el.type === `freedraw` ? brushStyle(el.brush ?? `round`, paramsFromFields(el)) : brushStyle(`round`, {})), rounded, startHead, endHead, taper: el.type === `line` || el.type === `arrow` ? el.taper ?? 0 : 0, font: labelOf(el) ? labelOf(el)?.font ?? DEFAULT_FONT : DEFAULT_FONT, fontSize: labelOf(el)?.size ?? TEXT_SIZES.medium, align: labelOf(el) ? labelOf(el)?.align ?? `center` : `left`, ...effectsOfElement(el), lineStyle: el.type === `freedraw` ? `solid` : el.lineStyle ?? `solid`, border: isShape(el) ? el.border ?? `simple` : `simple`, radius: el.type === `rect` ? el.radius ?? 0 : 0 };
+  return { stroke: el.stroke, fill, fillStyle, fillOpacity, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0, regularity: el.type === `freedraw` ? el.regularity ?? 0 : 0, warp: `none`, warpAmount: DEFAULT_WARP_AMOUNT, vertical: false, brush: el.type === `freedraw` ? el.brush ?? `round` : `round`, ...(el.type === `freedraw` ? brushStyle(el.brush ?? `round`, paramsFromFields(el)) : brushStyle(`round`, {})), rounded, startHead, endHead, taper: el.type === `line` || el.type === `arrow` ? el.taper ?? 0 : 0, font: labelOf(el) ? labelOf(el)?.font ?? DEFAULT_FONT : DEFAULT_FONT, fontSize: labelOf(el)?.size ?? TEXT_SIZES.medium, align: labelOf(el) ? labelOf(el)?.align ?? `center` : `left`, ...effectsOfElement(el), lineStyle: el.type === `freedraw` ? `solid` : el.lineStyle ?? `solid`, border: isShape(el) ? el.border ?? `simple` : `simple`, radius: el.type === `rect` ? el.radius ?? 0 : 0 };
 }
 
 // Returns the text written in a shape or in the middle of a line, or undefined.
