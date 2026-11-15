@@ -2,12 +2,23 @@
 import { hasPoints, MAX_CROP_SIDE, MAX_FONT_SIZE, MIN_CROP_VISIBLE, MIN_FONT_SIZE } from "./elements";
 import type { ImageElement, Point, SketchElement } from "./elements";
 import { Box, boxOf, centerOf, rotatePoint, Side } from "./geometry";
+import { tidyStroke } from "./tidy";
 
 export const MIN_SIZE = 4;
 const SIGNS: [number, number][] = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
 
 // Rounds to two decimals, which keeps the file short and avoids drifting digits.
 const r2 = (n: number): number => Math.round(n * 100) / 100;
+
+// Returns a pen stroke with its regularity made into its points: a stroke that is tidied (a clean ellipse, rectangle or line made from the rough drawing) is a different shape from its raw points
+// once it is turned, because the tidied shape is recognised again on the turned points and comes back upright. Fixing the tidied points first keeps the shape that is seen; the regularity is
+// then 0 (the shape is the one that was shown). Any other element is returned as it is.
+function bakeTidy(el: SketchElement): SketchElement {
+  if (el.type !== `freedraw` || !(el.regularity !== undefined && el.regularity > 0)) return el;
+  const { regularity: _r, ...rest } = el;
+  void _r;
+  return { ...rest, points: tidyStroke(el.points, el.regularity, el.strokeWidth).map((p): Point => [r2(p[0]), r2(p[1])]) };
+}
 
 // Returns the element moved by a distance.
 export function translate(el: SketchElement, dx: number, dy: number): SketchElement {
@@ -163,6 +174,7 @@ export function normalizeAngle(degrees: number): number {
 
 // Turns an element by an angle in degrees around its centre. A rectangle or an ellipse keeps its shape and takes a rotation; a line or an arrow has its points turned.
 export function rotateBy(el: SketchElement, degrees: number): SketchElement {
+  el = bakeTidy(el);
   if (hasPoints(el)) {
     const c = centerOf(boxOf(el).box);
     return { ...el, points: el.points.map((p): Point => { const q = rotatePoint(p, c, degrees); return [r2(q[0]), r2(q[1])]; }) };
@@ -195,6 +207,7 @@ export function scaleAbout(el: SketchElement, anchor: Point, k: number): SketchE
 // Turns an element around a point by an angle in degrees, as part of a block: its centre goes round the point and the element turns by the same angle (a line has
 // its points turned). Used to rotate several elements as one block.
 export function rotateAbout(el: SketchElement, center: Point, degrees: number): SketchElement {
+  el = bakeTidy(el);
   if (hasPoints(el)) return { ...el, points: el.points.map((p): Point => { const q = rotatePoint(p, center, degrees); return [r2(q[0]), r2(q[1])]; }) };
   const angle = r2(normalizeAngle((el.angle ?? 0) + degrees));
   const withAngle = <T extends SketchElement>(e: T): T => {

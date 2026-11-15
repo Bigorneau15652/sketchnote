@@ -254,7 +254,6 @@ const PAIRS: [string, string][] = [
   [`Trait`, `Line`],
   [`Stylo libre`, `Pen`],
   [`Point`, `Dot`],
-  [`Garder l'outil actif après chaque tracé`, `Keep the tool active after each stroke`],
   [`Verrouiller`, `Lock`],
   [`Déverrouiller`, `Unlock`],
   [`Remplissage`, `Fill`],
