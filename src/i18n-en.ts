@@ -404,6 +404,11 @@ const PAIRS: [string, string][] = [
   [`Cochez les boutons à afficher, glissez la poignée d'une ligne pour changer l'ordre et ajoutez des séparations entre les groupes. Le même réglage est dans la fenêtre du premier bouton de la colonne.`, `Check the buttons to show, drag the handle of a row to change the order and add separations between the groups. The same setting is in the window of the first button of the column.`],
   [`Enregistrer et copier le lien`, `Save and copy the link`],
   [`Lien copié : {0}`, `Link copied: {0}`],
+  [`Transparence`, `Transparency`],
+  [`Imperfection`, `Imperfection`],
+  [`Régularité`, `Regularity`],
+  [`Intensité`, `Strength`],
+  [`Opacité`, `Opacity`],
 ];
 
 export const EN: Record<string, string> = Object.fromEntries(PAIRS);

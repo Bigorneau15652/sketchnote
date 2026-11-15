@@ -826,6 +826,8 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   }
 
   private footer: HTMLElement | null = null;
+  // The opacity of the effects: it is hidden while the brush is shown, which has its own.
+  private opacityBox: HTMLElement | null = null;
   private mainEl: HTMLElement | null = null;
 
   // The bottom bar is in the row of the menu, at its right.
@@ -955,7 +957,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.sectionIcon(fillSec, `paint-bucket`, t(`Remplissage`));
     this.fillPastille = this.pastille(fillSec, t(`Couleur du remplissage`), () => this.openFillColor());
     // The transparency of the fill: 0 is opaque, the line keeps its colour and stays opaque.
-    this.slider(fillSec, ``, t(`Transparence du remplissage`), 0, 95, 5, (s) => Math.round(((1 - s.fillOpacity) * 100) / 5) * 5, (v) => ({ fillOpacity: 1 - v / 100 }));
+    this.slider(fillSec, t(`Transparence`), t(`Transparence du remplissage`), 0, 95, 5, (s) => Math.round(((1 - s.fillOpacity) * 100) / 5) * 5, (v) => ({ fillOpacity: 1 - v / 100 }));
 
     // The brush of the pen: one menu, then how much paint it puts and, for the nib, its angle. The thickness is the one of every line.
     const brushSec = this.section(props, `brush`);
@@ -964,10 +966,15 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     for (const def of BRUSH_SLIDERS) {
       this.slider(brushSec, brushSliderShort(def.param), brushSliderLabel(def.param), def.min, def.max, def.step, (s) => Math.round(s[def.field] * def.scale), (v) => ({ [def.field]: v / def.scale }), (s) => BRUSH_DEFS[s.brush].params.includes(def.param));
     }
+    // Everything that makes the brush is in this one group: the thickness, the regularity and the opacity are here too, in the same order as the other sliders (the groups of the thickness,
+    // of the regularity and of the opacity are left out while the brush is shown).
+    this.slider(brushSec, t(`Épaisseur`), t(`Épaisseur`), MIN_WIDTH, MAX_WIDTH, 1, (s) => Math.round(s.strokeWidth), (v) => ({ strokeWidth: v }));
+    this.slider(brushSec, t(`Régularité`), t(`Régularité du tracé : 0 pour un tracé à main levée, 5 pour une forme parfaite`), 0, MAX_REGULARITY * 10, 1, (s) => Math.round(s.regularity * 10), (v) => ({ regularity: v / 10 }));
+    this.slider(brushSec, t(`Opacité`), t(`Opacité de l'élément`), 5, 100, 5, (s) => Math.round(s.opacity * 100), (v) => ({ opacity: v / 100 }));
 
     const widthSec = this.section(props, `width`);
     this.sectionIcon(widthSec, `sketchnote-width-medium`, t(`Épaisseur`));
-    this.slider(widthSec, ``, t(`Épaisseur`), MIN_WIDTH, MAX_WIDTH, 1, (s) => Math.round(s.strokeWidth), (v) => ({ strokeWidth: v }));
+    this.slider(widthSec, t(`Épaisseur`), t(`Épaisseur`), MIN_WIDTH, MAX_WIDTH, 1, (s) => Math.round(s.strokeWidth), (v) => ({ strokeWidth: v }));
 
     const dashSec = this.section(props, `dash`);
     this.sectionIcon(dashSec, `sketchnote-line-dashed`, t(`Type de trait`));
@@ -979,12 +986,12 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     const lookSec = this.section(props, `look`);
     this.sectionIcon(lookSec, `brush`, t(`Style à main levée`));
     // From 0 (a clean line) to the most imperfect: the more it is, the less straight the lines are.
-    this.slider(lookSec, ``, t(`Imperfection du tracé : 0 pour un trait net`), 0, MAX_ROUGHNESS * 10, 1, (s) => Math.round(s.roughness * 10), (v) => ({ roughness: v / 10 }));
+    this.slider(lookSec, t(`Imperfection`), t(`Imperfection du tracé : 0 pour un trait net`), 0, MAX_ROUGHNESS * 10, 1, (s) => Math.round(s.roughness * 10), (v) => ({ roughness: v / 10 }));
 
     // The pen: from a stroke as drawn (0) to the clean shape it was meant to be (a line, a circle, a rectangle, a triangle). It is the only choice made before drawing that is kept.
     const regularSec = this.section(props, `regularity`);
     this.sectionIcon(regularSec, `pencil-ruler`, t(`Régularité du tracé`));
-    this.slider(regularSec, ``, t(`Régularité du tracé : 0 pour un tracé à main levée, 5 pour une forme parfaite`), 0, MAX_REGULARITY * 10, 1, (s) => Math.round(s.regularity * 10), (v) => ({ regularity: v / 10 }));
+    this.slider(regularSec, t(`Régularité`), t(`Régularité du tracé : 0 pour un tracé à main levée, 5 pour une forme parfaite`), 0, MAX_REGULARITY * 10, 1, (s) => Math.round(s.regularity * 10), (v) => ({ regularity: v / 10 }));
 
     // The border of the shapes: one drop-down menu, then the corners of a rectangle.
     const borderSec = this.section(props, `border`);
@@ -1009,7 +1016,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     // The taper of lines and arrows: from a line of constant width to one that is as wide as set at its start and ends in a point (the tip of an arrow).
     const taperSec = this.section(props, `taper`);
     this.sectionIcon(taperSec, `sketchnote-taper`, t(`Fuselage`));
-    this.slider(taperSec, ``, t(`Fuselage : de pas fuselé à fin au bout de la flèche`), 0, 100, 1, (s) => Math.round(s.taper * 100), (v) => ({ taper: v / 100 }));
+    this.slider(taperSec, t(`Fuselage`), t(`Fuselage : de pas fuselé à fin au bout de la flèche`), 0, 100, 1, (s) => Math.round(s.taper * 100), (v) => ({ taper: v / 100 }));
     const headSec = this.section(props, `heads`);
     this.sectionIcon(headSec, `sketchnote-head-arrow`, t(`Pointes`));
     const headRow = headSec.createDiv({ cls: `sketchdraw-row` });
@@ -1078,13 +1085,14 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.sectionIcon(warpSec, `sketchnote-warp-arc`, t(`Déformation du texte`));
     const warpRow = warpSec.createDiv({ cls: `sketchdraw-row` });
     this.dropdown(warpRow, t(`Déformation du texte`), [`none`, ...WARP_KINDS] as (WarpKind | `none`)[], (v) => `sketchnote-warp-${v}`, warpName, (s) => s.warp, (v) => ({ warp: v }), true);
-    this.slider(warpSec, ``, t(`Intensité de la déformation : d'un sens à l'autre, 0 pour aucune`), -100, 100, 5, (s) => Math.round(s.warpAmount * 100), (v) => ({ warpAmount: v / 100 }), (s) => s.warp !== `none`);
+    this.slider(warpSec, t(`Intensité`), t(`Intensité de la déformation : d'un sens à l'autre, 0 pour aucune`), -100, 100, 5, (s) => Math.round(s.warpAmount * 100), (v) => ({ warpAmount: v / 100 }), (s) => s.warp !== `none`);
     this.checkbox(warpSec, t(`Texte vertical`), (s) => s.vertical, (on) => ({ vertical: on }));
 
     // The effects of every element: the opacity, then the shadow and the reflection, which are checked to be used and then unfold their settings.
     const effectSec = this.section(props, `effects`);
     effectSec.addClass(`is-split`);
     const opacityBox = effectSec.createDiv({ cls: `sketchdraw-subgroup` });
+    this.opacityBox = opacityBox;
     const shadowBox = effectSec.createDiv({ cls: `sketchdraw-subgroup` });
     const reflectBox = effectSec.createDiv({ cls: `sketchdraw-subgroup` });
     this.sectionIcon(effectSec, `sparkles`, t(`Effets`));
@@ -1316,9 +1324,13 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     const fn = drawFunctions().find((f) => f.id === this.activeFn);
     const allowed = new Set<string>(fn ? fn.sections : []);
     let any = false;
+    const brushShown = allowed.has(`brush`) && sectionShown(`brush`, kinds);
+    this.opacityBox?.toggleClass(`sketchdraw-hidden`, brushShown);
     for (const sec of this.sections) {
       // A section is shown when the active function has it and it concerns what is selected (or the tool).
-      const shown = sec.name === `organise` ? this.selected.size > 0 : allowed.has(sec.name) && sectionShown(sec.name, kinds);
+      let shown = sec.name === `organise` ? this.selected.size > 0 : allowed.has(sec.name) && sectionShown(sec.name, kinds);
+      // The group of the brush holds the thickness and the regularity: their own groups are left out while it is shown.
+      if (brushShown && (sec.name === `width` || sec.name === `regularity`)) shown = false;
       sec.el.toggleClass(`sketchdraw-hidden`, !shown);
       if (shown) any = true;
       // With nothing selected the choices of the menu have nothing to apply to (a new shape is always standard): they are dimmed, except the settings of a text.

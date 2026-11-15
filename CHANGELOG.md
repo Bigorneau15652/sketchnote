@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.30.4
+
+English
+
+Consistent ribbon. Every slider of the ribbon now has its name written above it (the thickness, the regularity of the stroke, the imperfection, the taper, the transparency of the fill and the strength of a distortion had none). For a pen stroke, everything that makes the brush is in the one group Brush: the choice of the brush, the flow, the spacing and the other settings of the brush, then the thickness, the regularity and the opacity, in columns of two sliders; the groups of the thickness and of the regularity are left out while the brush is shown, and so is the opacity of the effects (the group Effects keeps the shadow and the reflection).
+
+Français
+
+Ruban cohérent. Chaque glissière du ruban a maintenant son nom écrit au-dessus (l'épaisseur, la régularité du tracé, l'imperfection, le fuselage, la transparence du remplissage et l'intensité d'une déformation n'en avaient pas). Pour un tracé au stylo, tout ce qui fait le pinceau est dans le seul groupe Pinceau : le choix du pinceau, le flux, l'espacement et les autres réglages du pinceau, puis l'épaisseur, la régularité et l'opacité, en colonnes de deux glissières ; les groupes de l'épaisseur et de la régularité sont retirés tant que le pinceau est montré, ainsi que l'opacité des effets (le groupe Effets garde l'ombre et le reflet).
+
 ## 0.30.3
 
 English
