@@ -325,6 +325,11 @@ function iconPaths(el: IconElement, opts: Record<string, unknown>): ElementPaths
 function compute(el: StrokedElement): ElementPaths {
   const opts = roughOptions(el);
   if (el.type === `icon`) return iconPaths(el, opts);
+  // A picture: only its border is made here (the picture itself is drawn by the renderer), and only when it has one.
+  if (el.type === `image`) {
+    const rect: RectElement = { ...el, type: `rect` };
+    return { pieces: el.frame === true ? shapePieces(rect, opts) : [], transform: turn(el.angle, el.x + el.width / 2, el.y + el.height / 2) };
+  }
   if (el.type === `rect`) return { pieces: shapePieces(el, opts), transform: turn(el.angle, el.x + el.width / 2, el.y + el.height / 2) };
   if (el.type === `ellipse`) return { pieces: shapePieces(el, opts), transform: turn(el.angle, el.cx, el.cy) };
   if (el.type === `diamond` || el.type === `triangle`) return { pieces: shapePieces(el, opts), transform: turn(el.angle, el.x + el.width / 2, el.y + el.height / 2) };

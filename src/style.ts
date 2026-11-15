@@ -149,13 +149,18 @@ export function applyStyle(el: SketchElement, patch: StylePatch): SketchElement 
     const align = p.align !== undefined ? p.align : next.label.align;
     next = { ...next, label: { ...label, ...(p.font !== undefined ? { font: p.font } : {}), ...(p.fontSize !== undefined ? { size: p.fontSize } : {}), ...(align !== undefined && align !== `center` ? { align } : {}) } } as typeof el;
   }
-  if (isShape(next)) {
+  if (isShape(next) || next.type === `image`) {
     if (p.border !== undefined) {
       const { border: _b, ...rest } = next;
       void _b;
-      next = (p.border === `simple` ? rest : { ...rest, border: p.border }) as typeof el;
+      if (next.type === `image`) {
+        // A picture has a border only when it is given one: none removes it, the simple one is the usual style, the others are stored.
+        const { frame: _f, ...bare } = rest as typeof rest & { frame?: true };
+        void _f;
+        next = (p.border === `none` ? bare : p.border === `simple` ? { ...bare, frame: true } : { ...bare, frame: true, border: p.border }) as typeof el;
+      } else next = (p.border === `simple` ? rest : { ...rest, border: p.border }) as typeof el;
     }
-    if (p.radius !== undefined && next.type === `rect`) {
+    if (p.radius !== undefined && (next.type === `rect` || next.type === `image`)) {
       const { radius: _r, ...rest } = next;
       void _r;
       next = (p.radius === 0 ? rest : { ...rest, radius: p.radius }) as typeof el;
@@ -310,7 +315,7 @@ export function styleOf(el: SketchElement): ToolStyle | null {
   const rounded = linear && el.rounded === true;
   const startHead: Head = el.type === `arrow` ? headOf(el, `start`) : `none`;
   const endHead: Head = el.type === `arrow` ? headOf(el, `end`) : `none`;
-  return { stroke: el.stroke, fill, fillStyle, fillOpacity, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0, regularity: el.type === `freedraw` ? el.regularity ?? 0 : 0, warp: `none`, warpAmount: DEFAULT_WARP_AMOUNT, vertical: false, brush: el.type === `freedraw` ? el.brush ?? `round` : `round`, ...(el.type === `freedraw` ? brushStyle(el.brush ?? `round`, paramsFromFields(el)) : brushStyle(`round`, {})), rounded, startHead, endHead, taper: el.type === `line` || el.type === `arrow` ? el.taper ?? 0 : 0, font: labelOf(el) ? labelOf(el)?.font ?? DEFAULT_FONT : DEFAULT_FONT, fontSize: labelOf(el)?.size ?? TEXT_SIZES.medium, align: labelOf(el) ? labelOf(el)?.align ?? `center` : `left`, ...effectsOfElement(el), lineStyle: el.type === `freedraw` ? `solid` : el.lineStyle ?? `solid`, border: isShape(el) ? el.border ?? `simple` : `simple`, radius: el.type === `rect` ? el.radius ?? 0 : 0 };
+  return { stroke: el.stroke, fill, fillStyle, fillOpacity, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0, regularity: el.type === `freedraw` ? el.regularity ?? 0 : 0, warp: `none`, warpAmount: DEFAULT_WARP_AMOUNT, vertical: false, brush: el.type === `freedraw` ? el.brush ?? `round` : `round`, ...(el.type === `freedraw` ? brushStyle(el.brush ?? `round`, paramsFromFields(el)) : brushStyle(`round`, {})), rounded, startHead, endHead, taper: el.type === `line` || el.type === `arrow` ? el.taper ?? 0 : 0, font: labelOf(el) ? labelOf(el)?.font ?? DEFAULT_FONT : DEFAULT_FONT, fontSize: labelOf(el)?.size ?? TEXT_SIZES.medium, align: labelOf(el) ? labelOf(el)?.align ?? `center` : `left`, ...effectsOfElement(el), lineStyle: el.type === `freedraw` ? `solid` : el.lineStyle ?? `solid`, border: el.type === `image` ? (el.frame === true ? el.border ?? `simple` : `none`) : isShape(el) ? el.border ?? `simple` : `simple`, radius: el.type === `rect` || el.type === `image` ? el.radius ?? 0 : 0 };
 }
 
 // Returns the text written in a shape or in the middle of a line, or undefined.

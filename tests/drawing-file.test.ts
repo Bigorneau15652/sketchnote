@@ -91,6 +91,9 @@ test(`les reglages invalides reprennent la valeur par defaut`, () => {
   assert.deepEqual(readSettings({ iconsFolder: `../x` }), DEFAULT_SETTINGS);
   assert.deepEqual(readSettings({ iconsFolder: 5 }), DEFAULT_SETTINGS);
   assert.equal(DEFAULT_SETTINGS.iconsFolder, `Sketchnote icônes`);
+  assert.deepEqual(readSettings({ imagesFolder: `Mes images` }), { ...DEFAULT_SETTINGS, imagesFolder: `Mes images` });
+  assert.deepEqual(readSettings({ imagesFolder: `../x` }), DEFAULT_SETTINGS);
+  assert.equal(DEFAULT_SETTINGS.imagesFolder, `Sketchnote images`);
 });
 
 test(`le nom d'un dessin est unique, sans caracteres interdits`, () => {

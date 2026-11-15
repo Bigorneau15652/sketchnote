@@ -3,6 +3,8 @@ import { AbstractInputSuggest, App, Notice, PluginSettingTab, Setting, TFolder }
 import type SketchnotePlugin from "./main";
 import { t } from "./i18n";
 import { AddFontModal } from "./add-font-modal";
+import { AddImageModal } from "./add-image-modal";
+import { importImages } from "./image-import";
 import { importFonts } from "./font-import";
 import { DEFAULT_SETTINGS, normalizeFolder } from "./settings";
 
@@ -70,6 +72,13 @@ export class SketchnoteSettingTab extends PluginSettingTab {
     await this.plugin.icons.refresh();
   }
 
+  // Keeps a folder as the folder of the images and creates it when it does not exist.
+  private async keepImagesFolder(folder: string): Promise<void> {
+    this.plugin.settingsData.imagesFolder = folder;
+    await this.plugin.saveData(this.plugin.settingsData);
+    if (await this.plugin.drawings.ensureFolder(folder)) new Notice(t(`Dossier créé : {0}`, folder));
+  }
+
   // Draws the settings page.
   display(): void {
     const { containerEl } = this;
@@ -98,9 +107,11 @@ export class SketchnoteSettingTab extends PluginSettingTab {
         });
       });
 
-    new Setting(containerEl)
+    const fontsSetting = new Setting(containerEl)
       .setName(t(`Dossier des polices`))
-      .setDesc(t(`Dossier du coffre où sont rangées les polices ajoutées (fichiers .ttf et .otf). Une police déposée dans ce dossier apparaît dans la liste de l'outil Texte. Le bouton ouvre la fenêtre qui explique où trouver des polices libres et les importe.`))
+      .setDesc(t(`Dossier du coffre où sont rangées les polices ajoutées (fichiers .ttf et .otf). Une police déposée dans ce dossier apparaît dans la liste de l'outil Texte. Le bouton Nouvelle police ouvre la fenêtre qui explique où trouver des polices libres et les importe.`));
+    fontsSetting.settingEl.addClass(`sketchnote-setting-stack`);
+    fontsSetting
       .addText((text) => {
         text.setPlaceholder(DEFAULT_SETTINGS.fontsFolder).setValue(this.plugin.settingsData.fontsFolder);
         text.inputEl.addEventListener(`change`, () => {
@@ -113,9 +124,9 @@ export class SketchnoteSettingTab extends PluginSettingTab {
           void this.keepFontsFolder(path);
         });
       })
-      .addExtraButton((button) =>
+      .addButton((button) =>
         button
-          .setIcon(`type`)
+          .setButtonText(t(`Nouvelle police`))
           .setTooltip(t(`Ajouter une police`))
           .onClick(() => {
             const folder = (): string => this.plugin.settingsData.fontsFolder;
@@ -142,5 +153,32 @@ export class SketchnoteSettingTab extends PluginSettingTab {
           void this.keepIconsFolder(path);
         });
       });
+
+    const imagesSetting = new Setting(containerEl)
+      .setName(t(`Dossier des images`))
+      .setDesc(t(`Dossier du coffre où sont rangées les images ajoutées à un dessin : celles que vous importez, que vous glissez sur un dessin ou que vous collez. Le dessin ne garde que le chemin de l'image : si vous la déplacez ou la supprimez, le dessin la signale introuvable. Le bouton Nouvelle image ouvre la fenêtre qui explique où trouver des images libres et les importe. Le dossier est créé s'il n'existe pas.`));
+    imagesSetting.settingEl.addClass(`sketchnote-setting-stack`);
+    imagesSetting
+      .addText((text) => {
+        text.setPlaceholder(DEFAULT_SETTINGS.imagesFolder).setValue(this.plugin.settingsData.imagesFolder);
+        text.inputEl.addEventListener(`change`, () => {
+          const folder = normalizeFolder(text.getValue());
+          text.inputEl.toggleClass(`mod-error`, folder === null);
+          if (folder !== null) void this.keepImagesFolder(folder);
+        });
+        new FolderSuggest(this.app, text.inputEl, (path) => {
+          text.inputEl.removeClass(`mod-error`);
+          void this.keepImagesFolder(path);
+        });
+      })
+      .addButton((button) =>
+        button
+          .setButtonText(t(`Nouvelle image`))
+          .setTooltip(t(`Ajouter une image`))
+          .onClick(() => {
+            const folder = (): string => this.plugin.settingsData.imagesFolder;
+            new AddImageModal(this.app, { folder, importFiles: (files) => importImages(this.app, folder(), files) }, () => undefined).open();
+          }),
+      );
   }
 }

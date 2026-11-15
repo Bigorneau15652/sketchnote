@@ -14,6 +14,7 @@ export function outlineExtent(el: SketchElement): number {
   const wobble = ((`roughness` in el ? el.roughness : 0) ?? 0) * 1.5;
   switch (el.type) {
     case `rect`:
+    case `image`:
     case `ellipse`:
     case `diamond`:
     case `triangle`:

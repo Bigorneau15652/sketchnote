@@ -6,9 +6,11 @@ export interface SketchnoteSettings {
   fontsFolder: string;
   // Folder of the vault where the user puts the SVG drawings that are offered with the icons: a sub folder is a theme.
   iconsFolder: string;
+  // Folder of the vault where the pictures that are imported, dropped or pasted into a drawing are kept.
+  imagesFolder: string;
 }
 
-export const DEFAULT_SETTINGS: SketchnoteSettings = { drawingsFolder: `Sketchnote dessins`, fontsFolder: `Sketchnote polices`, iconsFolder: `Sketchnote icônes` };
+export const DEFAULT_SETTINGS: SketchnoteSettings = { drawingsFolder: `Sketchnote dessins`, fontsFolder: `Sketchnote polices`, iconsFolder: `Sketchnote icônes`, imagesFolder: `Sketchnote images` };
 
 // Returns a folder path of the vault in its clean form (slashes, no slash at the ends), or null when it is not acceptable: empty, with `..`, with a drive
 // letter, or with characters that a file name cannot hold. A leading slash (`/dessin`) is accepted and means the root of the vault.
@@ -25,7 +27,7 @@ export function normalizeFolder(value: unknown): string | null {
 // Reads the saved settings, keeping the default of anything that is missing or not acceptable.
 export function readSettings(raw: unknown): SketchnoteSettings {
   const r = typeof raw === `object` && raw !== null ? (raw as Record<string, unknown>) : {};
-  return { drawingsFolder: normalizeFolder(r.drawingsFolder) ?? DEFAULT_SETTINGS.drawingsFolder, fontsFolder: normalizeFolder(r.fontsFolder) ?? DEFAULT_SETTINGS.fontsFolder, iconsFolder: normalizeFolder(r.iconsFolder) ?? DEFAULT_SETTINGS.iconsFolder };
+  return { drawingsFolder: normalizeFolder(r.drawingsFolder) ?? DEFAULT_SETTINGS.drawingsFolder, fontsFolder: normalizeFolder(r.fontsFolder) ?? DEFAULT_SETTINGS.fontsFolder, iconsFolder: normalizeFolder(r.iconsFolder) ?? DEFAULT_SETTINGS.iconsFolder, imagesFolder: normalizeFolder(r.imagesFolder) ?? DEFAULT_SETTINGS.imagesFolder };
 }
 
 // Removes from a name the characters that a file name cannot hold, and shortens it.

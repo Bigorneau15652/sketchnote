@@ -45,10 +45,10 @@ export const inflate: Inflate = async (data, limit) => {
 };
 
 // Returns a file name without the characters that a path cannot hold.
-const safeName = (name: string): string => name.replace(/[\\/:*?"<>|]/g, `_`);
+export const safeName = (name: string): string => name.replace(/[\\/:*?"<>|]/g, `_`);
 
 // Creates a folder and the folders above it when they do not exist.
-async function ensureFolder(app: App, folder: string): Promise<void> {
+export async function ensureFolder(app: App, folder: string): Promise<void> {
   let path = ``;
   for (const part of normalizePath(folder).split(`/`)) {
     path = path === `` ? part : `${path}/${part}`;
@@ -56,7 +56,7 @@ async function ensureFolder(app: App, folder: string): Promise<void> {
   }
 }
 
-const sameBytes = (a: ArrayBuffer, b: Uint8Array): boolean => {
+export const sameBytes = (a: ArrayBuffer, b: Uint8Array): boolean => {
   if (a.byteLength !== b.length) return false;
   const x = new Uint8Array(a);
   for (let i = 0; i < x.length; i++) if (x[i] !== b[i]) return false;
