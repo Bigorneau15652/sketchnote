@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.30.2
+
+English
+
+Menu as a ribbon. The menu of the buttons of a drawing is reorganised like the ribbon of a spreadsheet. It is one line of groups side by side, each one with its choices above and its name under them, with a thin line between two groups; the sliders of a group are lined up in columns. When the groups are wider than the window, the menu scrolls sideways (with the wheel or its bar), and nothing moves down: the shadow and the reflection of the effects are two groups of their own next to the opacity, and unfolding them does not change the height. The bar of the undo and the zoom is now at the right of the same row and never moves; when the row is too narrow, the bar goes under the menu. The choice of the brush is a compact button whose stroke fills it, and the list of the brushes opens over the menu in two columns, next to the button (it closes with a click elsewhere or Escape) instead of lengthening the menu.
+
+Français
+
+Menu en ruban. Le menu des boutons d'un dessin est réorganisé comme le ruban d'un tableur. C'est une ligne de groupes côte à côte, chacun avec ses choix au-dessus et son nom en dessous, et un trait fin entre deux groupes ; les glissières d'un groupe sont alignées en colonnes. Quand les groupes sont plus larges que la fenêtre, le menu défile sur le côté (avec la molette ou sa barre) et rien ne passe à la ligne : l'ombre et le reflet des effets sont deux groupes à part à côté de l'opacité, et les déplier ne change pas la hauteur. La barre de l'annulation et du zoom est maintenant à droite de la même ligne et ne bouge jamais ; quand la ligne est trop étroite, la barre passe sous le menu. Le choix du pinceau est un bouton compact dont le tracé remplit le cadre, et la liste des pinceaux s'ouvre par-dessus le menu, sur deux colonnes, à côté du bouton (elle se ferme avec un clic ailleurs ou Échap) au lieu d'allonger le menu.
+
 ## 0.30.1
 
 English

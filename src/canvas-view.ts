@@ -267,7 +267,7 @@ export abstract class CanvasView<D> extends TextFileView {
 
   // Builds the bottom bar: what the subclass adds, the select and hand tools, undo and redo, the zoom, and the actions on the selection.
   private buildBar(host: HTMLElement): void {
-    const bar = host.createDiv({ cls: `sketchnote-bar` });
+    const bar = this.barHost(host).createDiv({ cls: `sketchnote-bar` });
     this.buildBarStart(bar);
     if (this.selectToolsInBar()) {
       this.toolButton(bar, `select`, `mouse-pointer-2`, t(`Sélectionner`));
@@ -291,6 +291,11 @@ export abstract class CanvasView<D> extends TextFileView {
 
     if (this.selectionActionsInBar()) this.buildSelectionActions(bar);
     this.updateBar();
+  }
+
+  // The element that holds the bottom bar (the frame itself, or a row that the view shares with its own menu).
+  protected barHost(host: HTMLElement): HTMLElement {
+    return host;
   }
 
   // Tells whether the actions on the selection are in the bottom bar (the page) or built elsewhere by the view (the drawing puts them in its menu).
