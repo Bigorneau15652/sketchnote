@@ -14,6 +14,11 @@ import { t } from "./i18n";
 import { RenderedPage } from "./page-render";
 import { drawUi } from "./selection-render";
 import { cloneElements, moveElements, reorder, reorderStep, removeElements } from "./selection-ops";
+import { ExportModal } from "./export-modal";
+import { ExportBackground, ExportScope, elementsBox } from "./export-plan";
+import type { ExportSource } from "./export-render";
+import type { ExportServices } from "./export-service";
+import { svgEl } from "./svg";
 import { snapBox } from "./snap";
 import { ToolStyle } from "./style";
 import { addPenPoint, CREATION_TOOLS, CreationTool, elementFromDrag, linearElement, penElement, pointElement } from "./tools";
@@ -111,6 +116,13 @@ export abstract class CanvasView<D> extends TextFileView {
   protected abstract renderSurface(zoom: number): RenderedPage;
   // Draws the elements into their group.
   protected abstract drawContent(group: SVGElement): void;
+  // The part of the surface that an export of everything covers (the whole page, or the drawn elements of a drawing with a margin), or null when there is nothing to export.
+  protected abstract exportBoxAll(): Box | null;
+  // Draws a list of elements for an export (no empty zones, no editor overlay).
+  protected abstract drawExport(list: SketchElement[], group: SVGElement): void;
+  // The name of what an export of everything exports ("Page" or "Dessin"), and what the views give to the exports.
+  protected abstract exportPartName(): string;
+  protected abstract exportServices(): ExportServices;
 
   // Extra places where a moved element sticks (the slots of a structure).
   protected extraSnapTargets(): Box[] {
@@ -275,6 +287,7 @@ export abstract class CanvasView<D> extends TextFileView {
     this.zoomSlider = slider;
     this.button(bar, `zoom-in`, t(`Zoom avant`), () => this.setZoom(stepZoom(this.zoom, 1)));
     this.button(bar, `maximize`, t(`Ajuster à la fenêtre`), () => this.fitView());
+    this.button(bar, `download`, t(`Exporter`), () => this.openExport());
     this.zoomLabel = bar.createSpan({ cls: `sketchnote-zoom-text` });
 
     const actions = bar.createDiv({ cls: `sketchnote-selection-actions` });
@@ -456,6 +469,41 @@ export abstract class CanvasView<D> extends TextFileView {
   // ---------------------------------------------------------------------------------------------------------------- drawing
 
   // Draws everything again: the surface, the elements and the editor overlay. Used when the surface itself changes.
+  // Opens the window of the export: the part (everything or the selection), the format, the size and the background, with a preview and the buttons that save, copy and link.
+  protected openExport(): void {
+    const selected = this.selectedElements().length > 0;
+    new ExportModal(
+      this.app,
+      {
+        name: this.file ? this.file.basename : `Sketchnote`,
+        allLabel: this.exportPartName(),
+        hasSelection: selected,
+        hasContent: this.exportBoxAll() !== null,
+        build: (scope, background) => this.buildExport(scope, background),
+        services: this.exportServices(),
+      },
+    ).open();
+  }
+
+  // Draws what is exported as an SVG of its own: the surface (or nothing, or white), the elements, and the box that is exported. Returns null when there is nothing to export.
+  protected buildExport(scope: ExportScope, background: ExportBackground): ExportSource | null {
+    const list = scope === `selection` ? this.selectedElements() : this.elementsOf(this.doc);
+    const box = scope === `selection` ? elementsBox(list) : this.exportBoxAll();
+    if (!box || list.length === 0 && scope === `selection`) return null;
+    const rendered = this.renderSurface(1);
+    const svg = rendered.svg;
+    // What is not the surface or the elements is not exported: the editor overlay and the dotted guide of a drawing.
+    rendered.ui.remove();
+    for (const guide of Array.from(svg.querySelectorAll(`.sketchdraw-guide`))) guide.remove();
+    if (background !== `page`) {
+      for (const child of Array.from(svg.children)) if (child !== rendered.content) child.remove();
+      // The white goes a little beyond the box, so that the pixels at the edge are fully white whatever the size of the picture.
+      if (background === `white`) svg.insertBefore(svgEl(`rect`, { x: box.x - 2, y: box.y - 2, width: box.w + 4, height: box.h + 4, fill: `#ffffff` }), svg.firstChild);
+    }
+    this.drawExport(list, rendered.content);
+    return { svg, box };
+  }
+
   // Draws everything again after a picture of the vault was added, moved or deleted (the pictures that were missing may be found, and the ones that were moved are missing).
   refreshImages(): void {
     try {

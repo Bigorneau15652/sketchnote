@@ -70,7 +70,8 @@ function drawPicture(el: ImageElement, parent: Element): void {
   }
   // The nested picture area is in units of the whole picture: the visible part of it is stretched to the box.
   const area = svgEl(`svg`, { x: el.x, y: el.y, width: el.width, height: el.height, viewBox: `${cl} ${ct} ${1 - cl - cr} ${1 - ct - cb}`, preserveAspectRatio: `none`, overflow: `hidden` }, holder);
-  svgEl(`image`, { href: url, x: 0, y: 0, width: 1, height: 1, preserveAspectRatio: `none` }, area);
+  // The path is kept for an export, which writes the file itself into the SVG and removes the path.
+  svgEl(`image`, { href: url, "data-path": el.path, x: 0, y: 0, width: 1, height: 1, preserveAspectRatio: `none` }, area);
 }
 
 // Draws one element with a stroke (everything except a drawing frame and a text).

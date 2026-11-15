@@ -30,6 +30,8 @@ import { penCursor } from "./cursors";
 import { allLocked, isLocked } from "./lock";
 import { MAX_REGULARITY } from "./tidy";
 import { WARP_KINDS, WarpKind } from "./text-warp";
+import { elementsBox } from "./export-plan";
+import type { ExportServices } from "./export-service";
 import { PluginApi } from "./plugin-api";
 import { renderCanvas, RenderedPage } from "./page-render";
 import { svgEl } from "./svg";
@@ -243,6 +245,22 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
         void _l;
         return rest as SketchElement;
       });
+  }
+
+  protected exportBoxAll(): Box | null {
+    return elementsBox(this.doc.elements);
+  }
+
+  protected drawExport(list: SketchElement[], group: SVGElement): void {
+    drawElements(list, group, { ...PLAIN, ink: this.doc.ink });
+  }
+
+  protected exportPartName(): string {
+    return t(`Dessin`);
+  }
+
+  protected exportServices(): ExportServices {
+    return this.api.exports;
   }
 
   protected creationTools(): CreationTool[] {

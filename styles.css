@@ -786,3 +786,56 @@ textarea.sketchnote-text-editor.is-label {
   height: 100%;
   object-fit: contain;
 }
+
+/* The window of the export: rows of choices, the preview on a chequered ground, and the buttons. */
+.sketchnote-export {
+  width: 520px;
+  max-width: 96vw;
+}
+
+.sketchnote-export-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0 0 6px;
+}
+
+.sketchnote-export-label {
+  flex: 0 0 64px;
+  color: var(--text-muted, #666666);
+  font-size: var(--font-ui-smaller, 12px);
+}
+
+.sketchnote-export-chips {
+  margin: 0;
+}
+
+.sketchnote-export-preview {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-height: 260px;
+  margin: 8px 0 4px;
+  border: 1px solid var(--background-modifier-border, #cccccc);
+  border-radius: 6px;
+  background-color: #ffffff;
+  background-image: linear-gradient(45deg, #d8d8d8 25%, transparent 25%, transparent 75%, #d8d8d8 75%), linear-gradient(45deg, #d8d8d8 25%, transparent 25%, transparent 75%, #d8d8d8 75%);
+  background-position: 0 0, 8px 8px;
+  background-size: 16px 16px;
+  object-fit: contain;
+}
+
+.sketchnote-export-actions {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 0;
+}
+
+.sketchnote-export-status {
+  min-height: 1.4em;
+  margin: 8px 0 0;
+  color: var(--text-muted, #666666);
+  font-size: var(--font-ui-smaller, 12px);
+  overflow-wrap: anywhere;
+}

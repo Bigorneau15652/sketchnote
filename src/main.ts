@@ -1,10 +1,11 @@
 // Entry point of the plugin: registers the views of a sketchnote and of a drawing, the commands, the settings and the follow-up of the drawing notes.
-import { Notice, Plugin, TFile, WorkspaceLeaf, normalizePath } from "obsidian";
+import { MarkdownView, Notice, Plugin, TFile, WorkspaceLeaf, normalizePath } from "obsidian";
 import { CanvasView } from "./canvas-view";
 import { DRAW_VIEW_TYPE, SketchdrawView } from "./draw-view";
 import { DrawingStore } from "./drawings";
 import { registerIcons } from "./custom-icons";
 import { FontStore } from "./font-store";
+import { ExportServiceImpl } from "./export-service";
 import { IconStore } from "./icon-store";
 import { isImageName } from "./image-files";
 import { setImageResolver } from "./image-registry";
@@ -36,7 +37,13 @@ export default class SketchnotePlugin extends Plugin {
       const file = this.app.vault.getAbstractFileByPath(normalizePath(path));
       return file instanceof TFile ? this.app.vault.getResourcePath(file) : null;
     });
-    const api: PluginApi = { drawings: this.drawings, fonts: this.fonts, icons: this.icons, settings: () => this.settingsData, origins: this.origins };
+    // The note that was last open in an editor: the exports put their link in it.
+    let lastNote: MarkdownView | null = null;
+    this.registerEvent(this.app.workspace.on(`active-leaf-change`, (leaf) => {
+      if (leaf && leaf.view instanceof MarkdownView) lastNote = leaf.view;
+    }));
+    const exportServices = new ExportServiceImpl(this.app, () => this.settingsData.exportsFolder, this.fonts, () => (lastNote && lastNote.file && this.app.workspace.getLeavesOfType(`markdown`).some((l) => l.view === lastNote) ? lastNote : null));
+    const api: PluginApi = { drawings: this.drawings, fonts: this.fonts, icons: this.icons, exports: exportServices, settings: () => this.settingsData, origins: this.origins };
     this.registerView(VIEW_TYPE, (leaf) => new SketchnoteView(leaf, api));
     this.registerView(DRAW_VIEW_TYPE, (leaf) => new SketchdrawView(leaf, api));
     this.registerExtensions([`sketchnote`], VIEW_TYPE);
