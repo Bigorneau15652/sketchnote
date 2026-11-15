@@ -4,7 +4,7 @@
 import { t } from "./i18n";
 import type { PanelSection } from "./panel-kinds";
 
-export type DrawFunctionId = `select` | `hand` | `rect` | `diamond` | `ellipse` | `triangle` | `arrow` | `line` | `pen` | `point` | `text` | `icons` | `images` | `colours` | `stroke` | `effects` | `display` | `export`;
+export type DrawFunctionId = `select` | `hand` | `rect` | `diamond` | `ellipse` | `triangle` | `arrow` | `line` | `pen` | `point` | `text` | `icons` | `images` | `display` | `zen` | `export`;
 
 export interface DrawFunction {
   id: DrawFunctionId;
@@ -18,7 +18,7 @@ export interface DrawFunction {
   // The parts of the properties that its menu shows (the ones that do not concern the selection or the tool are left out).
   sections: PanelSection[];
   // A function that opens a window when it is clicked instead of showing a menu.
-  opens?: `icons` | `images` | `export`;
+  opens?: `icons` | `images` | `export` | `zen`;
 }
 
 const CONTENT: PanelSection[] = [`colour`, `fill`, `brush`, `width`, `dash`, `look`, `regularity`, `border`, `corners`, `edges`, `taper`, `heads`, `text`, `warp`, `icon`, `image`, `effects`];
@@ -134,37 +134,6 @@ export function drawFunctions(): DrawFunction[] {
       opens: `images`,
     },
     {
-      id: `colours`,
-      icon: `palette`,
-      name: () => t(`Couleurs`),
-      help: () => [
-        t(`Règle les couleurs des éléments sélectionnés, ou des prochains éléments si rien n'est sélectionné.`),
-        t(`Une pastille pour la bordure et une pour le remplissage : chacune ouvre la fenêtre des couleurs, avec la pipette et les motifs de remplissage.`),
-      ],
-      tools: [],
-      sections: [`colour`, `fill`],
-    },
-    {
-      id: `stroke`,
-      icon: `sketchnote-width-medium`,
-      name: () => t(`Aspect du trait`),
-      help: () => [
-        t(`Règle l'aspect du trait : épaisseur, pointillés, imperfection du tracé à main levée, bordure, coins, bords, fuselage et pointes de flèche.`),
-      ],
-      tools: [],
-      sections: [`width`, `dash`, `look`, `border`, `corners`, `edges`, `taper`, `heads`],
-    },
-    {
-      id: `effects`,
-      icon: `sparkles`,
-      name: () => t(`Effets`),
-      help: () => [
-        t(`Règle l'opacité de l'élément, son ombre (éloignement, flou, densité, couleur) et son reflet (profondeur, dégradé, éloignement).`),
-      ],
-      tools: [],
-      sections: [`effects`],
-    },
-    {
       id: `display`,
       icon: `eye`,
       name: () => t(`Affichage`),
@@ -174,6 +143,18 @@ export function drawFunctions(): DrawFunction[] {
       ],
       tools: [],
       sections: [`display`],
+    },
+    {
+      id: `zen`,
+      icon: `focus`,
+      name: () => t(`Mode zen`),
+      help: () => [
+        t(`Isole de toute distraction : les menus d'Obsidian disparaissent, la page devient une petite fenêtre flottante, redimensionnable et déplaçable sur un autre écran, où l'on choisit la zone à dessiner, et tout le reste de l'écran est pour le dessin.`),
+        t(`Le même bouton, ou la commande Mode zen de la palette de commandes, permet d'en sortir.`),
+      ],
+      tools: [],
+      sections: [],
+      opens: `zen`,
     },
     {
       id: `export`,
@@ -198,8 +179,9 @@ export function functionOfTool(tool: string): DrawFunctionId | null {
 // A separation between two groups of buttons: an identifier like sep:3, put in the order like a button.
 export const isSeparator = (id: string): boolean => /^sep:\d+$/.test(id);
 
-// The usual order: the tools (each one its own button), then the windows, then the settings, then what acts on the drawing.
-export const DEFAULT_ORDER: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `sep:2`, `arrow`, `line`, `pen`, `point`, `text`, `sep:3`, `icons`, `images`, `sep:4`, `colours`, `stroke`, `effects`, `sep:5`, `display`, `export`];
+// The usual order: the tools (each one its own button), then the windows, then what acts on the drawing. The colours, the line and the effects have no button: they are in the menu of
+// the tool, or of the selected element.
+export const DEFAULT_ORDER: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `sep:2`, `arrow`, `line`, `pen`, `point`, `text`, `sep:3`, `icons`, `images`, `sep:4`, `display`, `zen`, `export`];
 
 // Tells whether a value can be an entry of a saved order: a known function or a separation.
 export function isOrderEntry(value: unknown, known: string[]): value is string {

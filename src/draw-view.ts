@@ -738,6 +738,12 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   private async goBack(): Promise<void> {
     await this.save();
     const origin = this.file ? this.api.origins.get(this.file.path) : undefined;
+    // In zen mode the window of the drawing stays (it is the main window): it is emptied, and the floating window of the page takes the focus.
+    if (this.api.zen.active()) {
+      await this.leaf.setViewState({ type: `empty` });
+      if (origin) this.app.workspace.setActiveLeaf(origin, { focus: true });
+      return;
+    }
     this.leaf.detach();
     if (origin && this.app.workspace.getLeavesOfType(PAGE_VIEW_TYPE).includes(origin)) this.app.workspace.setActiveLeaf(origin, { focus: true });
   }
@@ -880,7 +886,8 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       button.dataset.fn = fn.id;
       setIcon(button, fn.icon);
       button.setAttribute(`aria-label`, fn.name());
-      button.toggleClass(`is-active`, this.activeFn === fn.id);
+      // The button of the zen mode shows that the mode is on; the others show the active function.
+      button.toggleClass(`is-active`, fn.id === `zen` ? this.api.zen.active() : this.activeFn === fn.id);
       button.addEventListener(`click`, () => this.chooseFunction(fn));
     }
   }
@@ -907,6 +914,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     if (fn.opens === `icons`) void this.openIcons();
     else if (fn.opens === `images`) void this.openImages();
     else if (fn.opens === `export`) this.openExport();
+    else if (fn.opens === `zen`) void this.api.zen.toggle();
     this.contentEl.focus({ preventScroll: true });
   }
 

@@ -25,6 +25,7 @@ export class SketchnoteView extends CanvasView<SketchnoteDoc> {
   private slots: Slot[] = [];
   private showZones = true;
   private zonesButton: HTMLElement | null = null;
+  private zenButton: HTMLElement | null = null;
   private addButton: HTMLButtonElement | null = null;
 
   // Creates the view inside a workspace leaf, with the services of the plugin.
@@ -122,6 +123,9 @@ export class SketchnoteView extends CanvasView<SketchnoteDoc> {
   protected buildBarStart(bar: HTMLElement): void {
     this.button(bar, `menu`, t(`Réglages de la page`), () => this.openPageSettings());
     this.addButton = this.button(bar, `plus`, t(`Ajouter une zone`), () => this.addZone());
+    this.zenButton = this.button(bar, `focus`, t(`Mode zen`), () => {
+      void this.api.zen.toggle().then(() => this.updateBar());
+    });
     this.zonesButton = this.button(bar, `eye`, t(`Masquer les zones`), () => {
       this.showZones = !this.showZones;
       this.renderContent();
@@ -131,6 +135,7 @@ export class SketchnoteView extends CanvasView<SketchnoteDoc> {
 
   // Keeps the add zone button and the eye in step with the structure: the first is off when there is no structure or it is at its largest.
   protected onSelectionChanged(): void {
+    this.zenButton?.toggleClass(`is-active`, this.api.zen.active());
     const layout = this.doc.layout;
     if (this.addButton) this.addButton.disabled = layout === null || addZone(layout) === null;
     if (this.zonesButton) {
@@ -255,7 +260,10 @@ export class SketchnoteView extends CanvasView<SketchnoteDoc> {
   // Opens a drawing note in a new tab, and remembers this tab so that the Back button of the drawing returns here.
   private async openNote(file: TFile): Promise<void> {
     this.api.origins.set(file.path, this.leaf);
-    await this.app.workspace.getLeaf(`tab`).openFile(file);
+    // In zen mode the drawing opens in the main window (this page is in the floating window), in the place of the drawing that was there.
+    const leaf = this.api.zen.drawLeaf() ?? this.app.workspace.getLeaf(`tab`);
+    await leaf.openFile(file);
+    this.app.workspace.setActiveLeaf(leaf, { focus: true });
   }
 
   // Frames that show a drawing take its proportions (the width stays, the height follows, around the same centre). Returns true when a frame changed.

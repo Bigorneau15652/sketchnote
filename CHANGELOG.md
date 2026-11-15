@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.32.0
+
+English
+
+Zen mode, and the buttons Colours, Look of the line and Effects removed from the column on the right. A selected shape, or the tool being used, already shows these settings in the menu, so the three buttons are gone (an order of buttons saved with them is cleaned). The new Zen mode button (a target icon) in the column of a drawing, and in the bottom bar of a page, removes the menus of Obsidian: the page becomes a small floating window, that can be resized by its corners and moved to another screen, where the zone to draw is chosen and the page is seen as a whole, with its usual buttons at the bottom. All the rest of the screen is used by the drawing, with its column of buttons and its menu (at the top or at the bottom as in the settings). The same button, or the command Zen mode of the command palette (it can be given a keyboard shortcut in the settings of Obsidian), leaves the mode, and closing the floating window ends it too. The size and the place of the floating window are remembered. A new setting, Full screen in zen mode (off by default), puts the main window in full screen as well. Zen mode is available on a computer only.
+
+Français
+
+Mode zen, et boutons Couleurs, Aspect du trait et Effets retirés de la colonne de droite. Une forme sélectionnée, ou l'outil en cours, montre déjà ces réglages dans le menu : les trois boutons disparaissent (un ordre de boutons enregistré avec eux est nettoyé). Le nouveau bouton Mode zen (icône de cible) de la colonne d'un dessin, et de la barre du bas d'une page, retire les menus d'Obsidian : la page devient une petite fenêtre flottante, redimensionnable par ses coins et déplaçable sur un autre écran, où l'on choisit la zone à dessiner et où l'on voit la page dans son ensemble, avec ses boutons habituels en bas. Tout le reste de l'écran est occupé par le dessin, avec sa colonne de boutons et son menu (en haut ou en bas selon les réglages). Le même bouton, ou la commande Mode zen de la palette de commandes (on peut lui donner un raccourci clavier dans les réglages d'Obsidian), permet d'en sortir, et la fermeture de la fenêtre flottante y met fin aussi. La taille et la place de la fenêtre flottante sont mémorisées. Un nouveau réglage, Plein écran en mode zen (décoché par défaut), met aussi la fenêtre principale en plein écran. Le mode zen n'est disponible que sur ordinateur.
+
 ## 0.31.0
 
 English

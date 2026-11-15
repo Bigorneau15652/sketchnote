@@ -6,6 +6,7 @@ import { DrawingStore } from "./drawings";
 import { registerIcons } from "./custom-icons";
 import { FontStore } from "./font-store";
 import { ExportServiceImpl } from "./export-service";
+import { ZenMode } from "./zen";
 import { IconStore } from "./icon-store";
 import { isImageName } from "./image-files";
 import { setImageResolver } from "./image-registry";
@@ -22,6 +23,7 @@ export default class SketchnotePlugin extends Plugin {
   fonts!: FontStore;
   icons!: IconStore;
   private readonly origins = new Map<string, WorkspaceLeaf>();
+  private zen!: ZenMode;
 
   private readonly settingsListeners = new Set<() => void>();
 
@@ -55,17 +57,19 @@ export default class SketchnotePlugin extends Plugin {
     this.fonts = new FontStore(this.app, () => this.settingsData.fontsFolder);
     this.icons = new IconStore(this.app, () => this.settingsData.iconsFolder);
     this.icons.start();
+    this.zen = new ZenMode({ app: this.app, origins: this.origins, settings: () => this.settingsData, changeSettings: (patch) => this.changeSettings(patch), registerEvent: (ref) => this.registerEvent(ref) });
     // The pictures of the drawings are found in the vault by their path.
     setImageResolver((path) => {
       const file = this.app.vault.getAbstractFileByPath(normalizePath(path));
       return file instanceof TFile ? this.app.vault.getResourcePath(file) : null;
     });
     const exportServices = new ExportServiceImpl(this.app, () => this.settingsData.exportsFolder, this.fonts);
-    const api: PluginApi = { drawings: this.drawings, fonts: this.fonts, icons: this.icons, exports: exportServices, settings: () => this.settingsData, updateSettings: (patch) => this.changeSettings(patch), onSettings: (listener) => this.listenSettings(listener), origins: this.origins };
+    const api: PluginApi = { drawings: this.drawings, fonts: this.fonts, icons: this.icons, exports: exportServices, zen: this.zen, settings: () => this.settingsData, updateSettings: (patch) => this.changeSettings(patch), onSettings: (listener) => this.listenSettings(listener), origins: this.origins };
     this.registerView(VIEW_TYPE, (leaf) => new SketchnoteView(leaf, api));
     this.registerView(DRAW_VIEW_TYPE, (leaf) => new SketchdrawView(leaf, api));
     this.registerExtensions([`sketchnote`], VIEW_TYPE);
     this.registerExtensions([`sketchdraw`], DRAW_VIEW_TYPE);
+    this.addCommand({ id: `toggle-zen`, name: t(`Mode zen`), callback: () => void this.zen.toggle() });
     this.addCommand({ id: `create-sketchnote`, name: t(`Créer un sketchnote`), callback: () => void this.createSketchnote() });
     this.addCommand({
       id: `duplicate-selection`,
@@ -116,6 +120,7 @@ export default class SketchnotePlugin extends Plugin {
 
   // Stops the plugin: the fonts leave the browser.
   onunload(): void {
+    this.zen.stop();
     this.fonts.destroy();
   }
 
