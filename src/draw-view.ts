@@ -784,16 +784,28 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       void this.takePictures(files);
     });
     this.rail = main.createDiv({ cls: `sketchdraw-rail` });
+    // The bottom row: the menu on the left (it scrolls sideways like a ribbon when the window is narrow) and the bar of the undo and the zoom on the right, which never moves. When the
+    // row is too narrow the bar goes under the menu. With the setting of the top, the menu is above the drawing and the row holds the bar only.
+    const footer = createDiv({ cls: `sketchdraw-footer` });
+    this.footer = footer;
+    main.after(footer);
+    this.mainEl = main;
     const context = createDiv({ cls: `sketchdraw-context` });
     this.context = context;
     this.placeContext(main);
+    // The wheel moves the menu sideways (a menu that is wider than the window).
+    this.registerDomEvent(context, `wheel`, (e: WheelEvent) => {
+      if (context.scrollWidth <= context.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      context.scrollLeft += e.deltaY;
+    });
     this.buildContext();
     this.renderRail();
     this.unsubscribeFonts = this.api.fonts.onChange(() => this.refreshFontList());
     // A change of the settings of the buttons draws the column again and moves the menu.
     this.unsubscribeSettings = this.api.onSettings(() => {
       if (this.rail && this.context) {
-        this.placeContext(this.rail.parentElement ?? main);
+        this.placeContext(this.mainEl ?? main);
         // The words of the buttons are written when the menu is built: a change of that setting builds it again.
         if (this.builtWithWords !== this.labelsOn()) this.buildContext();
         this.renderRail();
@@ -805,10 +817,20 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   // Puts the menu above or under the drawing, as the settings say.
   private placeContext(main: HTMLElement): void {
     const context = this.context;
-    if (!context) return;
-    if (this.api.settings().contextPosition === `top`) main.parentElement?.insertBefore(context, main);
-    else main.after(context);
-    context.toggleClass(`is-top`, this.api.settings().contextPosition === `top`);
+    const footer = this.footer;
+    if (!context || !footer) return;
+    const top = this.api.settings().contextPosition === `top`;
+    if (top) main.parentElement?.insertBefore(context, main);
+    else footer.insertBefore(context, footer.firstChild);
+    context.toggleClass(`is-top`, top);
+  }
+
+  private footer: HTMLElement | null = null;
+  private mainEl: HTMLElement | null = null;
+
+  // The bottom bar is in the row of the menu, at its right.
+  protected barHost(host: HTMLElement): HTMLElement {
+    return this.footer ?? host;
   }
 
   private builtWithWords = false;
@@ -849,7 +871,9 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       const group = tools.createDiv({ cls: `sketchdraw-section sketchdraw-toolgroup` });
       group.dataset.fn = fn.id;
       this.toolGroups.push({ el: group, fn: fn.id });
-      const row = group.createDiv({ cls: `sketchdraw-row` });
+      const body = group.createDiv({ cls: `sketchdraw-group-body` });
+      const row = body.createDiv({ cls: `sketchdraw-row` });
+      this.sectionIcon(body, fn.icon, fn.name());
       for (const tool of fn.tools) {
         const [icon, label] = toolInfo[tool] ?? [`square`, tool];
         const button = this.toolButton(row, tool as Tool, icon, label);
@@ -1059,25 +1083,31 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
 
     // The effects of every element: the opacity, then the shadow and the reflection, which are checked to be used and then unfold their settings.
     const effectSec = this.section(props, `effects`);
-    this.slider(effectSec, t(`Opacité de l'élément`), t(`Opacité de l'élément`), 5, 100, 5, (s) => Math.round(s.opacity * 100), (v) => ({ opacity: v / 100 }));
-    this.checkbox(effectSec, t(`Ombre`), (s) => s.shadow, (on) => ({ shadow: on }));
+    effectSec.addClass(`is-split`);
+    const opacityBox = effectSec.createDiv({ cls: `sketchdraw-subgroup` });
+    const shadowBox = effectSec.createDiv({ cls: `sketchdraw-subgroup` });
+    const reflectBox = effectSec.createDiv({ cls: `sketchdraw-subgroup` });
+    this.sectionIcon(effectSec, `sparkles`, t(`Effets`));
+    this.slider(opacityBox, t(`Opacité de l'élément`), t(`Opacité de l'élément`), 5, 100, 5, (s) => Math.round(s.opacity * 100), (v) => ({ opacity: v / 100 }));
+    this.checkbox(shadowBox, t(`Ombre`), (s) => s.shadow, (on) => ({ shadow: on }));
     const shadowOn = (s: ToolStyle): boolean => s.shadow;
-    this.slider(effectSec, t(`Éloignement de l'ombre`), t(`Éloignement de l'ombre`), 0, SHADOW_MAX_DISTANCE, 1, (s) => s.shadowDistance, (v) => ({ shadowDistance: v }), shadowOn);
-    this.slider(effectSec, t(`Flou de l'ombre`), t(`Flou de l'ombre`), 0, SHADOW_MAX_BLUR, 1, (s) => s.shadowBlur, (v) => ({ shadowBlur: v }), shadowOn);
-    this.slider(effectSec, t(`Densité de l'ombre`), t(`Densité de l'ombre : plus ou moins sombre`), 5, 100, 5, (s) => Math.round(s.shadowOpacity * 100), (v) => ({ shadowOpacity: v / 100 }), shadowOn);
-    this.shadowColorButton(effectSec, shadowOn);
-    this.checkbox(effectSec, t(`Reflet`), (s) => s.reflection, (on) => ({ reflection: on }));
+    this.slider(shadowBox, t(`Éloignement de l'ombre`), t(`Éloignement de l'ombre`), 0, SHADOW_MAX_DISTANCE, 1, (s) => s.shadowDistance, (v) => ({ shadowDistance: v }), shadowOn);
+    this.slider(shadowBox, t(`Flou de l'ombre`), t(`Flou de l'ombre`), 0, SHADOW_MAX_BLUR, 1, (s) => s.shadowBlur, (v) => ({ shadowBlur: v }), shadowOn);
+    this.slider(shadowBox, t(`Densité de l'ombre`), t(`Densité de l'ombre : plus ou moins sombre`), 5, 100, 5, (s) => Math.round(s.shadowOpacity * 100), (v) => ({ shadowOpacity: v / 100 }), shadowOn);
+    this.shadowColorButton(shadowBox, shadowOn);
+    this.checkbox(reflectBox, t(`Reflet`), (s) => s.reflection, (on) => ({ reflection: on }));
     const reflectOn = (s: ToolStyle): boolean => s.reflection;
-    this.slider(effectSec, t(`Profondeur du reflet`), t(`Profondeur du reflet : la part de l'élément reflétée`), 10, 100, 5, (s) => Math.round(s.reflectionDepth * 100), (v) => ({ reflectionDepth: v / 100 }), reflectOn);
-    this.slider(effectSec, t(`Dégradé du reflet`), t(`Dégradé du reflet : de pas de dégradé à un reflet qui disparaît`), 0, 100, 5, (s) => Math.round(s.reflectionFade * 100), (v) => ({ reflectionFade: v / 100 }), reflectOn);
-    this.slider(effectSec, t(`Éloignement du reflet`), t(`Éloignement du reflet : de bord à bord à un reflet éloigné`), 0, 100, 5, (s) => Math.round(s.reflectionGap * 100), (v) => ({ reflectionGap: v / 100 }), reflectOn);
+    this.slider(reflectBox, t(`Profondeur du reflet`), t(`Profondeur du reflet : la part de l'élément reflétée`), 10, 100, 5, (s) => Math.round(s.reflectionDepth * 100), (v) => ({ reflectionDepth: v / 100 }), reflectOn);
+    this.slider(reflectBox, t(`Dégradé du reflet`), t(`Dégradé du reflet : de pas de dégradé à un reflet qui disparaît`), 0, 100, 5, (s) => Math.round(s.reflectionFade * 100), (v) => ({ reflectionFade: v / 100 }), reflectOn);
+    this.slider(reflectBox, t(`Éloignement du reflet`), t(`Éloignement du reflet : de bord à bord à un reflet éloigné`), 0, 100, 5, (s) => Math.round(s.reflectionGap * 100), (v) => ({ reflectionGap: v / 100 }), reflectOn);
 
-    // What acts on the selection (group, lock, duplicate, mirror, levels, delete) and the display of the drawing.
+    // The display of the drawing, then what acts on the selection (group, lock, duplicate, mirror, levels, delete): the last group of the ribbon, shown with every button as soon as
+    // something is selected.
+    const displaySec = this.section(props, `display`);
+    this.buildDisplaySection(displaySec);
     const organise = this.section(props, `organise`);
     this.sectionIcon(organise, `layers`, t(`Organiser`));
     this.buildSelectionActions(organise).addClass(`sketchdraw-organise`);
-    const displaySec = this.section(props, `display`);
-    this.buildDisplaySection(displaySec);
     this.refreshPastilles();
   }
 
@@ -1089,10 +1119,11 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   private fontSelect: HTMLSelectElement | null = null;
 
   // Adds a section to the panel.
+  // A group of the menu, like a group of a ribbon: its choices (the body, which the caller fills) and, under them, its name (added by sectionIcon).
   private section(props: HTMLElement, name: PanelSection): HTMLElement {
     const el = props.createDiv({ cls: `sketchdraw-section` });
     this.sections.push({ el, name });
-    return el;
+    return el.createDiv({ cls: `sketchdraw-group-body` });
   }
 
   // The boxes to check of the panel (the shadow and the reflection): each one reads its state from the style that the panel shows and changes the style when it is checked.
@@ -1188,13 +1219,50 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       row.createSpan({ cls: `sketchdraw-brush-name`, text: brushName(brush) });
       row.setAttribute(`aria-label`, brushName(brush));
       row.addEventListener(`click`, () => {
-        list.removeClass(`is-open`);
+        close();
         this.change({ brush });
         this.contentEl.focus({ preventScroll: true });
       });
       rows.push({ brush, el: row });
     }
-    button.addEventListener(`click`, () => list.toggleClass(`is-open`, !list.classList.contains(`is-open`)));
+    // The list opens over the menu (fixed, next to the button), and closes with a click elsewhere or Escape.
+    let stop: (() => void) | null = null;
+    const close = (): void => {
+      list.removeClass(`is-open`);
+      stop?.();
+      stop = null;
+    };
+    button.addEventListener(`click`, () => {
+      if (list.classList.contains(`is-open`)) {
+        close();
+        return;
+      }
+      const at = button.getBoundingClientRect();
+      const view = this.contentEl.ownerDocument.defaultView ?? window;
+      list.style.left = `${Math.max(4, Math.min(at.left, view.innerWidth - 330))}px`;
+      if (at.top > view.innerHeight / 2) {
+        list.style.bottom = `${view.innerHeight - at.top + 4}px`;
+        list.style.top = ``;
+      } else {
+        list.style.top = `${at.bottom + 4}px`;
+        list.style.bottom = ``;
+      }
+      list.addClass(`is-open`);
+      const away = (e: Event): void => {
+        if (e.target instanceof Node && (list.contains(e.target) || button.contains(e.target))) return;
+        close();
+      };
+      const key = (e: KeyboardEvent): void => {
+        if (e.key === `Escape`) close();
+      };
+      const doc = this.contentEl.ownerDocument;
+      doc.addEventListener(`pointerdown`, away, true);
+      doc.addEventListener(`keydown`, key, true);
+      stop = () => {
+        doc.removeEventListener(`pointerdown`, away, true);
+        doc.removeEventListener(`keydown`, key, true);
+      };
+    });
     this.syncers.push((s) => {
       button.empty();
       preview(button, s.brush);
@@ -1250,7 +1318,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     let any = false;
     for (const sec of this.sections) {
       // A section is shown when the active function has it and it concerns what is selected (or the tool).
-      const shown = allowed.has(sec.name) && sectionShown(sec.name, kinds);
+      const shown = sec.name === `organise` ? this.selected.size > 0 : allowed.has(sec.name) && sectionShown(sec.name, kinds);
       sec.el.toggleClass(`sketchdraw-hidden`, !shown);
       if (shown) any = true;
       // With nothing selected the choices of the menu have nothing to apply to (a new shape is always standard): they are dimmed, except the settings of a text.
@@ -1274,7 +1342,9 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
 
   // Adds a small pictogram that heads a section of the panel. Its name is the tooltip.
   private sectionIcon(parent: HTMLElement, icon: string, label: string): HTMLElement {
-    const head = parent.createDiv({ cls: `sketchdraw-title` });
+    // The name of a group is written under its choices: it goes into the group, after the body.
+    const group = parent.classList.contains(`sketchdraw-group-body`) && parent.parentElement ? parent.parentElement : parent;
+    const head = group.createDiv({ cls: `sketchdraw-title` });
     setIcon(head, icon);
     head.createSpan({ cls: `sketchdraw-title-text`, text: label });
     head.setAttribute(`aria-label`, label);
