@@ -13,7 +13,9 @@ import { iconData } from "./icon-registry";
 import { iconToElements, strokeCount } from "./icon-strokes";
 import type { IconData } from "./icon-svg";
 import type { IconEntry } from "./icon-themes";
-import { defaultFillPalette, FillSwatch, swatchBackground, swatchMatches } from "./swatches";
+import { DrawButtonsModal } from "./draw-buttons-list";
+import { DrawFunction, drawFunctions, DrawFunctionId, functionOfTool, railItems, shortWord } from "./draw-functions";
+import { swatchBackground } from "./swatches";
 import { toHex6 } from "./page-background";
 import { CANVAS_HEIGHT, CANVAS_WIDTH, contentBox, createEmptyDrawing, guideBox, parseSketchdraw, serializeSketchdraw, SketchdrawDoc } from "./drawing-file";
 import { drawElement, drawElements, PLAIN } from "./element-render";
@@ -131,10 +133,10 @@ function brushSliderLabel(param: BrushParam): string {
 
 export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   private readonly api: PluginApi;
-  private props: HTMLElement | null = null;
   private lastPanel = ``;
-  private readonly strokeSwatches: HTMLElement[] = [];
-  private readonly fillSwatches: HTMLElement[] = [];
+  // The two round swatches of the colours: the border and the fill. Each one shows the colour that applies and opens the window of the colours.
+  private strokePastille: HTMLElement | null = null;
+  private fillPastille: HTMLElement | null = null;
   private readonly panelButtons: { el: HTMLElement; test: (s: ToolStyle) => boolean }[] = [];
   private lockButton: HTMLElement | null = null;
   // The text being written (hidden while the text area is over it) and the function that ends the writing.
@@ -153,10 +155,11 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
 
   // Ends a text being written and stops following the list of fonts when the view closes.
   async onClose(): Promise<void> {
-    this.closeDisplay();
     this.finishEditor?.();
     this.unsubscribeFonts?.();
     this.unsubscribeFonts = null;
+    this.unsubscribeSettings?.();
+    this.unsubscribeSettings = null;
     await super.onClose();
   }
 
@@ -180,7 +183,6 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     super.setViewData(data, clear);
     this.style = defaultStyle(this.doc.ink);
     this.lastPanel = ``;
-    this.refreshSwatches();
     this.updateBar();
     this.contentEl.focus({ preventScroll: true });
   }
@@ -270,80 +272,60 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     }
   }
 
-  // The window of the display: this drawing alone, or with the other drawings of the page faded behind it.
-  private displayPanel: HTMLElement | null = null;
+  // The section of the display of the drawing: this drawing alone, or with the other drawings of the page faded behind it, with a slider for the fading.
+  private displayBox: HTMLElement | null = null;
 
-  private toggleDisplay(anchor: HTMLElement): void {
-    if (this.displayPanel) {
-      this.closeDisplay();
-      return;
-    }
-    const panel = this.contentEl.createDiv({ cls: `sketchdraw-display` });
-    this.displayPanel = panel;
-    const host = this.contentEl.getBoundingClientRect();
-    const at = anchor.getBoundingClientRect();
-    panel.style.top = `${Math.max(4, at.top - host.top)}px`;
-    panel.style.right = `${Math.max(4, host.right - at.left + 6)}px`;
-    const available = this.backdropPlan() !== null;
-    const draw = (): void => {
-      panel.empty();
-      const shown = SketchdrawView.display;
-      const row = panel.createDiv({ cls: `sketchnote-icons-themes` });
-      const own = row.createEl(`button`, { cls: `sketchnote-icons-theme`, text: t(`Ce dessin seul`) });
-      const others = row.createEl(`button`, { cls: `sketchnote-icons-theme`, text: t(`Avec les autres dessins`) });
-      (shown.others && available ? others : own).addClass(`is-active`);
-      own.addEventListener(`click`, () => {
-        SketchdrawView.display = cleanBackdrop({ ...shown, others: false });
-        this.renderContent();
-        draw();
-      });
-      others.disabled = !available;
-      others.addEventListener(`click`, () => {
-        SketchdrawView.display = cleanBackdrop({ ...shown, others: true });
-        this.renderContent();
-        draw();
-      });
-      if (!available) {
-        panel.createDiv({ cls: `sketchnote-icons-info`, text: t(`Les autres dessins ne sont disponibles que pour un dessin ouvert depuis une zone d'une page qui en contient d'autres.`) });
-        return;
-      }
-      if (!shown.others) return;
-      panel.createDiv({ cls: `sketchdraw-slider-label`, text: t(`Estompage des autres dessins`) });
-      const slider = panel.createEl(`input`, { cls: `sketchdraw-display-slider`, type: `range` });
-      slider.min = `0`;
-      slider.max = String(BACKDROP_MAX_FADE);
-      slider.step = `5`;
-      slider.value = String(shown.fade);
-      slider.setAttribute(`aria-label`, t(`Estompage des autres dessins`));
-      slider.addEventListener(`input`, () => {
-        SketchdrawView.display = cleanBackdrop({ ...SketchdrawView.display, fade: Number(slider.value) });
-        this.renderContent();
-      });
-    };
-    draw();
-    // A click elsewhere or Escape closes the window.
-    const away = (e: Event): void => {
-      if (e.target instanceof Node && (panel.contains(e.target) || anchor.contains(e.target))) return;
-      this.closeDisplay();
-    };
-    const key = (e: KeyboardEvent): void => {
-      if (e.key === `Escape`) this.closeDisplay();
-    };
-    this.contentEl.ownerDocument.addEventListener(`pointerdown`, away, true);
-    this.contentEl.ownerDocument.addEventListener(`keydown`, key, true);
-    this.closeDisplayHooks = () => {
-      this.contentEl.ownerDocument.removeEventListener(`pointerdown`, away, true);
-      this.contentEl.ownerDocument.removeEventListener(`keydown`, key, true);
-    };
+  private buildDisplaySection(sec: HTMLElement): void {
+    this.sectionIcon(sec, `eye`, t(`Affichage`));
+    this.displayBox = sec.createDiv({ cls: `sketchdraw-display-box` });
+    this.refreshDisplay();
   }
 
-  private closeDisplayHooks: (() => void) | null = null;
-
-  private closeDisplay(): void {
-    this.displayPanel?.remove();
-    this.displayPanel = null;
-    this.closeDisplayHooks?.();
-    this.closeDisplayHooks = null;
+  // Draws the choices of the display again (the other drawings are only available for a drawing opened from a zone of a page that holds others).
+  private refreshDisplay(): void {
+    const box = this.displayBox;
+    if (!box) return;
+    box.empty();
+    const available = this.backdropPlan() !== null;
+    const shown = SketchdrawView.display;
+    const row = box.createDiv({ cls: `sketchdraw-row` });
+    const own = row.createEl(`button`, { cls: `sketchdraw-chip` });
+    setIcon(own, `square`);
+    own.setAttribute(`aria-label`, t(`Ce dessin seul`));
+    const others = row.createEl(`button`, { cls: `sketchdraw-chip` });
+    setIcon(others, `layers-2`);
+    others.setAttribute(`aria-label`, t(`Avec les autres dessins`));
+    if (this.labelsOn()) {
+      own.createSpan({ cls: `sketchdraw-chip-word`, text: t(`Seul`) });
+      others.createSpan({ cls: `sketchdraw-chip-word`, text: t(`Autres`) });
+    }
+    (shown.others && available ? others : own).addClass(`is-active`);
+    own.addEventListener(`click`, () => {
+      SketchdrawView.display = cleanBackdrop({ ...shown, others: false });
+      this.renderContent();
+      this.refreshDisplay();
+    });
+    others.disabled = !available;
+    others.addEventListener(`click`, () => {
+      SketchdrawView.display = cleanBackdrop({ ...shown, others: true });
+      this.renderContent();
+      this.refreshDisplay();
+    });
+    if (!available) {
+      box.createDiv({ cls: `sketchnote-icons-info`, text: t(`Les autres dessins ne sont disponibles que pour un dessin ouvert depuis une zone d'une page qui en contient d'autres.`) });
+      return;
+    }
+    if (!shown.others) return;
+    const slider = box.createEl(`input`, { cls: `sketchdraw-range sketchdraw-display-slider`, type: `range` });
+    slider.min = `0`;
+    slider.max = String(BACKDROP_MAX_FADE);
+    slider.step = `5`;
+    slider.value = String(shown.fade);
+    slider.setAttribute(`aria-label`, t(`Estompage des autres dessins`));
+    slider.addEventListener(`input`, () => {
+      SketchdrawView.display = cleanBackdrop({ ...SketchdrawView.display, fade: Number(slider.value) });
+      this.renderContent();
+    });
   }
 
   // The elements to draw: all of them, without the text that is being written, and the shape being written in without its text.
@@ -758,24 +740,29 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     if (origin && this.app.workspace.getLeavesOfType(PAGE_VIEW_TYPE).includes(origin)) this.app.workspace.setActiveLeaf(origin, { focus: true });
   }
 
-  // Builds the toolbar on the right: the tools, then the properties of the lines and fills.
+  // The column of buttons on the right, the menu of the active button above or under the drawing, and what is not a button: the drop of files and the paste of pictures.
+  private rail: HTMLElement | null = null;
+  private context: HTMLElement | null = null;
+  private activeFn: DrawFunctionId = `select`;
+  private lastTool: Tool = `select`;
+  private unsubscribeSettings: (() => void) | null = null;
+  // The groups of tools of the menu: one for each function that has tools, and the pin that keeps the tool.
+  private readonly toolGroups: { el: HTMLElement; fn: DrawFunctionId | null }[] = [];
+
+  // Tells whether the buttons of the menu show a word next to their pictogram (a setting).
+  private labelsOn(): boolean {
+    return this.api.settings().contextLabels === true;
+  }
+
+  protected selectionActionsInBar(): boolean {
+    return false;
+  }
+
+  protected exportInBar(): boolean {
+    return false;
+  }
+
   protected buildSide(main: HTMLElement): void {
-    const side = main.createDiv({ cls: `sketchdraw-side` });
-    const tools = side.createDiv({ cls: `sketchdraw-tools` });
-    this.toolButton(tools, `select`, `mouse-pointer-2`, t(`Sélectionner`));
-    this.toolButton(tools, `hand`, `hand`, t(`Main : déplacer la page`));
-    this.toolButton(tools, `rect`, `square`, t(`Rectangle`));
-    this.toolButton(tools, `diamond`, `diamond`, t(`Losange`));
-    this.toolButton(tools, `ellipse`, `circle`, t(`Ellipse`));
-    this.toolButton(tools, `triangle`, `triangle`, t(`Triangle`));
-    this.toolButton(tools, `arrow`, `arrow-right`, t(`Flèche`));
-    this.toolButton(tools, `line`, `minus`, t(`Trait`));
-    this.toolButton(tools, `pen`, `pencil`, t(`Stylo libre`));
-    this.toolButton(tools, `point`, `dot`, t(`Point`));
-    this.toolButton(tools, `text`, `type`, t(`Texte`));
-    this.button(tools, `shapes`, t(`Insérer une icône de la bibliothèque`), () => void this.openIcons());
-    this.button(tools, `image-plus`, t(`Insérer une image`), () => void this.openImages());
-    const eye = this.button(tools, `eye`, t(`Affichage`), () => this.toggleDisplay(eye));
     // Pictures are also dropped on the drawing from the computer or pasted from the clipboard.
     this.registerDomEvent(this.contentEl, `dragover`, (e: DragEvent) => {
       if (e.dataTransfer && Array.from(e.dataTransfer.types).includes(`Files`)) e.preventDefault();
@@ -794,20 +781,146 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       e.preventDefault();
       void this.takePictures(files);
     });
-    // The pin keeps the tool that is active after each stroke (it is not the lock of the elements, which is a button of the bar of the selection).
-    const lock = this.button(tools, `pin-off`, t(`Garder l'outil actif après chaque tracé`), () => {
+    this.rail = main.createDiv({ cls: `sketchdraw-rail` });
+    const context = createDiv({ cls: `sketchdraw-context` });
+    this.context = context;
+    this.placeContext(main);
+    this.buildContext();
+    this.renderRail();
+    this.unsubscribeFonts = this.api.fonts.onChange(() => this.refreshFontList());
+    // A change of the settings of the buttons draws the column again and moves the menu.
+    this.unsubscribeSettings = this.api.onSettings(() => {
+      if (this.rail && this.context) {
+        this.placeContext(this.rail.parentElement ?? main);
+        // The words of the buttons are written when the menu is built: a change of that setting builds it again.
+        if (this.builtWithWords !== this.labelsOn()) this.buildContext();
+        this.renderRail();
+        this.syncPanel();
+      }
+    });
+  }
+
+  // Puts the menu above or under the drawing, as the settings say.
+  private placeContext(main: HTMLElement): void {
+    const context = this.context;
+    if (!context) return;
+    if (this.api.settings().contextPosition === `top`) main.parentElement?.insertBefore(context, main);
+    else main.after(context);
+    context.toggleClass(`is-top`, this.api.settings().contextPosition === `top`);
+  }
+
+  private builtWithWords = false;
+
+  // Builds the content of the menu: the tools of each function, the pin that keeps the tool active, then the sections of the properties. It is built again when the setting of the words
+  // changes (the words are written into the buttons).
+  private buildContext(): void {
+    const context = this.context;
+    if (!context) return;
+    context.empty();
+    this.toolGroups.length = 0;
+    this.dropdowns.length = 0;
+    this.panelButtons.length = 0;
+    this.sections.length = 0;
+    this.toolButtons.clear();
+    this.checks.length = 0;
+    this.folds.length = 0;
+    this.sliders.length = 0;
+    this.syncers.length = 0;
+    this.builtWithWords = this.labelsOn();
+    context.toggleClass(`has-words`, this.builtWithWords);
+    const tools = context.createDiv({ cls: `sketchdraw-ctx-tools` });
+    const toolInfo: Record<string, [string, string]> = {
+      select: [`mouse-pointer-2`, t(`Sélectionner`)],
+      hand: [`hand`, t(`Main : déplacer la page`)],
+      rect: [`square`, t(`Rectangle`)],
+      diamond: [`diamond`, t(`Losange`)],
+      ellipse: [`circle`, t(`Ellipse`)],
+      triangle: [`triangle`, t(`Triangle`)],
+      arrow: [`arrow-right`, t(`Flèche`)],
+      line: [`minus`, t(`Trait`)],
+      pen: [`pencil`, t(`Stylo libre`)],
+      point: [`dot`, t(`Point`)],
+      text: [`type`, t(`Texte`)],
+    };
+    for (const fn of drawFunctions()) {
+      if (fn.tools.length === 0) continue;
+      const group = tools.createDiv({ cls: `sketchdraw-section sketchdraw-toolgroup` });
+      group.dataset.fn = fn.id;
+      this.toolGroups.push({ el: group, fn: fn.id });
+      const row = group.createDiv({ cls: `sketchdraw-row` });
+      for (const tool of fn.tools) {
+        const [icon, label] = toolInfo[tool] ?? [`square`, tool];
+        const button = this.toolButton(row, tool as Tool, icon, label);
+        button.addClass(`sketchdraw-chip`);
+        if (this.builtWithWords) button.createSpan({ cls: `sketchdraw-chip-word`, text: shortWord(label) });
+      }
+    }
+    const pinGroup = tools.createDiv({ cls: `sketchdraw-section sketchdraw-toolgroup` });
+    this.toolGroups.push({ el: pinGroup, fn: null });
+    const lock = this.button(pinGroup, `pin-off`, t(`Garder l'outil actif après chaque tracé`), () => {
       this.toolLocked = !this.toolLocked;
       setIcon(lock, this.toolLocked ? `pin` : `pin-off`);
       lock.toggleClass(`is-active`, this.toolLocked);
     });
+    lock.addClass(`sketchdraw-chip`);
     this.lockButton = lock;
-    const toggle = this.button(tools, `sliders-horizontal`, t(`Propriétés`), () => this.props?.toggleClass(`is-open`, !this.props.classList.contains(`is-open`)));
-    toggle.addClass(`sketchdraw-props-toggle`);
-
-    const props = side.createDiv({ cls: `sketchdraw-props` });
-    this.props = props;
+    const props = context.createDiv({ cls: `sketchdraw-props` });
     this.buildProps(props);
-    this.unsubscribeFonts = this.api.fonts.onChange(() => this.refreshFontList());
+    this.lastPanel = ``;
+    this.updateBar();
+  }
+
+  // Draws the column of buttons: the button of the plugin first (it opens the list of the buttons), then the functions in the order of the settings, without the hidden ones and with
+  // the separations. The name of a button is its tooltip, written once (a pictogram only).
+  private renderRail(): void {
+    const rail = this.rail;
+    if (!rail) return;
+    rail.empty();
+    const settings = this.api.settings();
+    const menu = rail.createEl(`button`, { cls: `sketchnote-bar-button sketchdraw-rail-button sketchdraw-rail-menu` });
+    setIcon(menu, `sketchnote-logo`);
+    menu.setAttribute(`aria-label`, t(`Boutons du dessinateur`));
+    menu.addEventListener(`click`, () => this.openButtonsWindow());
+    const functions = drawFunctions();
+    for (const id of railItems(settings.drawButtonsOrder, settings.drawButtonsHidden)) {
+      if (id.startsWith(`sep:`)) {
+        rail.createDiv({ cls: `sketchdraw-rail-separator` });
+        continue;
+      }
+      const fn = functions.find((f) => f.id === id);
+      if (!fn) continue;
+      const button = rail.createEl(`button`, { cls: `sketchnote-bar-button sketchdraw-rail-button` });
+      button.dataset.fn = fn.id;
+      setIcon(button, fn.icon);
+      button.setAttribute(`aria-label`, fn.name());
+      button.toggleClass(`is-active`, this.activeFn === fn.id);
+      button.addEventListener(`click`, () => this.chooseFunction(fn));
+    }
+  }
+
+  // Opens the list where the buttons are checked, ordered and separated.
+  private openButtonsWindow(): void {
+    new DrawButtonsModal(this.app, {
+      app: this.app,
+      order: () => this.api.settings().drawButtonsOrder,
+      hidden: () => this.api.settings().drawButtonsHidden,
+      save: (order, hidden) => this.api.updateSettings({ drawButtonsOrder: order, drawButtonsHidden: hidden }),
+    }).open();
+  }
+
+  // A click on a button of the column: its menu shows, its first tool is chosen when it has tools, and a function that has a window opens it.
+  private chooseFunction(fn: DrawFunction): void {
+    this.activeFn = fn.id;
+    if (fn.tools.length > 0 && !fn.tools.includes(this.tool)) this.setTool(fn.tools[0] as Tool);
+    this.lastTool = this.tool;
+    this.lastPanel = ``;
+    this.renderRail();
+    this.syncPanel();
+    if (fn.id === `display`) this.refreshDisplay();
+    if (fn.opens === `icons`) void this.openIcons();
+    else if (fn.opens === `images`) void this.openImages();
+    else if (fn.opens === `export`) this.openExport();
+    this.contentEl.focus({ preventScroll: true });
   }
 
   // Builds the properties panel. It is made of sections, each one shown only for the elements it concerns (the edges for lines and arrows, the heads for arrows, the font for
@@ -815,16 +928,15 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   private buildProps(props: HTMLElement): void {
     this.panelButtons.length = 0;
     this.sections.length = 0;
-    this.strokeSwatches.length = 0;
-    this.fillSwatches.length = 0;
 
+    // One round swatch for the border and one for the fill: each one opens the window of the colours.
     const colour = this.section(props, `colour`);
-    this.sectionIcon(colour, `pencil-line`, t(`Couleur du trait`));
-    const strokeRow = colour.createDiv({ cls: `sketchdraw-swatches` });
+    this.sectionIcon(colour, `pencil-line`, t(`Couleur de la bordure`));
+    this.strokePastille = this.pastille(colour, t(`Couleur de la bordure`), () => this.openStrokeColor());
 
     const fillSec = this.section(props, `fill`);
     this.sectionIcon(fillSec, `paint-bucket`, t(`Remplissage`));
-    const fillRow = fillSec.createDiv({ cls: `sketchdraw-swatches` });
+    this.fillPastille = this.pastille(fillSec, t(`Couleur du remplissage`), () => this.openFillColor());
     // The transparency of the fill: 0 is opaque, the line keeps its colour and stays opaque.
     this.slider(fillSec, ``, t(`Transparence du remplissage`), 0, 95, 5, (s) => Math.round(((1 - s.fillOpacity) * 100) / 5) * 5, (v) => ({ fillOpacity: 1 - v / 100 }));
 
@@ -967,8 +1079,13 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.slider(effectSec, t(`Dégradé du reflet`), t(`Dégradé du reflet : de pas de dégradé à un reflet qui disparaît`), 0, 100, 5, (s) => Math.round(s.reflectionFade * 100), (v) => ({ reflectionFade: v / 100 }), reflectOn);
     this.slider(effectSec, t(`Éloignement du reflet`), t(`Éloignement du reflet : de bord à bord à un reflet éloigné`), 0, 100, 5, (s) => Math.round(s.reflectionGap * 100), (v) => ({ reflectionGap: v / 100 }), reflectOn);
 
-    this.swatchRows = { stroke: strokeRow, fill: fillRow };
-    this.refreshSwatches();
+    // What acts on the selection (group, lock, duplicate, mirror, levels, delete) and the display of the drawing.
+    const organise = this.section(props, `organise`);
+    this.sectionIcon(organise, `layers`, t(`Organiser`));
+    this.buildSelectionActions(organise).addClass(`sketchdraw-organise`);
+    const displaySec = this.section(props, `display`);
+    this.buildDisplaySection(displaySec);
+    this.refreshPastilles();
   }
 
   // The sections of the panel, each with the test that tells for which kind of element it is shown.
@@ -1089,7 +1206,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       button.empty();
       preview(button, s.brush);
       button.createSpan({ cls: `sketchdraw-brush-name`, text: brushName(s.brush) });
-      button.setAttribute(`title`, `${t(`Pinceau`)} : ${brushName(s.brush)}`);
+      button.setAttribute(`aria-label`, `${t(`Pinceau`)} : ${brushName(s.brush)}`);
       for (const r of rows) r.el.toggleClass(`is-active`, r.brush === s.brush);
     });
   }
@@ -1135,21 +1252,32 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   // Shows the sections that concern the kind of element selected or about to be drawn.
   private syncSections(): void {
     const kinds = panelKinds(this.tool, this.selectedElements());
+    const fn = drawFunctions().find((f) => f.id === this.activeFn);
+    const allowed = new Set<string>(fn ? fn.sections : []);
+    let any = false;
     for (const sec of this.sections) {
-      sec.el.toggleClass(`sketchdraw-hidden`, !sectionShown(sec.name, kinds));
-      // With nothing selected the choices of the panel have nothing to apply to (a new shape is always standard): they are dimmed, except the settings of a text.
-      sec.el.toggleClass(`sketchdraw-idle`, (this.selected.size === 0 && !this.usableBeforeDrawing(sec.name)) || allLocked(this.elementsOf(this.doc), this.selected));
+      // A section is shown when the active function has it and it concerns what is selected (or the tool).
+      const shown = allowed.has(sec.name) && sectionShown(sec.name, kinds);
+      sec.el.toggleClass(`sketchdraw-hidden`, !shown);
+      if (shown) any = true;
+      // With nothing selected the choices of the menu have nothing to apply to (a new shape is always standard): they are dimmed, except the settings of a text.
+      sec.el.toggleClass(`sketchdraw-idle`, (this.selected.size === 0 && !this.usableBeforeDrawing(sec.name)) || (sec.name !== `display` && allLocked(this.elementsOf(this.doc), this.selected)));
     }
+    // The tools of the active function, and the pin when it has tools.
+    for (const group of this.toolGroups) {
+      const on = group.fn === null ? (fn?.tools.length ?? 0) > 0 : group.fn === this.activeFn;
+      group.el.toggleClass(`sketchdraw-hidden`, !on);
+      if (on) any = true;
+    }
+    this.context?.toggleClass(`is-empty`, !any);
   }
 
   // Tells whether a section of the panel can be used before anything is drawn: the settings of a text, and the settings of the pen (its brush and its regularity, and with the pen
   // tool its colour and its thickness too), which are kept for the next strokes.
   private usableBeforeDrawing(name: PanelSection): boolean {
-    if (name === `text` || name === `regularity` || name === `brush`) return true;
+    if (name === `text` || name === `regularity` || name === `brush` || name === `display`) return true;
     return this.tool === `pen` && (name === `colour` || name === `width`);
   }
-
-  private swatchRows: { stroke: HTMLElement; fill: HTMLElement } | null = null;
 
   // Adds a small pictogram that heads a section of the panel. Its name is the tooltip.
   private sectionIcon(parent: HTMLElement, icon: string, label: string): HTMLElement {
@@ -1164,6 +1292,8 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   private panelButton(parent: HTMLElement, icon: string, label: string, test: (s: ToolStyle) => boolean, onClick: () => void): void {
     const b = parent.createEl(`button`, { cls: `sketchdraw-chip` });
     setIcon(b, icon);
+    // With the setting of the words, one word of its name is written next to the pictogram (the name stays the tooltip).
+    if (this.builtWithWords) b.createSpan({ cls: `sketchdraw-chip-word`, text: shortWord(label) });
     b.setAttribute(`aria-label`, label);
     b.addEventListener(`click`, () => {
       onClick();
@@ -1173,73 +1303,42 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.panelButtons.push({ el: b, test });
   }
 
-  // Returns the five fill swatches of the drawing.
-  private fillSwatchList(): (FillSwatch | null)[] {
-    return this.doc.fillPalette ?? defaultFillPalette(this.doc.ink);
+  // Adds a round swatch to a section: its name is the tooltip, and a click opens the window of the colours.
+  private pastille(parent: HTMLElement, label: string, open: () => void): HTMLElement {
+    const b = parent.createEl(`button`, { cls: `sketchdraw-swatch sketchdraw-pastille` });
+    b.setAttribute(`aria-label`, label);
+    b.addEventListener(`click`, () => {
+      open();
+    });
+    return b;
   }
 
-  // Draws the five round swatches of the stroke and the five of the fill. A click chooses a swatch, a double click opens the colour window to change it.
-  private refreshSwatches(): void {
-    if (!this.swatchRows) return;
-    const make = (row: HTMLElement, index: number, label: string, background: string, empty: boolean, pick: () => void, edit: () => void): HTMLElement => {
-      const b = row.createEl(`button`, { cls: `sketchdraw-swatch` });
-      b.setAttribute(`aria-label`, `${label} : ${t(`double clic pour changer`)}`);
-      b.style.background = background;
-      b.dataset.index = String(index);
-      b.toggleClass(`is-empty`, empty);
-      b.addEventListener(`click`, () => {
-        pick();
-        this.contentEl.focus({ preventScroll: true });
-      });
-      b.addEventListener(`dblclick`, edit);
-      return b;
-    };
-    this.swatchRows.stroke.empty();
-    this.strokeSwatches.length = 0;
-    this.doc.palette.forEach((color, i) => {
-      this.strokeSwatches.push(make(this.swatchRows!.stroke, i, t(`Couleur du trait`), toHex6(color), false, () => this.change({ stroke: color }), () => this.editStrokeSwatch(i)));
-    });
-    this.swatchRows.fill.empty();
-    this.fillSwatches.length = 0;
-    this.fillSwatchList().forEach((entry, i) => {
-      const pick = (): void => this.change(entry === null ? { fill: null } : { fill: entry.color, fillStyle: entry.style });
-      this.fillSwatches.push(make(this.swatchRows!.fill, i, entry === null ? t(`Sans couleur`) : t(`Couleur du remplissage`), swatchBackground(entry), entry === null, pick, () => this.editFillSwatch(i)));
-    });
-    this.lastPanel = ``;
-    this.syncPanel();
+  // Shows the colours that apply (the selection, or the next elements) in the two swatches.
+  private refreshPastilles(): void {
+    const s = this.currentStyle();
+    if (this.strokePastille) this.strokePastille.style.background = toHex6(s.stroke);
+    if (this.fillPastille) {
+      this.fillPastille.style.background = swatchBackground(s.fill === null ? null : { color: s.fill, style: s.fillStyle });
+      this.fillPastille.toggleClass(`is-empty`, s.fill === null);
+    }
   }
 
-  // Opens the colour window for a swatch of the stroke. The new colour replaces the swatch and is applied to the selection.
-  private editStrokeSwatch(index: number): void {
-    new ColorModal(this.app, this.doc.palette[index] ?? `#000000`, (choice: ColorChoice) => {
-      if (choice.color === null) return;
-      const palette = this.doc.palette.map((c, i) => (i === index ? choice.color as string : c));
-      this.changePalettes({ palette });
-      this.change({ stroke: choice.color });
+  // Opens the window of the colours for the border (the line): the colour chosen is applied to the selection.
+  private openStrokeColor(): void {
+    new ColorModal(this.app, this.currentStyle().stroke, (choice: ColorChoice) => {
+      if (choice.color !== null) this.change({ stroke: choice.color });
     }).open();
   }
 
-  // Opens the colour window for a swatch of the fill, with the patterns and the button for no colour. The colour and its pattern (or no colour) replace the swatch and are
-  // applied to the selection.
-  private editFillSwatch(index: number): void {
-    const entry = this.fillSwatchList()[index] ?? null;
+  // Opens the window of the colours for the fill, with the patterns and the button for no colour: the colour and its pattern (or no colour) are applied to the selection.
+  private openFillColor(): void {
+    const s = this.currentStyle();
     new ColorModal(
       this.app,
-      entry?.color ?? this.doc.palette[1] ?? `#c0392b`,
-      (choice: ColorChoice) => {
-        const next: FillSwatch | null = choice.color === null ? null : { color: choice.color, style: choice.style };
-        this.changePalettes({ fillPalette: this.fillSwatchList().map((e, i) => (i === index ? next : e)) });
-        this.change(next === null ? { fill: null } : { fill: next.color, fillStyle: next.style });
-      },
-      { fill: true, style: entry?.style ?? `solid`, none: entry === null },
+      s.fill ?? this.doc.palette[1] ?? `#c0392b`,
+      (choice: ColorChoice) => this.change(choice.color === null ? { fill: null } : { fill: choice.color, fillStyle: choice.style }),
+      { fill: true, style: s.fillStyle, none: s.fill === null },
     ).open();
-  }
-
-  // Changes the swatches of the drawing and saves it. This is not an undoable change of the drawing: the swatches are kept when something is undone.
-  private changePalettes(change: { palette?: string[]; fillPalette?: (FillSwatch | null)[] }): void {
-    this.doc = { ...this.doc, ...change };
-    this.requestSave();
-    this.refreshSwatches();
   }
 
   // Keeps the swatches of the drawing when an undo or a redo brings back an older state of its elements.
@@ -1309,6 +1408,15 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   // Called when the selection or the tool changes: the panel shows the style that applies.
   protected onSelectionChanged(): void {
     this.lockButton?.toggleClass(`is-active`, this.toolLocked);
+    // A tool chosen another way (the keyboard, a shape that was just drawn) makes its function the active one.
+    if (this.tool !== this.lastTool) {
+      this.lastTool = this.tool;
+      const fn = functionOfTool(this.tool);
+      if (fn && fn !== this.activeFn) {
+        this.activeFn = fn;
+        this.renderRail();
+      }
+    }
     this.syncPanel();
   }
 
@@ -1336,9 +1444,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       const icon = this.selectedElements().find((e): e is IconElement => e.type === `icon`);
       this.iconName.setText(icon ? (icon.icon ? `Lucide : ${icon.icon}` : icon.name ?? ``) : ``);
     }
-    for (const sw of this.strokeSwatches) sw.toggleClass(`is-active`, this.doc.palette[Number(sw.dataset.index)] !== undefined && toHex6(this.doc.palette[Number(sw.dataset.index)]) === toHex6(s.stroke));
-    const fills = this.fillSwatchList();
-    for (const sw of this.fillSwatches) sw.toggleClass(`is-active`, swatchMatches(fills[Number(sw.dataset.index)] ?? null, s.fill, s.fillStyle));
+    this.refreshPastilles();
     for (const sl of this.sliders) {
       sl.input.value = String(sl.read(s));
       sl.wrap.toggleClass(`sketchdraw-hidden`, sl.visible ? !sl.visible(s) : false);

@@ -23,6 +23,29 @@ export default class SketchnotePlugin extends Plugin {
   icons!: IconStore;
   private readonly origins = new Map<string, WorkspaceLeaf>();
 
+  private readonly settingsListeners = new Set<() => void>();
+
+  // Registers a function to call when the settings change. Returns the function that removes it.
+  listenSettings(listener: () => void): () => void {
+    this.settingsListeners.add(listener);
+    return () => {
+      this.settingsListeners.delete(listener);
+    };
+  }
+
+  // Changes some settings (each one checked again as when the file is read), saves them and tells the open drawings.
+  async changeSettings(patch: Partial<SketchnoteSettings>): Promise<void> {
+    this.settingsData = readSettings({ ...this.settingsData, ...patch });
+    await this.saveData(this.settingsData);
+    for (const listener of this.settingsListeners) {
+      try {
+        listener();
+      } catch {
+        // A drawing that cannot draw its buttons again does not stop the others.
+      }
+    }
+  }
+
   // Starts the plugin: settings, language, views, file extensions, commands, settings page and vault events.
   async onload(): Promise<void> {
     this.settingsData = readSettings(await this.loadData());
@@ -43,7 +66,7 @@ export default class SketchnotePlugin extends Plugin {
       if (leaf && leaf.view instanceof MarkdownView) lastNote = leaf.view;
     }));
     const exportServices = new ExportServiceImpl(this.app, () => this.settingsData.exportsFolder, this.fonts, () => (lastNote && lastNote.file && this.app.workspace.getLeavesOfType(`markdown`).some((l) => l.view === lastNote) ? lastNote : null));
-    const api: PluginApi = { drawings: this.drawings, fonts: this.fonts, icons: this.icons, exports: exportServices, settings: () => this.settingsData, origins: this.origins };
+    const api: PluginApi = { drawings: this.drawings, fonts: this.fonts, icons: this.icons, exports: exportServices, settings: () => this.settingsData, updateSettings: (patch) => this.changeSettings(patch), onSettings: (listener) => this.listenSettings(listener), origins: this.origins };
     this.registerView(VIEW_TYPE, (leaf) => new SketchnoteView(leaf, api));
     this.registerView(DRAW_VIEW_TYPE, (leaf) => new SketchdrawView(leaf, api));
     this.registerExtensions([`sketchnote`], VIEW_TYPE);

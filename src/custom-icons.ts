@@ -14,6 +14,8 @@ const boxed = { fill: `none`, stroke: `currentColor`, "stroke-linejoin": `round`
 const FRAME = tag(`rect`, { x: 18, y: 18, width: 64, height: 64, rx: 6, fill: `none`, stroke: `currentColor`, "stroke-width": 7 });
 
 const ICONS: Record<string, string> = {
+  // The button of the plugin at the top of the column of a drawing: a page and a pencil.
+  "sketchnote-logo": tag(`rect`, { x: 14, y: 12, width: 52, height: 76, rx: 7, fill: `none`, stroke: `currentColor`, "stroke-width": 7 }) + tag(`path`, { d: `M27 34H53M27 50H43`, ...line, "stroke-width": 7 }) + tag(`path`, { d: `M56 80L84 36L94 43L66 87Z`, fill: `currentColor`, stroke: `currentColor`, "stroke-linejoin": `round`, "stroke-width": 4 }),
   "sketchnote-fill-none": FRAME,
   "sketchnote-fill-solid": tag(`rect`, { x: 18, y: 18, width: 64, height: 64, rx: 6, fill: `currentColor`, stroke: `currentColor`, "stroke-width": 7 }),
   "sketchnote-fill-hachure": FRAME + tag(`path`, { d: `M30 66L66 30M30 46L46 30M54 70L70 54`, ...line, "stroke-width": 6 }),

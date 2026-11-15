@@ -4,6 +4,7 @@ import type SketchnotePlugin from "./main";
 import { t } from "./i18n";
 import { AddFontModal } from "./add-font-modal";
 import { AddImageModal } from "./add-image-modal";
+import { renderDrawButtonList } from "./draw-buttons-list";
 import { importImages } from "./image-import";
 import { importFonts } from "./font-import";
 import { DEFAULT_SETTINGS, normalizeFolder } from "./settings";
@@ -203,5 +204,28 @@ export class SketchnoteSettingTab extends PluginSettingTab {
           void this.keepExportsFolder(path);
         });
       });
+
+    new Setting(containerEl).setName(t(`Dessinateur`)).setHeading();
+    new Setting(containerEl)
+      .setName(t(`Position du menu`))
+      .setDesc(t(`Le menu du bouton choisi à droite du dessin se place au-dessus ou en dessous du dessin.`))
+      .addDropdown((d) =>
+        d
+          .addOption(`bottom`, t(`En bas`))
+          .addOption(`top`, t(`En haut`))
+          .setValue(this.plugin.settingsData.contextPosition)
+          .onChange((value) => void this.plugin.changeSettings({ contextPosition: value === `top` ? `top` : `bottom` })),
+      );
+    new Setting(containerEl)
+      .setName(t(`Un mot sous chaque pictogramme du menu`))
+      .setDesc(t(`Les boutons du menu montrent un mot à côté de leur pictogramme (le menu prend plus de place). Le nom de chaque bouton s'affiche toujours au survol. Les boutons de la colonne de droite n'ont que leur pictogramme.`))
+      .addToggle((toggle) => toggle.setValue(this.plugin.settingsData.contextLabels).onChange((value) => void this.plugin.changeSettings({ contextLabels: value })));
+    new Setting(containerEl).setName(t(`Boutons à droite du dessin`)).setDesc(t(`Cochez les boutons à afficher, glissez la poignée d'une ligne pour changer l'ordre et ajoutez des séparations entre les groupes. Le même réglage est dans la fenêtre du premier bouton de la colonne.`));
+    renderDrawButtonList(containerEl, {
+      app: this.app,
+      order: () => this.plugin.settingsData.drawButtonsOrder,
+      hidden: () => this.plugin.settingsData.drawButtonsHidden,
+      save: (order, hidden) => this.plugin.changeSettings({ drawButtonsOrder: order, drawButtonsHidden: hidden }),
+    });
   }
 }

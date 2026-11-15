@@ -15,6 +15,9 @@ export interface PluginApi {
   // What the exports need: the folder, saving, the link in a note, the fonts and the pictures.
   exports: ExportServices;
   settings(): SketchnoteSettings;
+  // Changes some settings and saves them; every open drawing is told (to draw its buttons again).
+  updateSettings(patch: Partial<SketchnoteSettings>): Promise<void>;
+  onSettings(listener: () => void): () => void;
   // For each drawing note that was opened from a page, the tab of that page, so that the Back button of the drawing can return to it.
   origins: Map<string, WorkspaceLeaf>;
 }

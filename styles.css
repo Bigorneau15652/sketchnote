@@ -176,32 +176,95 @@
 }
 
 
-/* Toolbar of the drawing view, on the right: the tools, then the properties of the lines and fills. */
-.sketchdraw-side {
+/* The drawing: a column of buttons on the right (a pictogram each, the name is the tooltip) and the menu of the active button above or under the drawing. */
+.sketchdraw-rail {
   flex: 0 0 auto;
-  width: 204px;
+  width: 46px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 4px;
   overflow-y: auto;
   background: var(--background-primary);
   border-left: 1px solid var(--background-modifier-border);
 }
 
-.sketchdraw-tools {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
-}
-
-.sketchdraw-tools .sketchnote-bar-button {
+.sketchdraw-rail-button {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   justify-content: center;
-  padding: 4px;
 }
 
-.sketchdraw-props-toggle {
+.sketchdraw-rail-menu {
+  margin-bottom: 4px;
+  color: var(--interactive-accent);
+}
+
+.sketchdraw-rail-separator {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 1px;
+  margin: 4px 0;
+  background: var(--background-modifier-border);
+}
+
+/* The menu: the groups of the active button side by side, on several lines when they do not fit. It is scrolled when it gets too high. */
+.sketchdraw-context {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 16px;
+  max-height: 40%;
+  padding: 8px 10px;
+  overflow-y: auto;
+  background: var(--background-primary);
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.sketchdraw-context.is-top {
+  border-top: 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.sketchdraw-context.is-empty {
   display: none;
+}
+
+.sketchdraw-ctx-tools,
+.sketchdraw-props {
+  display: contents;
+}
+
+/* A group of the menu: its small pictogram, then its choices on a line. */
+.sketchdraw-context .sketchdraw-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.sketchdraw-context .sketchdraw-title {
+  margin: 0;
+}
+
+.sketchdraw-context .sketchdraw-title-text {
+  display: none;
+}
+
+.sketchdraw-context .sketchdraw-chip {
+  flex: 0 0 auto;
+  min-height: 30px;
+}
+
+.sketchdraw-chip-word {
+  margin-left: 4px;
+  font-size: var(--font-ui-smaller);
 }
 
 .sketchdraw-title {
@@ -257,7 +320,7 @@
 }
 
 .sketchdraw-color {
-  width: 100%;
+  width: 60px;
   height: 26px;
   padding: 0;
 }
@@ -293,10 +356,10 @@
   width: 100%;
 }
 
-/* Every slider of the panel is as wide as the panel: the theme of Obsidian gives sliders a margin and a width of their own, so the rule is stronger than the theme's. */
-.sketchdraw-side input[type="range"].sketchdraw-range {
+/* Every slider of the menu has the width that it had in the panel (a fixed width: it does not stretch across the window); the theme of Obsidian gives sliders a margin and a width of their own, so the rule is stronger than the theme's. */
+.sketchdraw-context input[type="range"].sketchdraw-range {
   display: block;
-  width: 100%;
+  width: 180px;
   min-width: 0;
   max-width: none;
   height: 22px;
@@ -307,8 +370,8 @@
 /* Each slider has its own room: a thumb is taller than the track, so two sliders one under the other would overlap without it. */
 .sketchdraw-slider {
   display: block;
-  width: 100%;
-  margin: 4px 0 10px;
+  width: 180px;
+  margin: 0;
 }
 
 .sketchdraw-slider-label {
@@ -324,7 +387,8 @@
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
-  width: 100%;
+  width: auto;
+  min-width: 150px;
   text-align: left;
 }
 
@@ -342,13 +406,13 @@
 }
 
 /* The choice of the brush: the current brush shows a stroke drawn with it, wide, with its name; the list of the brushes does the same for each one. */
-.sketchdraw-side .sketchdraw-brushes {
+.sketchdraw-context .sketchdraw-brushes {
   display: block;
   width: 100%;
 }
 
-.sketchdraw-side .sketchdraw-brush-current,
-.sketchdraw-side .sketchdraw-brush-row {
+.sketchdraw-context .sketchdraw-brush-current,
+.sketchdraw-context .sketchdraw-brush-row {
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -366,12 +430,12 @@
   cursor: pointer;
 }
 
-.sketchdraw-side .sketchdraw-brush-row.is-active {
+.sketchdraw-context .sketchdraw-brush-row.is-active {
   border-color: var(--interactive-accent, #7c5cff);
   background: var(--background-modifier-hover, #e4e4e4);
 }
 
-.sketchdraw-side .sketchdraw-brush-preview {
+.sketchdraw-context .sketchdraw-brush-preview {
   display: block;
   width: 100%;
   height: 34px;
@@ -379,7 +443,7 @@
   overflow: hidden;
 }
 
-.sketchdraw-side .sketchdraw-brush-name {
+.sketchdraw-context .sketchdraw-brush-name {
   display: block;
   overflow-wrap: anywhere;
   color: var(--text-muted, #666666);
@@ -387,37 +451,26 @@
   line-height: 1.2;
 }
 
-.sketchdraw-side .sketchdraw-brush-list {
+.sketchdraw-context .sketchdraw-brush-list {
   display: none;
   width: 100%;
 }
 
-.sketchdraw-side .sketchdraw-brush-list.is-open {
+.sketchdraw-context .sketchdraw-brush-list.is-open {
   display: block;
   max-height: 420px;
   overflow-y: auto;
 }
 
-/* On a narrow window the properties are hidden until the Properties button is pressed, and the toolbar is narrower. */
+/* On a narrow window the column is a little narrower. */
 @media (max-width: 600px) {
-  .sketchdraw-side {
-    width: 132px;
+  .sketchdraw-rail {
+    width: 40px;
   }
 
-  .sketchdraw-tools {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  .sketchdraw-props-toggle {
-    display: inline-flex;
-  }
-
-  .sketchdraw-props {
-    display: none;
-  }
-
-  .sketchdraw-props.is-open {
-    display: block;
+  .sketchdraw-rail-button {
+    width: 32px;
+    height: 32px;
   }
 }
 
@@ -441,9 +494,9 @@
 }
 
 .sketchdraw-font {
-  width: 100%;
+  width: 160px;
   max-width: 100%;
-  margin-bottom: 6px;
+  margin: 0;
   box-sizing: border-box;
 }
 
@@ -860,4 +913,111 @@ textarea.sketchnote-text-editor.is-label {
   display: block;
   width: 100%;
   margin: 4px 0 0;
+}
+
+/* The two round swatches of the colours (the border and the fill) and the groups that hold the actions on the selection and the display. */
+.sketchdraw-pastille {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+}
+
+.sketchnote-selection-actions.sketchdraw-organise {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.sketchdraw-display-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+/* The list of the buttons of the column (the window of the first button, and the settings): a row for each function. */
+.sketchnote-buttons-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sketchnote-buttons-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: var(--background-secondary, #f2f2f2);
+}
+
+.sketchnote-buttons-row.is-separator {
+  background: transparent;
+  border: 1px dashed var(--background-modifier-border, #cccccc);
+  color: var(--text-muted, #666666);
+}
+
+.sketchnote-buttons-row.is-moving {
+  position: relative;
+  z-index: 2;
+  opacity: 0.85;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.sketchnote-buttons-row.is-drop-before {
+  box-shadow: 0 -2px 0 var(--interactive-accent, #7c5cff);
+}
+
+.sketchnote-buttons-row.is-drop-after {
+  box-shadow: 0 2px 0 var(--interactive-accent, #7c5cff);
+}
+
+.sketchnote-buttons-handle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 26px;
+  color: var(--text-muted, #666666);
+  cursor: grab;
+  touch-action: none;
+}
+
+.sketchnote-buttons-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+}
+
+.sketchnote-buttons-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sketchnote-buttons-help {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  box-shadow: none;
+}
+
+.sketchnote-buttons-add {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.sketchnote-function-help-icon {
+  margin: 0 0 8px;
+  color: var(--interactive-accent, #7c5cff);
+}
+
+.sketchnote-function-help-icon .svg-icon {
+  width: 32px;
+  height: 32px;
 }

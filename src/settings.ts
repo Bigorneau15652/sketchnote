@@ -1,4 +1,6 @@
 // Settings of the plugin, and the rules to name and place the drawing notes. Pure module.
+import { DEFAULT_ORDER, drawFunctions, readHidden, readOrder } from "./draw-functions";
+
 export interface SketchnoteSettings {
   // Folder of the vault that holds every drawing note.
   drawingsFolder: string;
@@ -10,9 +12,15 @@ export interface SketchnoteSettings {
   imagesFolder: string;
   // Folder of the vault where the exported pictures (PNG, SVG, PDF) are saved.
   exportsFolder: string;
+  // The buttons on the right of a drawing: their order (with the separations), the functions that are hidden, where the menu of the active button is (above or under the drawing) and
+  // whether its buttons show a word next to their pictogram.
+  drawButtonsOrder: string[];
+  drawButtonsHidden: string[];
+  contextPosition: `top` | `bottom`;
+  contextLabels: boolean;
 }
 
-export const DEFAULT_SETTINGS: SketchnoteSettings = { drawingsFolder: `Sketchnote dessins`, fontsFolder: `Sketchnote polices`, iconsFolder: `Sketchnote icônes`, imagesFolder: `Sketchnote images`, exportsFolder: `Sketchnote exports` };
+export const DEFAULT_SETTINGS: SketchnoteSettings = { drawingsFolder: `Sketchnote dessins`, fontsFolder: `Sketchnote polices`, iconsFolder: `Sketchnote icônes`, imagesFolder: `Sketchnote images`, exportsFolder: `Sketchnote exports`, drawButtonsOrder: [...DEFAULT_ORDER], drawButtonsHidden: [], contextPosition: `bottom`, contextLabels: false };
 
 // Returns a folder path of the vault in its clean form (slashes, no slash at the ends), or null when it is not acceptable: empty, with `..`, with a drive
 // letter, or with characters that a file name cannot hold. A leading slash (`/dessin`) is accepted and means the root of the vault.
@@ -29,7 +37,13 @@ export function normalizeFolder(value: unknown): string | null {
 // Reads the saved settings, keeping the default of anything that is missing or not acceptable.
 export function readSettings(raw: unknown): SketchnoteSettings {
   const r = typeof raw === `object` && raw !== null ? (raw as Record<string, unknown>) : {};
-  return { drawingsFolder: normalizeFolder(r.drawingsFolder) ?? DEFAULT_SETTINGS.drawingsFolder, fontsFolder: normalizeFolder(r.fontsFolder) ?? DEFAULT_SETTINGS.fontsFolder, iconsFolder: normalizeFolder(r.iconsFolder) ?? DEFAULT_SETTINGS.iconsFolder, imagesFolder: normalizeFolder(r.imagesFolder) ?? DEFAULT_SETTINGS.imagesFolder, exportsFolder: normalizeFolder(r.exportsFolder) ?? DEFAULT_SETTINGS.exportsFolder };
+  const known = drawFunctions().map((f) => f.id as string);
+  return { drawingsFolder: normalizeFolder(r.drawingsFolder) ?? DEFAULT_SETTINGS.drawingsFolder, fontsFolder: normalizeFolder(r.fontsFolder) ?? DEFAULT_SETTINGS.fontsFolder, iconsFolder: normalizeFolder(r.iconsFolder) ?? DEFAULT_SETTINGS.iconsFolder, imagesFolder: normalizeFolder(r.imagesFolder) ?? DEFAULT_SETTINGS.imagesFolder, exportsFolder: normalizeFolder(r.exportsFolder) ?? DEFAULT_SETTINGS.exportsFolder,
+    drawButtonsOrder: readOrder(r.drawButtonsOrder, known),
+    drawButtonsHidden: readHidden(r.drawButtonsHidden, known),
+    contextPosition: r.contextPosition === `top` ? `top` : `bottom`,
+    contextLabels: r.contextLabels === true,
+  };
 }
 
 // Removes from a name the characters that a file name cannot hold, and shortens it.
