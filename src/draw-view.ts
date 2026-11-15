@@ -29,7 +29,7 @@ import { brightness } from "./page-background";
 import { t } from "./i18n";
 import { panelKinds, PanelSection, sectionShown } from "./panel-kinds";
 import { BRUSH_DEFS, BRUSH_KINDS, BrushKind, BrushParam, brushMake, paramsOf, previewPoints } from "./brushes";
-import { penCursor } from "./cursors";
+import { eraserCursor, penCursor } from "./cursors";
 import { allLocked, isLocked } from "./lock";
 import { MAX_REGULARITY } from "./tidy";
 import { WARP_KINDS, WarpKind } from "./text-warp";
@@ -43,6 +43,7 @@ import { CreationTool, textElement, zoneElement, zoneFontSize } from "./tools";
 import { isLabeledShape, labelBox, labelColor, LabeledShape, pathMiddle } from "./labels";
 import { hitTop } from "./geometry";
 import { newId } from "./elements";
+import { MIN_ERASE_SIZE } from "./erase-data";
 import { BUBBLE_FORMS, FESTOON_FORMS, FestoonForm, ShapeForm } from "./shape-forms";
 import { SketchnoteView, VIEW_TYPE as PAGE_VIEW_TYPE } from "./view";
 
@@ -364,7 +365,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   }
 
   protected toolKeys(): Record<string, Tool> {
-    return { v: `select`, h: `hand`, r: `rect`, d: `diamond`, o: `ellipse`, g: `triangle`, b: `bubble`, f: `festoon`, a: `arrow`, l: `line`, p: `pen`, t: `text`, [`.`]: `point` };
+    return { v: `select`, h: `hand`, r: `rect`, d: `diamond`, o: `ellipse`, g: `triangle`, e: `eraser`, b: `bubble`, f: `festoon`, a: `arrow`, l: `line`, p: `pen`, t: `text`, [`.`]: `point` };
   }
 
   // The Text tool: a click on a text edits it, a click elsewhere starts a text there, and a drag draws a text zone (a box that the text wraps to).
@@ -924,6 +925,16 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.panelButtons.length = 0;
     this.sections.length = 0;
 
+    // The eraser: the tip (soft, round or square), its size and how much it erases. The settings stay for the next passes.
+    const eraserSec = this.section(props, `eraser`);
+    this.sectionIcon(eraserSec, `eraser`, t(`Gomme`));
+    const tips = eraserSec.createDiv({ cls: `sketchdraw-row` });
+    this.panelButton(tips, `sketchnote-erase-soft`, t(`Pointe douce`), (st) => st.eraseShape === `soft`, () => this.change({ eraseShape: `soft` }));
+    this.panelButton(tips, `sketchnote-erase-round`, t(`Pointe ronde`), (st) => st.eraseShape === `round`, () => this.change({ eraseShape: `round` }));
+    this.panelButton(tips, `sketchnote-erase-square`, t(`Pointe carrée`), (st) => st.eraseShape === `square`, () => this.change({ eraseShape: `square` }));
+    this.slider(eraserSec, t(`Taille`), t(`Taille de la gomme`), MIN_ERASE_SIZE, 120, 1, (st) => st.eraseSize, (v) => ({ eraseSize: v }));
+    this.slider(eraserSec, t(`Densité`), t(`Densité : de un effacement léger à un effacement complet`), 10, 100, 5, (st) => Math.round(st.eraseDensity * 100), (v) => ({ eraseDensity: v / 100 }));
+
     // The form of a comic bubble (four pictograms) and of a festoon (a menu of eleven): the first group of the menu of their tool.
     const bubbleSec = this.section(props, `bubbleform`);
     this.sectionIcon(bubbleSec, bubbleFormIcon(`oval`), t(`Forme de la bulle`));
@@ -1328,7 +1339,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   // Tells whether a section of the panel can be used before anything is drawn: the settings of a text, and the settings of the pen (its brush and its regularity, and with the pen
   // tool its colour and its thickness too), which are kept for the next strokes.
   private usableBeforeDrawing(name: PanelSection): boolean {
-    if (name === `text` || name === `regularity` || name === `brush` || name === `display` || name === `bubbleform` || name === `festoonform`) return true;
+    if (name === `text` || name === `regularity` || name === `brush` || name === `display` || name === `bubbleform` || name === `festoonform` || name === `eraser`) return true;
     return this.tool === `pen` && (name === `colour` || name === `width`);
   }
 
@@ -1411,6 +1422,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
 
   // The cursor of the pen: a ring as large as the stroke, or a small target when the stroke is small (see cursors.ts).
   protected creationCursor(): string | null {
+    if (this.tool === `eraser` && this.style) return eraserCursor(this.style.eraseSize * this.zoom, this.style.eraseShape === `square`);
     const style = this.styleFor(`pen`);
     if (this.tool !== `pen` || !style) return null;
     const def = BRUSH_DEFS[style.brush];
@@ -1421,11 +1433,12 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   // The style shown in the panel: the one of the first selected element that has one (several elements can be selected: a change then applies to all of them), otherwise the
   // standard style, which is the one of every new element.
   private currentStyle(): ToolStyle {
+    const base = this.style ?? defaultStyle(`#000000`);
     for (const el of this.selectedElements()) {
       const s = styleOf(el);
-      if (s) return s;
+      // The settings of the eraser belong to the tool, not to the element that is selected.
+      if (s) return { ...s, eraseShape: base.eraseShape, eraseSize: base.eraseSize, eraseDensity: base.eraseDensity };
     }
-    const base = this.style ?? defaultStyle(`#000000`);
     return this.tool === `pen` ? { ...base, ...this.penLook } : base;
   }
 
@@ -1445,6 +1458,9 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
         if (clean.stroke !== undefined) this.penLook.stroke = clean.stroke;
         if (clean.strokeWidth !== undefined) this.penLook.strokeWidth = clean.strokeWidth;
       }
+      if (clean.eraseShape !== undefined) keep.eraseShape = clean.eraseShape;
+      if (clean.eraseSize !== undefined) keep.eraseSize = clean.eraseSize;
+      if (clean.eraseDensity !== undefined) keep.eraseDensity = clean.eraseDensity;
       if (clean.bubbleForm !== undefined) keep.bubbleForm = clean.bubbleForm;
       if (clean.festoonForm !== undefined) keep.festoonForm = clean.festoonForm;
       if (clean.regularity !== undefined) keep.regularity = clean.regularity;

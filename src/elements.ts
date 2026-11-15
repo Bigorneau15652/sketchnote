@@ -6,6 +6,7 @@ import { isClosedStroke, MAX_REGULARITY } from "./tidy";
 import { DEFAULT_WARP_AMOUNT, isWarpKind, MAX_WARP_AMOUNT, WarpKind } from "./text-warp";
 import { isSafePath } from "./svg-path";
 import { isShapeForm, readTail, ShapeForm, Tail } from "./shape-forms";
+import { EraseStroke, readErase } from "./erase-data";
 
 export type Point = [number, number];
 // How a fill is drawn: solid, with hatching lines, with dots or with a grid (crossed hatching).
@@ -57,6 +58,8 @@ interface BaseElement {
   flipY?: boolean;
   // A faded copy of the element, upside down, under it.
   reflection?: boolean;
+  // The passes of the eraser on the element (see erase.ts): the element is drawn through a mask that they cut out, and it is whole again without them.
+  erase?: EraseStroke[];
   // How tall the reflection is, as a part of the height of the element (0.1 to 1, 0.6 when absent), and how much it fades away (0 for no fade, 1 for a fade to nothing, which is
   // the default).
   reflectDepth?: number;
@@ -420,8 +423,11 @@ function readFill(value: Record<string, unknown>): { fill?: string; fillStyle?: 
 }
 
 // Reads the optional effects shared by every element (opacity, shadow, mirror, reflection). Returns null when a field is present and wrong, otherwise the fields present.
-function readEffects(value: Record<string, unknown>): Pick<BaseElement, `opacity` | `shadow` | `flipX` | `flipY` | `reflection` | `reflectDepth` | `reflectFade` | `reflectGap`> | null {
-  const out: Pick<BaseElement, `opacity` | `shadow` | `flipX` | `flipY` | `reflection` | `reflectDepth` | `reflectFade` | `reflectGap`> = {};
+function readEffects(value: Record<string, unknown>): Pick<BaseElement, `opacity` | `shadow` | `flipX` | `flipY` | `reflection` | `reflectDepth` | `reflectFade` | `reflectGap` | `erase`> | null {
+  const out: Pick<BaseElement, `opacity` | `shadow` | `flipX` | `flipY` | `reflection` | `reflectDepth` | `reflectFade` | `reflectGap` | `erase`> = {};
+  const erase = readErase(value.erase);
+  if (erase === null) return null;
+  if (erase !== undefined && erase.length > 0) out.erase = erase;
   if (value.reflectGap !== undefined) {
     if (typeof value.reflectGap !== `number` || !Number.isFinite(value.reflectGap) || value.reflectGap < 0 || value.reflectGap > 1) return null;
     if (value.reflectGap !== 0) out.reflectGap = value.reflectGap;

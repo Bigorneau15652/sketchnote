@@ -25,9 +25,11 @@ import { addPenPoint, CREATION_TOOLS, CreationTool, elementFromDrag, linearEleme
 import { normalizeAngle, resizeElement, resizeSide, rotateAbout, rotateBy, scaleAbout, translate } from "./transform";
 import { MAX_FREEDRAW_POINTS } from "./elements";
 import { isBubbleForm } from "./shape-forms";
+import { eraseFromPage, eraseTouches, withErase, withoutErase } from "./erase";
+import type { EraseShape } from "./erase-data";
 import { clampZoom, fitZoom, pinchZoom, sliderToZoom, stepZoom, zoomToSlider } from "./viewport";
 
-export type Tool = `select` | `hand` | `text` | CreationTool;
+export type Tool = `select` | `hand` | `text` | `eraser` | CreationTool;
 export type Point = [number, number];
 
 type Gesture =
@@ -39,6 +41,7 @@ type Gesture =
   | { kind: `rotate`; pointerId: number; orig: SketchElement; center: Point; startAngle: number; moved: boolean }
   // A point of a line or an arrow dragged anywhere (`point`), or the middle handle of a segment, which creates a new point as soon as it is dragged (`midpoint`).
   | { kind: `tail`; pointerId: number; orig: SketchElement; moved: boolean }
+  | { kind: `erase`; pointerId: number; points: Point[]; touched: Set<string>; size: number; shape: EraseShape; density: number; moved: boolean }
   | { kind: `point`; pointerId: number; orig: SketchElement; index: number; startClient: Point; moved: boolean }
   | { kind: `midpoint`; pointerId: number; orig: SketchElement; segment: number; startClient: Point; moved: boolean }
   // Several elements resized or turned as one block: the originals are kept, the anchor is the corner opposite to the handle, the centre is the middle of the block.
@@ -90,6 +93,7 @@ export abstract class CanvasView<D> extends TextFileView {
   private redoButton: HTMLButtonElement | null = null;
   private selectionActions: HTMLElement | null = null;
   private groupButton: HTMLButtonElement | null = null;
+  private restoreButton: HTMLButtonElement | null = null;
   private groupIcon = ``;
   private lockSelectionButton: HTMLButtonElement | null = null;
   private lockIcon = ``;
@@ -322,9 +326,17 @@ export abstract class CanvasView<D> extends TextFileView {
     this.button(actions, `arrow-up`, t(`Monter d'un niveau`), () => this.reorderSelection(`up`));
     this.button(actions, `arrow-down`, t(`Descendre d'un niveau`), () => this.reorderSelection(`down`));
     this.button(actions, `send-to-back`, t(`Mettre à l'arrière plan`), () => this.reorderSelection(`back`));
+    this.restoreButton = this.button(actions, `eraser`, t(`Retirer les effacements`), () => this.restoreErased());
     this.button(actions, `trash-2`, t(`Supprimer`), () => this.deleteSelection());
     this.selectionActions = actions;
     return actions;
+  }
+
+  // Gives back the parts that the eraser took away from the selected elements (one change that can be undone).
+  private restoreErased(): void {
+    const elements = this.elementsOf(this.doc);
+    const next = elements.map((e) => (this.selected.has(e.id) && e.locked !== true ? withoutErase(e) : e));
+    if (next.some((e, i) => e !== elements[i])) this.commitElements(next);
   }
 
   // Updates the buttons of the bar: active tool, undo and redo availability, and the actions on the selection.
@@ -335,6 +347,7 @@ export abstract class CanvasView<D> extends TextFileView {
     this.selectionActions?.toggleClass(`is-visible`, this.selected.size > 0);
     this.updateGroupButton();
     this.updateLockButton();
+    if (this.restoreButton) this.restoreButton.disabled = !this.selectedElements().some((e) => e.erase !== undefined && e.locked !== true);
     this.updateCursor();
     this.onSelectionChanged();
   }
@@ -839,6 +852,10 @@ export abstract class CanvasView<D> extends TextFileView {
       this.multiClick(p, e.shiftKey, e.timeStamp);
       return;
     }
+    if (this.tool === `eraser` && this.style) {
+      this.startErase(e, p);
+      return;
+    }
     if (this.tool === `text`) {
       // The writing starts when the pointer is released: the press moves the focus to the surface, which would take it away from the text area at once.
       this.baseDoc = null;
@@ -941,6 +958,27 @@ export abstract class CanvasView<D> extends TextFileView {
     else this.gesture = { kind: `marquee`, pointerId: e.pointerId, start: p, current: p, base };
     this.renderUi();
     this.updateBar();
+  }
+
+  // Starts a pass of the eraser: the elements under it get the pass (see erase.ts) as the pointer moves, and nothing is lost: the passes can be taken away again.
+  private startErase(e: PointerEvent, p: Point): void {
+    const style = this.style;
+    if (!style) return;
+    this.selected.clear();
+    this.gesture = { kind: `erase`, pointerId: e.pointerId, points: [p], touched: new Set(), size: style.eraseSize, shape: style.eraseShape, density: style.eraseDensity, moved: false };
+    this.extendErase(this.gesture, null, p);
+  }
+
+  // Adds a point to a pass of the eraser: the elements that the new piece touches join the elements of the pass, and every one of them is drawn with the pass so far.
+  private extendErase(g: Extract<Gesture, { kind: `erase` }>, from: Point | null, to: Point): void {
+    if (!this.baseDoc) return;
+    const base = this.elementsOf(this.baseDoc);
+    const piece = from ? [from, to] : [to];
+    for (const el of base) if (!g.touched.has(el.id) && eraseTouches(el, piece, g.size)) g.touched.add(el.id);
+    if (g.touched.size === 0) return;
+    g.moved = true;
+    this.doc = this.withElements(this.baseDoc, base.map((el) => (g.touched.has(el.id) ? withErase(el, eraseFromPage(el, g.points, g.size, g.shape, g.density)) : el)));
+    this.renderContent();
   }
 
   // Starts the dragging of the tip of the tail of a bubble that is selected alone, when the pointer is on it: it points the tail at the speaker. Returns true when it started.
@@ -1212,6 +1250,12 @@ export abstract class CanvasView<D> extends TextFileView {
         delta = Math.round((current + delta) / 15) * 15 - current;
       }
       this.replaceElement(rotateBy(g.orig, normalizeAngle(delta)));
+    } else if (g.kind === `erase`) {
+      const last = g.points[g.points.length - 1];
+      if (Math.hypot(p[0] - last[0], p[1] - last[1]) * this.zoom >= 2) {
+        g.points.push(p);
+        this.extendErase(g, last, p);
+      }
     } else if (g.kind === `tail`) {
       g.moved = true;
       if (g.orig.type === `rect`) this.replaceElement({ ...g.orig, tail: tailFromPage(g.orig, p) });
@@ -1316,7 +1360,7 @@ export abstract class CanvasView<D> extends TextFileView {
       this.finishCreation(g, base);
       return;
     }
-    if ((g.kind === `move` || g.kind === `resize` || g.kind === `resizeSide` || g.kind === `rotate` || g.kind === `blockResize` || g.kind === `blockRotate` || g.kind === `tail` || g.kind === `point` || g.kind === `midpoint`) && g.moved && base) {
+    if ((g.kind === `move` || g.kind === `resize` || g.kind === `resizeSide` || g.kind === `rotate` || g.kind === `blockResize` || g.kind === `blockRotate` || g.kind === `tail` || g.kind === `erase` || g.kind === `point` || g.kind === `midpoint`) && g.moved && base) {
       this.history.push(base);
       this.onElementsChanged();
       this.requestSave();

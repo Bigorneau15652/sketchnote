@@ -438,6 +438,16 @@ const PAIRS: [string, string][] = [
   [`Hexagone`, `Hexagon`],
   [`Drapeau à queue d'aronde`, `Swallowtail flag`],
   [`Sceau`, `Seal`],
+  [`Gomme`, `Eraser`],
+  [`Efface en passant sur le dessin, comme avec une gomme : traits, formes remplies, icônes, images et textes sont effacés là où la gomme passe. Rien n'est détruit : les éléments gardent leur forme complète dessous.`, `Erases by passing over the drawing, like a rubber: lines, filled shapes, icons, pictures and texts are erased where the eraser goes. Nothing is destroyed: the elements keep their whole form underneath.`],
+  [`Le menu choisit la pointe (douce, ronde ou carrée), la taille et la densité. Le bouton Retirer les effacements des éléments sélectionnés les rend entiers.`, `The menu chooses the tip (soft, round or square), the size and the density. The button Remove the erasures makes the selected elements whole again.`],
+  [`Pointe douce`, `Soft tip`],
+  [`Pointe ronde`, `Round tip`],
+  [`Pointe carrée`, `Square tip`],
+  [`Taille de la gomme`, `Size of the eraser`],
+  [`Densité`, `Density`],
+  [`Densité : de un effacement léger à un effacement complet`, `Density: from a light erasure to a complete one`],
+  [`Retirer les effacements`, `Remove the erasures`],
 ];
 
 export const EN: Record<string, string> = Object.fromEntries(PAIRS);

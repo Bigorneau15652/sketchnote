@@ -4,6 +4,7 @@ import { DEFAULT_FONT } from "./fonts";
 import { BORDER_KINDS, BorderKind, cleanOpacity, CORNER_RADII, DEFAULT_REFLECT_DEPTH, DEFAULT_REFLECT_FADE, DEFAULT_REFLECT_GAP, DEFAULT_SHADOW, SHADOW_MAX_BLUR, SHADOW_MAX_DISTANCE, shadowFrom, shadowSettingsOf } from "./effects";
 import { isSafeColor } from "./color";
 import { BrushKind, cleanParam, fieldsOf, isBrush, paramsFromFields, paramsOf, sparseParams } from "./brushes";
+import { cleanEraseDensity, cleanEraseSize, DEFAULT_ERASE_SIZE, EraseShape, isEraseShape } from "./erase-data";
 import { BubbleForm, FestoonForm, isBubbleForm, isFestoonForm } from "./shape-forms";
 import { MAX_REGULARITY } from "./tidy";
 import { cleanWarpAmount, DEFAULT_WARP_AMOUNT, isWarpKind, WarpKind } from "./text-warp";
@@ -61,6 +62,10 @@ export interface ToolStyle {
   // The form of the next comic bubble and of the next festoon (or the form of the one that is selected).
   bubbleForm: BubbleForm;
   festoonForm: FestoonForm;
+  // The eraser: its tip, its size in page units and how much it erases (from 0.1 to 1). They belong to the tool and are kept for the next passes.
+  eraseShape: EraseShape;
+  eraseSize: number;
+  eraseDensity: number;
 }
 
 export type StylePatch = Partial<ToolStyle>;
@@ -73,7 +78,7 @@ export const MAX_WIDTH = 24;
 export const TEXT_SIZES = { small: 20, medium: 32, large: 52, huge: 84 };
 
 // The effects of an element that has none: opaque, no shadow, no reflection, a continuous line, a simple border and square corners.
-const PLAIN_EFFECTS = { opacity: 1, shadow: false, shadowDistance: DEFAULT_SHADOW.distance, shadowBlur: DEFAULT_SHADOW.blur, shadowOpacity: DEFAULT_SHADOW.opacity, shadowColor: DEFAULT_SHADOW.color, reflection: false, reflectionDepth: DEFAULT_REFLECT_DEPTH, reflectionFade: DEFAULT_REFLECT_FADE, reflectionGap: DEFAULT_REFLECT_GAP, taper: 0, warp: `none` as WarpKind | `none`, warpAmount: DEFAULT_WARP_AMOUNT, vertical: false, lineStyle: `solid` as LineStyle, border: `simple` as BorderKind, radius: 0, bubbleForm: `oval` as BubbleForm, festoonForm: `ribbon` as FestoonForm };
+const PLAIN_EFFECTS = { opacity: 1, shadow: false, shadowDistance: DEFAULT_SHADOW.distance, shadowBlur: DEFAULT_SHADOW.blur, shadowOpacity: DEFAULT_SHADOW.opacity, shadowColor: DEFAULT_SHADOW.color, reflection: false, reflectionDepth: DEFAULT_REFLECT_DEPTH, reflectionFade: DEFAULT_REFLECT_FADE, reflectionGap: DEFAULT_REFLECT_GAP, taper: 0, warp: `none` as WarpKind | `none`, warpAmount: DEFAULT_WARP_AMOUNT, vertical: false, lineStyle: `solid` as LineStyle, border: `simple` as BorderKind, radius: 0, bubbleForm: `oval` as BubbleForm, festoonForm: `ribbon` as FestoonForm, eraseShape: `soft` as EraseShape, eraseSize: DEFAULT_ERASE_SIZE, eraseDensity: 1 };
 
 // Returns the settings of a brush in the names of the style: the usual ones of the brush, replaced by those that are given.
 export function brushStyle(brush: BrushKind, stored: Partial<Record<`flow` | `hardness` | `spacing` | `form` | `rotation` | `grain` | `dynamics`, number>>): Pick<ToolStyle, `flow` | `hardness` | `spacing` | `form` | `brushAngle` | `grain` | `dynamics`> {
@@ -129,6 +134,9 @@ export function cleanPatch(patch: StylePatch): StylePatch {
   if (typeof patch.reflection === `boolean`) out.reflection = patch.reflection;
   if (patch.lineStyle === `solid` || patch.lineStyle === `dashed` || patch.lineStyle === `dotted`) out.lineStyle = patch.lineStyle;
   if (patch.border !== undefined && BORDER_KINDS.includes(patch.border)) out.border = patch.border;
+  if (isEraseShape(patch.eraseShape)) out.eraseShape = patch.eraseShape;
+  if (typeof patch.eraseSize === `number` && Number.isFinite(patch.eraseSize)) out.eraseSize = cleanEraseSize(patch.eraseSize);
+  if (typeof patch.eraseDensity === `number` && Number.isFinite(patch.eraseDensity)) out.eraseDensity = cleanEraseDensity(patch.eraseDensity);
   if (isBubbleForm(patch.bubbleForm)) out.bubbleForm = patch.bubbleForm;
   if (isFestoonForm(patch.festoonForm)) out.festoonForm = patch.festoonForm;
   if (typeof patch.radius === `number` && Number.isFinite(patch.radius)) out.radius = Math.min(CORNER_RADII.pill, Math.max(0, Math.round(patch.radius)));
@@ -326,7 +334,7 @@ export function styleOf(el: SketchElement): ToolStyle | null {
   const rounded = linear && el.rounded === true;
   const startHead: Head = el.type === `arrow` ? headOf(el, `start`) : `none`;
   const endHead: Head = el.type === `arrow` ? headOf(el, `end`) : `none`;
-  return { stroke: el.stroke, fill, fillStyle, fillOpacity, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0, regularity: el.type === `freedraw` ? el.regularity ?? 0 : 0, warp: `none`, warpAmount: DEFAULT_WARP_AMOUNT, vertical: false, brush: el.type === `freedraw` ? el.brush ?? `round` : `round`, ...(el.type === `freedraw` ? brushStyle(el.brush ?? `round`, paramsFromFields(el)) : brushStyle(`round`, {})), rounded, startHead, endHead, taper: el.type === `line` || el.type === `arrow` ? el.taper ?? 0 : 0, font: labelOf(el) ? labelOf(el)?.font ?? DEFAULT_FONT : DEFAULT_FONT, fontSize: labelOf(el)?.size ?? TEXT_SIZES.medium, align: labelOf(el) ? labelOf(el)?.align ?? `center` : `left`, ...effectsOfElement(el), lineStyle: el.type === `freedraw` ? `solid` : el.lineStyle ?? `solid`, border: el.type === `image` ? (el.frame === true ? el.border ?? `simple` : `none`) : isShape(el) ? el.border ?? `simple` : `simple`, radius: el.type === `rect` || el.type === `image` ? el.radius ?? 0 : 0, bubbleForm: el.type === `rect` && isBubbleForm(el.form) ? el.form : `oval`, festoonForm: el.type === `rect` && isFestoonForm(el.form) ? el.form : `ribbon` };
+  return { stroke: el.stroke, fill, fillStyle, fillOpacity, strokeWidth: el.strokeWidth, roughness: el.roughness ?? 0, regularity: el.type === `freedraw` ? el.regularity ?? 0 : 0, warp: `none`, warpAmount: DEFAULT_WARP_AMOUNT, vertical: false, brush: el.type === `freedraw` ? el.brush ?? `round` : `round`, ...(el.type === `freedraw` ? brushStyle(el.brush ?? `round`, paramsFromFields(el)) : brushStyle(`round`, {})), rounded, startHead, endHead, taper: el.type === `line` || el.type === `arrow` ? el.taper ?? 0 : 0, font: labelOf(el) ? labelOf(el)?.font ?? DEFAULT_FONT : DEFAULT_FONT, fontSize: labelOf(el)?.size ?? TEXT_SIZES.medium, align: labelOf(el) ? labelOf(el)?.align ?? `center` : `left`, ...effectsOfElement(el), lineStyle: el.type === `freedraw` ? `solid` : el.lineStyle ?? `solid`, border: el.type === `image` ? (el.frame === true ? el.border ?? `simple` : `none`) : isShape(el) ? el.border ?? `simple` : `simple`, radius: el.type === `rect` || el.type === `image` ? el.radius ?? 0 : 0, bubbleForm: el.type === `rect` && isBubbleForm(el.form) ? el.form : `oval`, festoonForm: el.type === `rect` && isFestoonForm(el.form) ? el.form : `ribbon`, eraseShape: `soft`, eraseSize: DEFAULT_ERASE_SIZE, eraseDensity: 1 };
 }
 
 // Returns the text written in a shape or in the middle of a line, or undefined.

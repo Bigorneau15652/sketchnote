@@ -4,7 +4,7 @@
 import { t } from "./i18n";
 import type { PanelSection } from "./panel-kinds";
 
-export type DrawFunctionId = `select` | `hand` | `rect` | `diamond` | `ellipse` | `triangle` | `bubble` | `festoon` | `arrow` | `line` | `pen` | `point` | `text` | `icons` | `images` | `display` | `export`;
+export type DrawFunctionId = `select` | `hand` | `rect` | `diamond` | `ellipse` | `triangle` | `bubble` | `festoon` | `arrow` | `line` | `pen` | `point` | `eraser` | `text` | `icons` | `images` | `display` | `export`;
 
 export interface DrawFunction {
   id: DrawFunctionId;
@@ -121,6 +121,17 @@ export function drawFunctions(): DrawFunction[] {
       sections: [`colour`, `width`, `look`],
     },
     {
+      id: `eraser`,
+      icon: `eraser`,
+      name: () => t(`Gomme`),
+      help: () => [
+        t(`Efface en passant sur le dessin, comme avec une gomme : traits, formes remplies, icônes, images et textes sont effacés là où la gomme passe. Rien n'est détruit : les éléments gardent leur forme complète dessous.`),
+        t(`Le menu choisit la pointe (douce, ronde ou carrée), la taille et la densité. Le bouton Retirer les effacements des éléments sélectionnés les rend entiers.`),
+      ],
+      tools: [`eraser`],
+      sections: [`eraser`],
+    },
+    {
       id: `text`,
       icon: `type`,
       name: () => t(`Texte`),
@@ -191,9 +202,10 @@ export const isSeparator = (id: string): boolean => /^sep:\d+$/.test(id);
 
 // The usual order: the tools (each one its own button), then the windows, then what acts on the drawing. The colours, the line and the effects have no button: they are in the menu of
 // the tool, or of the selected element.
-export const DEFAULT_ORDER: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `sep:2`, `arrow`, `line`, `pen`, `point`, `text`, `sep:3`, `icons`, `images`, `sep:4`, `display`, `export`];
+export const DEFAULT_ORDER: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `sep:2`, `arrow`, `line`, `pen`, `point`, `eraser`, `text`, `sep:3`, `icons`, `images`, `sep:4`, `display`, `export`];
 
 const BEFORE_BUBBLES: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `sep:2`, `arrow`, `line`, `pen`, `point`, `text`, `sep:3`, `icons`, `images`, `sep:4`, `display`, `export`];
+const BEFORE_ERASER: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `sep:2`, `arrow`, `line`, `pen`, `point`, `text`, `sep:3`, `icons`, `images`, `sep:4`, `display`, `export`];
 
 // Tells whether a value can be an entry of a saved order: a known function or a separation.
 export function isOrderEntry(value: unknown, known: string[]): value is string {
@@ -204,7 +216,7 @@ export function isOrderEntry(value: unknown, known: string[]): value is string {
 export function readOrder(value: unknown, known: string[]): string[] {
   if (!Array.isArray(value)) return [...DEFAULT_ORDER];
   // The usual order of the versions before the bubbles and the festoons: it takes the new buttons at their place.
-  if (value.join(`,`) === BEFORE_BUBBLES.join(`,`)) return [...DEFAULT_ORDER];
+  if (value.join(`,`) === BEFORE_BUBBLES.join(`,`) || value.join(`,`) === BEFORE_ERASER.join(`,`)) return [...DEFAULT_ORDER];
   // An order saved when the tools were grouped (Draw, Shapes, Lines and arrows) has nothing to keep: each tool has its own button now, so the usual order is used.
   if (value.some((id) => id === `draw` || id === `shapes` || id === `lines` || id === `organise`)) return [...DEFAULT_ORDER];
   const out: string[] = [];

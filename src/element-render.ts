@@ -4,6 +4,7 @@ import { DEFAULT_WARP_AMOUNT, glyphTransform, layoutWarp } from "./text-warp";
 import { ArrowElement, DrawingElement, ImageElement, isStroked, LineElement, SketchElement, TextElement } from "./elements";
 import { imageUrl } from "./image-registry";
 import { outlineExtent } from "./extent";
+import { eraseCaps, eraseLine, erasePagePoints, SOFT_BLUR, SOFT_WIDTH } from "./erase";
 import { boxOf, elementBounds } from "./geometry";
 import { fontStack } from "./fonts";
 import { labelColor, labelLayout, LabeledShape, lineLabelLayout } from "./labels";
@@ -214,6 +215,40 @@ let effectCount = 0;
 
 // Draws one element of the page or of a drawing into a parent, with its effects: the opacity of the whole element, a shadow under it and a faded reflection below it.
 export function drawElement(el: SketchElement, parent: Element, options: RenderOptions): void {
+  const strokes = el.erase;
+  if (!strokes || strokes.length === 0) {
+    drawWithEffects(el, parent, options);
+    return;
+  }
+  // The passes of the eraser: the element is drawn through a mask, white everywhere and black along each pass (a lighter black for a pass that erases only partly). Nothing of
+  // the element is lost: without the passes the mask is white.
+  effectCount++;
+  const id = `sker${effectCount}`;
+  const defs = svgEl(`defs`, {}, parent);
+  const big = 1e5;
+  const mask = svgEl(`mask`, { id, maskUnits: `userSpaceOnUse`, x: -big, y: -big, width: 2 * big, height: 2 * big }, defs);
+  svgEl(`rect`, { x: -big, y: -big, width: 2 * big, height: 2 * big, fill: `#ffffff` }, mask);
+  strokes.forEach((stroke, i) => {
+    const caps = eraseCaps(stroke.shape);
+    const soft = stroke.shape === `soft`;
+    let into: Element = mask;
+    if (soft) {
+      // The blur is limited to the region of the pass (in page units), so that a thin pass keeps its soft edge.
+      const pts = erasePagePoints(el, stroke);
+      const xs = pts.map((p) => p[0]);
+      const ys = pts.map((p) => p[1]);
+      const margin = stroke.size * 2 + 4;
+      const filter = svgEl(`filter`, { id: `${id}-b${i}`, filterUnits: `userSpaceOnUse`, x: Math.min(...xs) - margin, y: Math.min(...ys) - margin, width: Math.max(...xs) - Math.min(...xs) + 2 * margin, height: Math.max(...ys) - Math.min(...ys) + 2 * margin }, defs);
+      svgEl(`feGaussianBlur`, { stdDeviation: stroke.size * SOFT_BLUR }, filter);
+      into = svgEl(`g`, { filter: `url(#${id}-b${i})` }, mask);
+    }
+    svgEl(`path`, { d: eraseLine(el, stroke), fill: `none`, stroke: `#000000`, "stroke-opacity": stroke.density, "stroke-width": soft ? stroke.size * SOFT_WIDTH : stroke.size, "stroke-linecap": caps.cap, "stroke-linejoin": caps.join }, into);
+  });
+  drawWithEffects(el, svgEl(`g`, { mask: `url(#${id})`, class: `sketchnote-erased` }, parent), options);
+}
+
+// Draws an element with its effects, whole (without the passes of the eraser).
+function drawWithEffects(el: SketchElement, parent: Element, options: RenderOptions): void {
   if (el.opacity === undefined && el.shadow === undefined && el.reflection !== true) {
     drawBare(el, parent, options);
     return;

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.34.0
+
+English
+
+The eraser. A new tool in the column on the right (key E) that erases by passing over the drawing, like a rubber. It erases strokes, filled shapes, icons, pictures and texts where it goes, but nothing is destroyed: each pass is kept on the elements that it touched, written on the element itself (as a part of its box), and the element is drawn through a mask that the passes cut out. A pass therefore stays on the same part of the element when it is moved, resized, turned or mirrored, and a pass can be undone with Ctrl+Z. The button Remove the erasures, among the buttons that act on the selection, makes the selected elements whole again. The menu of the eraser chooses the tip (soft, with a blurred edge, round or square), the size and the density (from a light erasure to a complete one). The cursor shows the size and the form of the tip. Locked elements and the strokes of a page structure are not erased. The passes are checked when a file is read (at most 400 passes of 3000 points for an element). Elements drawn after a pass are not affected by it. A saved order of buttons gets the new button next to the Point tool.
+
+Français
+
+La gomme. Un nouvel outil dans la colonne de droite (touche E) qui efface en passant sur le dessin, comme une gomme. Elle efface les traits, les formes remplies, les icônes, les images et les textes là où elle passe, mais rien n'est détruit : chaque passage est gardé sur les éléments qu'il a touchés, écrit sur l'élément lui-même (en parties de sa boîte), et l'élément est dessiné à travers un masque que les passages découpent. Un passage reste donc sur la même partie de l'élément quand on le déplace, le redimensionne, le tourne ou le retourne, et il s'annule avec Ctrl+Z. Le bouton Retirer les effacements, parmi les boutons qui agissent sur la sélection, rend entiers les éléments sélectionnés. Le menu de la gomme choisit la pointe (douce, au bord flou, ronde ou carrée), la taille et la densité (d'un effacement léger à un effacement complet). Le curseur montre la taille et la forme de la pointe. Les éléments verrouillés et les traits d'une structure de page ne sont pas effacés. Les passages sont vérifiés à la lecture d'un fichier (au plus 400 passages de 3000 points pour un élément). Les éléments dessinés après un passage ne sont pas touchés par lui. Un ordre de boutons enregistré reçoit le nouveau bouton à côté de l'outil Point.
+
 ## 0.33.0
 
 English

@@ -2,6 +2,7 @@
 // the other elements move to their mirror place, turn the other way and take a mirror flag, so that their content is mirrored too. Pure module.
 import { isLocked } from "./lock";
 import type { Point, SketchElement } from "./elements";
+import { mirrorErase } from "./erase";
 import { elementBounds, unionBox } from "./geometry";
 
 const r2 = (n: number): number => Math.round(n * 100) / 100;
@@ -25,7 +26,8 @@ export function flipElements(elements: SketchElement[], ids: Set<string>, axis: 
   return elements.map((el): SketchElement => {
     if (!ids.has(el.id) || !canFlip(el)) return el;
     if (el.type === `line` || el.type === `arrow` || el.type === `freedraw`) {
-      return { ...el, points: el.points.map((p): Point => (axis === `x` ? [mirror(p[0]), p[1]] : [p[0], mirror(p[1])])) };
+      const erase = mirrorErase(el.erase, axis);
+      return { ...el, points: el.points.map((p): Point => (axis === `x` ? [mirror(p[0]), p[1]] : [p[0], mirror(p[1])])), ...(erase ? { erase } : {}) };
     }
     const { [flag]: old, ...rest } = el as SketchElement & { flipX?: boolean; flipY?: boolean };
     const turned = el.angle !== undefined && el.angle !== 0 ? { angle: r2(-el.angle) } : {};

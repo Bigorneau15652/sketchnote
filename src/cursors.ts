@@ -52,3 +52,16 @@ export function penCursor(diameter: number): string {
   const image = penCursorImage(diameter);
   return `url(${Q}data:image/svg+xml,${encodeURIComponent(image.svg)}${Q}) ${r1(image.centre)} ${r1(image.centre)}, crosshair`;
 }
+
+// Returns the value of the CSS property cursor for the eraser: a ring as large as its tip (a square for a square tip) when the tip is large enough to be seen, and the small target
+// of the pen otherwise. The diameter is in pixels of the screen.
+export function eraserCursor(diameter: number, square: boolean): string {
+  const d = Number.isFinite(diameter) ? Math.max(0, diameter) : 0;
+  if (!square || d < RING_FROM) return penCursor(d);
+  const side = Math.min(MAX_RING, d);
+  const size = Math.ceil(side) + 8;
+  const c = size / 2;
+  const body = marked((w, colour) => tag(`rect`, { x: r1(c - side / 2), y: r1(c - side / 2), width: r1(side), height: r1(side), fill: `none`, stroke: colour, "stroke-width": w }));
+  const svg = `<svg xmlns=${Q}http://www.w3.org/2000/svg${Q} width=${Q}${size}${Q} height=${Q}${size}${Q} viewBox=${Q}0 0 ${size} ${size}${Q}>${body}</svg>`;
+  return `url(${Q}data:image/svg+xml,${encodeURIComponent(svg)}${Q}) ${r1(c)} ${r1(c)}, crosshair`;
+}
