@@ -4,7 +4,7 @@
 import { t } from "./i18n";
 import type { PanelSection } from "./panel-kinds";
 
-export type DrawFunctionId = `select` | `hand` | `rect` | `diamond` | `ellipse` | `triangle` | `arrow` | `line` | `pen` | `point` | `text` | `icons` | `images` | `display` | `zen` | `export`;
+export type DrawFunctionId = `select` | `hand` | `rect` | `diamond` | `ellipse` | `triangle` | `arrow` | `line` | `pen` | `point` | `text` | `icons` | `images` | `display` | `export`;
 
 export interface DrawFunction {
   id: DrawFunctionId;
@@ -18,7 +18,7 @@ export interface DrawFunction {
   // The parts of the properties that its menu shows (the ones that do not concern the selection or the tool are left out).
   sections: PanelSection[];
   // A function that opens a window when it is clicked instead of showing a menu.
-  opens?: `icons` | `images` | `export` | `zen`;
+  opens?: `icons` | `images` | `export`;
 }
 
 const CONTENT: PanelSection[] = [`colour`, `fill`, `brush`, `width`, `dash`, `look`, `regularity`, `border`, `corners`, `edges`, `taper`, `heads`, `text`, `warp`, `icon`, `image`, `effects`];
@@ -145,18 +145,6 @@ export function drawFunctions(): DrawFunction[] {
       sections: [`display`],
     },
     {
-      id: `zen`,
-      icon: `focus`,
-      name: () => t(`Mode zen`),
-      help: () => [
-        t(`Isole de toute distraction : les menus d'Obsidian disparaissent, la page devient une petite fenêtre flottante, redimensionnable et déplaçable sur un autre écran, où l'on choisit la zone à dessiner, et tout le reste de l'écran est pour le dessin.`),
-        t(`Le même bouton, ou la commande Mode zen de la palette de commandes, permet d'en sortir.`),
-      ],
-      tools: [],
-      sections: [],
-      opens: `zen`,
-    },
-    {
       id: `export`,
       icon: `download`,
       name: () => t(`Exporter`),
@@ -181,7 +169,7 @@ export const isSeparator = (id: string): boolean => /^sep:\d+$/.test(id);
 
 // The usual order: the tools (each one its own button), then the windows, then what acts on the drawing. The colours, the line and the effects have no button: they are in the menu of
 // the tool, or of the selected element.
-export const DEFAULT_ORDER: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `sep:2`, `arrow`, `line`, `pen`, `point`, `text`, `sep:3`, `icons`, `images`, `sep:4`, `display`, `zen`, `export`];
+export const DEFAULT_ORDER: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `sep:2`, `arrow`, `line`, `pen`, `point`, `text`, `sep:3`, `icons`, `images`, `sep:4`, `display`, `export`];
 
 // Tells whether a value can be an entry of a saved order: a known function or a separation.
 export function isOrderEntry(value: unknown, known: string[]): value is string {

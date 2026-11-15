@@ -123,7 +123,7 @@ export class SketchnoteView extends CanvasView<SketchnoteDoc> {
   protected buildBarStart(bar: HTMLElement): void {
     this.button(bar, `menu`, t(`Réglages de la page`), () => this.openPageSettings());
     this.addButton = this.button(bar, `plus`, t(`Ajouter une zone`), () => this.addZone());
-    this.zenButton = this.button(bar, `focus`, t(`Mode zen`), () => {
+    this.zenButton = this.button(bar, `sketchnote-zen`, t(`Mode zen`), () => {
       void this.api.zen.toggle().then(() => this.updateBar());
     });
     this.zonesButton = this.button(bar, `eye`, t(`Masquer les zones`), () => {

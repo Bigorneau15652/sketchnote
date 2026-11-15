@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.32.1
+
+English
+
+Zen mode corrections. The floating window can now be moved: a thin strip at its top, in the place of the bar of the tabs, moves it when dragged. The black space around the page is removed (the page takes all the room of the floating window). There is now one button only: the one of the bottom bar of the page, which is always present in the floating window (the Zen mode button of the column of a drawing is removed, and so is it in the list of buttons). Its pictogram is the one of the plugin Bigorneau, a figure sitting in meditation.
+
+Français
+
+Corrections du mode zen. La fenêtre flottante peut maintenant être déplacée : une fine bande en haut, à la place de la barre des onglets, la déplace quand on la fait glisser. L'espace noir autour de la page est supprimé (la page occupe toute la place de la fenêtre flottante). Il n'y a plus qu'un seul bouton : celui de la barre du bas de la page, toujours présent dans la fenêtre flottante (le bouton Mode zen de la colonne d'un dessin est supprimé, et il disparaît aussi de la liste des boutons). Son pictogramme est celui du plugin Bigorneau, un personnage assis en méditation.
+
 ## 0.32.0
 
 English

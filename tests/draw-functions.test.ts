@@ -29,10 +29,10 @@ test(`l'ordre habituel contient chaque fonction une fois, avec des separations e
   assert.equal(DEFAULT_ORDER[0], `select`);
 });
 
-test(`les fonctions qui s'ouvrent en fenetre sont les icones, les images, le mode zen et l'export, et les autres montrent des parties du menu`, () => {
+test(`les fonctions qui s'ouvrent en fenetre sont les icones, les images et l'export, et les autres montrent des parties du menu`, () => {
   const opens = drawFunctions().filter((f) => f.opens).map((f) => `${f.id}:${f.opens}`);
-  assert.deepEqual(opens, [`icons:icons`, `images:images`, `zen:zen`, `export:export`]);
-  for (const f of drawFunctions()) if (f.id !== `export` && f.id !== `hand` && f.id !== `zen`) assert.ok(f.sections.length > 0, f.id);
+  assert.deepEqual(opens, [`icons:icons`, `images:images`, `export:export`]);
+  for (const f of drawFunctions()) if (f.id !== `export` && f.id !== `hand`) assert.ok(f.sections.length > 0, f.id);
   assert.equal(sectionShown(`organise`, new Set()), true);
   assert.equal(sectionShown(`display`, new Set([`rect`])), true);
 });
