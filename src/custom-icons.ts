@@ -25,6 +25,10 @@ const ICONS: Record<string, string> = {
     tag(`path`, { d: `M2.4 19.2c0-1.4 1-2.3 2.4-2.1l8.4 1.6c1.2.3 1.3 1.4.4 2l-4.2 1.8c-3 .9-7 .6-7-3.3z`, fill: `currentColor`, stroke: `none` }) +
     tag(`path`, { d: `M21.6 19.2c0-1.4-1-2.3-2.4-2.1l-8.4 1.6c-1.2.3-1.3 1.4-.4 2l4.2 1.8c3 .9 7 .6 7-3.3z`, fill: `currentColor`, stroke: `none`, opacity: 0.85 }) +
     `</g>`,
+  // The tips of the eraser: soft (a blurred disc), round (a disc) and square.
+  "sketchnote-erase-soft": tag(`circle`, { cx: 50, cy: 50, r: 34, fill: `currentColor`, "fill-opacity": 0.25, stroke: `none` }) + tag(`circle`, { cx: 50, cy: 50, r: 22, fill: `currentColor`, "fill-opacity": 0.5, stroke: `none` }) + tag(`circle`, { cx: 50, cy: 50, r: 10, fill: `currentColor`, stroke: `none` }),
+  "sketchnote-erase-round": tag(`circle`, { cx: 50, cy: 50, r: 30, fill: `currentColor`, stroke: `none` }),
+  "sketchnote-erase-square": tag(`rect`, { x: 22, y: 22, width: 56, height: 56, fill: `currentColor`, stroke: `none` }),
   "sketchnote-fill-none": FRAME,
   "sketchnote-fill-solid": tag(`rect`, { x: 18, y: 18, width: 64, height: 64, rx: 6, fill: `currentColor`, stroke: `currentColor`, "stroke-width": 7 }),
   "sketchnote-fill-hachure": FRAME + tag(`path`, { d: `M30 66L66 30M30 46L46 30M54 70L70 54`, ...line, "stroke-width": 6 }),

@@ -5,7 +5,7 @@ import { isBubbleForm } from "./shape-forms";
 import type { SketchElement } from "./elements";
 import { isClosedStroke } from "./tidy";
 
-export type PanelSection = `colour` | `fill` | `width` | `dash` | `look` | `border` | `corners` | `edges` | `taper` | `regularity` | `brush` | `warp` | `icon` | `image` | `heads` | `text` | `effects` | `organise` | `display` | `bubbleform` | `festoonform`;
+export type PanelSection = `colour` | `fill` | `width` | `dash` | `look` | `border` | `corners` | `edges` | `taper` | `regularity` | `brush` | `warp` | `icon` | `image` | `heads` | `text` | `effects` | `organise` | `display` | `bubbleform` | `festoonform` | `eraser`;
 
 // Returns the kinds of element the panel is about: the types of the selected elements, or the kind that the active tool is going to make when nothing is selected. A line
 // about to be drawn is `new-line`: its heads are not offered (a line becomes an arrow once a head is chosen, after it is drawn). The tools that do not make an element
@@ -75,6 +75,8 @@ export function sectionShown(section: PanelSection, kinds: Set<string>): boolean
       return some([`line`, `arrow`, `new-line`]);
     case `heads`:
       return some([`line`, `arrow`]);
+    case `eraser`:
+      return kinds.has(`eraser`);
     case `bubbleform`:
       return kinds.has(`bubble`);
     case `festoonform`:
