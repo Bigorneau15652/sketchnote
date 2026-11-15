@@ -181,9 +181,11 @@
   flex: 0 0 auto;
   width: 46px;
   box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(var(--sketchdraw-rail-columns, 1), 36px);
+  grid-auto-rows: min-content;
+  justify-content: center;
+  align-content: start;
   gap: 4px;
   padding: 6px 4px;
   overflow-y: auto;
@@ -191,8 +193,15 @@
   border-left: 1px solid var(--background-modifier-border);
 }
 
+/* On a low window the buttons go on two columns, so that they all stay in view. */
+@media (max-height: 860px) {
+  .sketchdraw-rail {
+    --sketchdraw-rail-columns: 2;
+    width: 88px;
+  }
+}
+
 .sketchdraw-rail-button {
-  flex: 0 0 auto;
   width: 36px;
   height: 36px;
   padding: 0;
@@ -200,15 +209,16 @@
 }
 
 .sketchdraw-rail-menu {
-  margin-bottom: 4px;
+  grid-column: 1 / -1;
+  justify-self: center;
   color: var(--interactive-accent);
 }
 
 .sketchdraw-rail-separator {
-  flex: 0 0 auto;
-  width: 24px;
+  grid-column: 1 / -1;
+  align-self: center;
   height: 1px;
-  margin: 4px 0;
+  margin: 0 6px;
   background: var(--background-modifier-border);
 }
 
@@ -550,12 +560,8 @@
 /* On a narrow window the column is a little narrower. */
 @media (max-width: 600px) {
   .sketchdraw-rail {
-    width: 40px;
-  }
-
-  .sketchdraw-rail-button {
-    width: 32px;
-    height: 32px;
+    gap: 3px;
+    padding: 6px 2px;
   }
 }
 

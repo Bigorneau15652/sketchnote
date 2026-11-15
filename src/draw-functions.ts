@@ -4,7 +4,7 @@
 import { t } from "./i18n";
 import type { PanelSection } from "./panel-kinds";
 
-export type DrawFunctionId = `select` | `draw` | `shapes` | `lines` | `text` | `icons` | `images` | `colours` | `stroke` | `effects` | `display` | `export`;
+export type DrawFunctionId = `select` | `hand` | `rect` | `diamond` | `ellipse` | `triangle` | `arrow` | `line` | `pen` | `point` | `text` | `icons` | `images` | `colours` | `stroke` | `effects` | `display` | `export`;
 
 export interface DrawFunction {
   id: DrawFunctionId;
@@ -23,8 +23,16 @@ export interface DrawFunction {
 
 const CONTENT: PanelSection[] = [`colour`, `fill`, `brush`, `width`, `dash`, `look`, `regularity`, `border`, `corners`, `edges`, `taper`, `heads`, `text`, `warp`, `icon`, `image`, `effects`];
 
-// Returns the functions in their usual order. The names and the explanations are translated when they are asked for.
+// Returns the functions in their usual order. The names and the explanations are translated when they are asked for. Each tool has its own button.
 export function drawFunctions(): DrawFunction[] {
+  const shape = (id: `rect` | `diamond` | `ellipse` | `triangle`, icon: string, name: () => string, what: () => string): DrawFunction => ({
+    id,
+    icon,
+    name,
+    help: () => [what(), t(`Le menu règle les couleurs, le remplissage, le trait, la bordure et les coins.`)],
+    tools: [id],
+    sections: [`colour`, `fill`, `width`, `dash`, `look`, `border`, `corners`],
+  });
   return [
     {
       id: `select`,
@@ -32,43 +40,63 @@ export function drawFunctions(): DrawFunction[] {
       name: () => t(`Sélectionner`),
       help: () => [
         t(`Choisit les éléments du dessin pour les déplacer, les redimensionner, les tourner ou changer leur aspect.`),
-        t(`Le menu montre tout ce que les éléments sélectionnés peuvent avoir : couleurs, trait, texte, effets. La main déplace la page sans rien sélectionner.`),
+        t(`Le menu montre tout ce que les éléments sélectionnés peuvent avoir : couleurs, trait, texte, effets.`),
       ],
-      tools: [`select`, `hand`],
+      tools: [`select`],
       sections: CONTENT,
     },
     {
-      id: `draw`,
-      icon: `pencil`,
-      name: () => t(`Dessiner`),
-      help: () => [
-        t(`Dessine à main levée avec le stylo, ou pose des points.`),
-        t(`Le menu règle le pinceau, la peinture qu'il met, la régularité du tracé (de la main levée à la forme parfaite), la couleur et l'épaisseur.`),
-      ],
-      tools: [`pen`, `point`],
-      sections: [`colour`, `fill`, `width`, `brush`, `regularity`],
+      id: `hand`,
+      icon: `hand`,
+      name: () => t(`Main : déplacer la page`),
+      help: () => [t(`Déplace la page dans la fenêtre en tirant dessus, sans rien sélectionner ni dessiner. La barre d'espace fait la même chose le temps qu'on la tient.`)],
+      tools: [`hand`],
+      sections: [],
     },
+    shape(`rect`, `square`, () => t(`Rectangle`), () => t(`Trace un rectangle, aux coins carrés ou arrondis, en tirant sur le dessin.`)),
+    shape(`diamond`, `diamond`, () => t(`Losange`), () => t(`Trace un losange en tirant sur le dessin.`)),
+    shape(`ellipse`, `circle`, () => t(`Ellipse`), () => t(`Trace une ellipse ou un cercle en tirant sur le dessin.`)),
+    shape(`triangle`, `triangle`, () => t(`Triangle`), () => t(`Trace un triangle en tirant sur le dessin.`)),
     {
-      id: `shapes`,
-      icon: `square`,
-      name: () => t(`Formes`),
+      id: `arrow`,
+      icon: `arrow-right`,
+      name: () => t(`Flèche`),
       help: () => [
-        t(`Trace un rectangle, un losange, une ellipse ou un triangle en tirant sur le dessin.`),
-        t(`Le menu règle les couleurs, le remplissage, le trait, la bordure et les coins arrondis.`),
-      ],
-      tools: [`rect`, `diamond`, `ellipse`, `triangle`],
-      sections: [`colour`, `fill`, `width`, `dash`, `look`, `border`, `corners`],
-    },
-    {
-      id: `lines`,
-      icon: `move-up-right`,
-      name: () => t(`Lignes et flèches`),
-      help: () => [
-        t(`Trace un trait ou une flèche, droits ou arrondis.`),
+        t(`Trace une flèche, droite ou arrondie : un clic par point, Entrée ou Échap pour finir.`),
         t(`Le menu règle la couleur, l'épaisseur, les pointillés, l'imperfection du tracé, les bords, le fuselage et les pointes aux deux bouts.`),
       ],
-      tools: [`arrow`, `line`],
+      tools: [`arrow`],
       sections: [`colour`, `width`, `dash`, `look`, `edges`, `taper`, `heads`],
+    },
+    {
+      id: `line`,
+      icon: `minus`,
+      name: () => t(`Trait`),
+      help: () => [
+        t(`Trace un trait, droit ou arrondi : un clic par point, Entrée ou Échap pour finir.`),
+        t(`Le menu règle la couleur, l'épaisseur, les pointillés, l'imperfection du tracé, les bords et le fuselage.`),
+      ],
+      tools: [`line`],
+      sections: [`colour`, `width`, `dash`, `look`, `edges`, `taper`],
+    },
+    {
+      id: `pen`,
+      icon: `pencil`,
+      name: () => t(`Stylo libre`),
+      help: () => [
+        t(`Dessine à main levée avec le stylo.`),
+        t(`Le menu règle le pinceau, la peinture qu'il met, la régularité du tracé (de la main levée à la forme parfaite), la couleur, l'épaisseur et l'opacité.`),
+      ],
+      tools: [`pen`],
+      sections: [`colour`, `fill`, `brush`, `width`, `regularity`],
+    },
+    {
+      id: `point`,
+      icon: `dot`,
+      name: () => t(`Point`),
+      help: () => [t(`Pose un point d'un clic. Le menu règle sa couleur et sa taille.`)],
+      tools: [`point`],
+      sections: [`colour`, `width`, `look`],
     },
     {
       id: `text`,
@@ -119,7 +147,7 @@ export function drawFunctions(): DrawFunction[] {
     {
       id: `stroke`,
       icon: `sketchnote-width-medium`,
-      name: () => t(`Trait`),
+      name: () => t(`Aspect du trait`),
       help: () => [
         t(`Règle l'aspect du trait : épaisseur, pointillés, imperfection du tracé à main levée, bordure, coins, bords, fuselage et pointes de flèche.`),
       ],
@@ -170,8 +198,8 @@ export function functionOfTool(tool: string): DrawFunctionId | null {
 // A separation between two groups of buttons: an identifier like sep:3, put in the order like a button.
 export const isSeparator = (id: string): boolean => /^sep:\d+$/.test(id);
 
-// The usual order: the tools, then the windows, then the settings, then what acts on the drawing.
-export const DEFAULT_ORDER: string[] = [`select`, `draw`, `shapes`, `lines`, `text`, `sep:1`, `icons`, `images`, `sep:2`, `colours`, `stroke`, `effects`, `sep:3`, `display`, `export`];
+// The usual order: the tools (each one its own button), then the windows, then the settings, then what acts on the drawing.
+export const DEFAULT_ORDER: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `sep:2`, `arrow`, `line`, `pen`, `point`, `text`, `sep:3`, `icons`, `images`, `sep:4`, `colours`, `stroke`, `effects`, `sep:5`, `display`, `export`];
 
 // Tells whether a value can be an entry of a saved order: a known function or a separation.
 export function isOrderEntry(value: unknown, known: string[]): value is string {
@@ -181,6 +209,8 @@ export function isOrderEntry(value: unknown, known: string[]): value is string {
 // Reads a saved order: the entries that are known, once each, then the functions that are missing (a function added by a later version) after the others. A wrong value gives the usual order.
 export function readOrder(value: unknown, known: string[]): string[] {
   if (!Array.isArray(value)) return [...DEFAULT_ORDER];
+  // An order saved when the tools were grouped (Draw, Shapes, Lines and arrows) has nothing to keep: each tool has its own button now, so the usual order is used.
+  if (value.some((id) => id === `draw` || id === `shapes` || id === `lines` || id === `organise`)) return [...DEFAULT_ORDER];
   const out: string[] = [];
   for (const entry of value.slice(0, 80)) {
     if (!isOrderEntry(entry, known) || (!isSeparator(entry) && out.includes(entry)) || (isSeparator(entry) && out.includes(entry))) continue;

@@ -748,8 +748,6 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   private activeFn: DrawFunctionId = `select`;
   private lastTool: Tool = `select`;
   private unsubscribeSettings: (() => void) | null = null;
-  // The groups of tools of the menu: one for each function that has tools, and the pin that keeps the tool.
-  private readonly toolGroups: { el: HTMLElement; fn: DrawFunctionId }[] = [];
 
   // Tells whether the buttons of the menu show a word next to their pictogram (a setting).
   private labelsOn(): boolean {
@@ -843,7 +841,6 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     const context = this.context;
     if (!context) return;
     context.empty();
-    this.toolGroups.length = 0;
     this.dropdowns.length = 0;
     this.panelButtons.length = 0;
     this.sections.length = 0;
@@ -854,35 +851,6 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.syncers.length = 0;
     this.builtWithWords = this.labelsOn();
     context.toggleClass(`has-words`, this.builtWithWords);
-    const tools = context.createDiv({ cls: `sketchdraw-ctx-tools` });
-    const toolInfo: Record<string, [string, string]> = {
-      select: [`mouse-pointer-2`, t(`Sélectionner`)],
-      hand: [`hand`, t(`Main : déplacer la page`)],
-      rect: [`square`, t(`Rectangle`)],
-      diamond: [`diamond`, t(`Losange`)],
-      ellipse: [`circle`, t(`Ellipse`)],
-      triangle: [`triangle`, t(`Triangle`)],
-      arrow: [`arrow-right`, t(`Flèche`)],
-      line: [`minus`, t(`Trait`)],
-      pen: [`pencil`, t(`Stylo libre`)],
-      point: [`dot`, t(`Point`)],
-      text: [`type`, t(`Texte`)],
-    };
-    for (const fn of drawFunctions()) {
-      if (fn.tools.length === 0) continue;
-      const group = tools.createDiv({ cls: `sketchdraw-section sketchdraw-toolgroup` });
-      group.dataset.fn = fn.id;
-      this.toolGroups.push({ el: group, fn: fn.id });
-      const body = group.createDiv({ cls: `sketchdraw-group-body` });
-      const row = body.createDiv({ cls: `sketchdraw-row` });
-      this.sectionIcon(body, fn.icon, fn.name());
-      for (const tool of fn.tools) {
-        const [icon, label] = toolInfo[tool] ?? [`square`, tool];
-        const button = this.toolButton(row, tool as Tool, icon, label);
-        button.addClass(`sketchdraw-chip`);
-        if (this.builtWithWords) button.createSpan({ cls: `sketchdraw-chip-word`, text: shortWord(label) });
-      }
-    }
     const props = context.createDiv({ cls: `sketchdraw-props` });
     this.buildProps(props);
     this.lastPanel = ``;
@@ -1335,12 +1303,6 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       if (shown) any = true;
       // With nothing selected the choices of the menu have nothing to apply to (a new shape is always standard): they are dimmed, except the settings of a text.
       sec.el.toggleClass(`sketchdraw-idle`, (this.selected.size === 0 && !this.usableBeforeDrawing(sec.name)) || (sec.name !== `display` && allLocked(this.elementsOf(this.doc), this.selected)));
-    }
-    // The tools of the active function, and the pin when it has tools.
-    for (const group of this.toolGroups) {
-      const on = group.fn === this.activeFn;
-      group.el.toggleClass(`sketchdraw-hidden`, !on);
-      if (on) any = true;
     }
     this.context?.toggleClass(`is-empty`, !any);
   }

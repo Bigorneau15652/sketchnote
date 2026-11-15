@@ -14,22 +14,23 @@ test(`chaque fonction a un identifiant unique, un nom, un picto et une aide, et 
   const tools = drawFunctions().flatMap((f) => f.tools);
   assert.equal(new Set(tools).size, tools.length, `un outil dans une seule fonction`);
   for (const tool of [`select`, `hand`, `rect`, `diamond`, `ellipse`, `triangle`, `line`, `arrow`, `pen`, `point`, `text`]) assert.ok(functionOfTool(tool) !== null, tool);
-  assert.equal(functionOfTool(`pen`), `draw`);
-  assert.equal(functionOfTool(`ellipse`), `shapes`);
-  assert.equal(functionOfTool(`hand`), `select`);
+  // Each tool has its own button: the function of a tool is the tool itself.
+  for (const tool of [`select`, `hand`, `rect`, `diamond`, `ellipse`, `triangle`, `line`, `arrow`, `pen`, `point`, `text`]) assert.equal(functionOfTool(tool), tool);
+  assert.deepEqual(drawFunctions().filter((f) => f.tools.length > 1).map((f) => f.id), [], `aucun bouton ne regroupe plusieurs outils`);
+  assert.notEqual(drawFunctions().find((f) => f.id === `stroke`)?.name(), drawFunctions().find((f) => f.id === `line`)?.name(), `le reglage du trait ne porte pas le nom de l'outil trait`);
   assert.equal(functionOfTool(`unknown`), null);
 });
 
 test(`l'ordre habituel contient chaque fonction une fois, avec des separations entre les groupes`, () => {
   assert.deepEqual(DEFAULT_ORDER.filter((id) => !isSeparator(id)).sort(), [...ids].sort());
-  assert.equal(DEFAULT_ORDER.filter(isSeparator).length, 3);
+  assert.equal(DEFAULT_ORDER.filter(isSeparator).length, 5);
   assert.equal(DEFAULT_ORDER[0], `select`);
 });
 
 test(`les fonctions qui s'ouvrent en fenetre sont les icones, les images et l'export, et les autres montrent des parties du menu`, () => {
   const opens = drawFunctions().filter((f) => f.opens).map((f) => `${f.id}:${f.opens}`);
   assert.deepEqual(opens, [`icons:icons`, `images:images`, `export:export`]);
-  for (const f of drawFunctions()) if (f.id !== `export`) assert.ok(f.sections.length > 0, f.id);
+  for (const f of drawFunctions()) if (f.id !== `export` && f.id !== `hand`) assert.ok(f.sections.length > 0, f.id);
   assert.equal(sectionShown(`organise`, new Set()), true);
   assert.equal(sectionShown(`display`, new Set([`rect`])), true);
 });
@@ -37,6 +38,8 @@ test(`les fonctions qui s'ouvrent en fenetre sont les icones, les images et l'ex
 test(`un ordre enregistre est relu : inconnus et doublons retires, fonctions manquantes ajoutees a la fin, valeur fausse = ordre habituel`, () => {
   assert.deepEqual(readOrder(undefined, ids), DEFAULT_ORDER);
   assert.deepEqual(readOrder(`x`, ids), DEFAULT_ORDER);
+  // An order saved when the tools were grouped is replaced by the usual one.
+  assert.deepEqual(readOrder([`select`, `draw`, `shapes`, `lines`, `text`], ids), DEFAULT_ORDER);
   const order = readOrder([`export`, `inconnue`, `select`, `select`, `sep:1`, `sep:1`, `sep:99999999999`, 5, null], ids);
   assert.deepEqual(order.slice(0, 3), [`export`, `select`, `sep:1`]);
   assert.ok(ids.every((id) => order.includes(id)), `toutes les fonctions sont la`);

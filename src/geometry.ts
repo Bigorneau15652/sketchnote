@@ -1,6 +1,6 @@
 // Pure geometry of the elements: boxes, rotation, hit tests and the position of the handles of a selected element.
 import { drawnPoints } from "./curves";
-import { hasPoints, isShape, isStroked } from "./elements";
+import { hasPoints, isClosedLine, isShape, isStroked } from "./elements";
 import { isClosedStroke } from "./tidy";
 import type { Point, SketchElement } from "./elements";
 
@@ -134,6 +134,7 @@ export function hitElement(el: SketchElement, p: Point, tolerance: number): bool
     for (let i = 0; i + 1 < pts.length; i++) if (distToSegment(p, pts[i], pts[i + 1]) <= reach) return true;
     // A closed stroke with a fill is touched inside too.
     if (el.type === `freedraw` && el.fill !== undefined && isClosedStroke(pts, el.strokeWidth)) return insidePolygon(p, pts);
+    if (el.type === `line` && el.fill !== undefined && isClosedLine(el.points)) return insidePolygon(p, pts);
     return false;
   }
   const { box, angle } = boxOf(el);
