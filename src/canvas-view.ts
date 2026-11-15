@@ -834,7 +834,7 @@ export abstract class CanvasView<D> extends TextFileView {
     const p = this.pagePoint(e);
     if (this.multi) {
       this.baseDoc = null;
-      this.multiClick(p, e.shiftKey);
+      this.multiClick(p, e.shiftKey, e.timeStamp);
       return;
     }
     if (this.tool === `text`) {
@@ -1019,19 +1019,40 @@ export abstract class CanvasView<D> extends TextFileView {
     const m = this.multi;
     if (!m) return;
     const last = m.committed[m.committed.length - 1];
+    // Near the first point of a line of three corners or more, the last point sticks to it: a click there closes the shape.
+    if (m.tool === `line` && m.committed.length >= 3 && this.near(p, m.committed[0])) {
+      this.showMulti(m.committed[0]);
+      return;
+    }
     this.showMulti(shift ? lockAngle(last, p) : p);
   }
 
-  // A click while a line is made point by point: a click on the last committed point ends the line, any other click adds a point.
-  private multiClick(p: Point, shift: boolean): void {
+  // Tells whether a point of the page is within a few pixels of another one (the distance is the same on the screen at every zoom).
+  private near(p: Point, q: Point): boolean {
+    return Math.hypot(p[0] - q[0], p[1] - q[1]) * this.zoom < 8;
+  }
+
+  // The time of the last point added to the line being made, to tell a double click from two clicks.
+  private lastMultiClickAt = 0;
+
+  // A click while a line is made point by point: a click on the last committed point ends the line, a click on the first point or a double click closes it, any other click adds a point.
+  private multiClick(p: Point, shift: boolean, time = 0): void {
     const m = this.multi;
     if (!m) return;
     const last = m.committed[m.committed.length - 1];
-    if (m.committed.length >= 2 && Math.hypot(p[0] - last[0], p[1] - last[1]) * this.zoom < 8) {
+    const first = m.committed[0];
+    // A line (not an arrow) of at least three corners is closed by a click on its first point, or by a double click: it comes back to its first point, so that its inside can be filled.
+    if (m.tool === `line` && m.committed.length >= 3 && (this.near(p, first) || (this.near(p, last) && time - this.lastMultiClickAt < 400))) {
+      m.committed.push([first[0], first[1]]);
+      this.finishMulti();
+      return;
+    }
+    if (m.committed.length >= 2 && this.near(p, last)) {
       this.finishMulti();
       return;
     }
     m.committed.push(shift ? lockAngle(last, p) : p);
+    this.lastMultiClickAt = time;
     this.showMulti(null);
   }
 

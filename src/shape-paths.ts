@@ -4,7 +4,7 @@ import { iconData } from "./icon-registry";
 import getStroke from "perfect-freehand";
 import { RoughGenerator } from "roughjs/bin/generator";
 import { drawnPoints } from "./curves";
-import { ArrowElement, Border, DiamondElement, EllipseElement, FreedrawElement, headOf, IconElement, LineElement, LineStyle, Point, RectElement, StrokedElement, TriangleElement } from "./elements";
+import { ArrowElement, Border, DiamondElement, EllipseElement, FreedrawElement, headOf, IconElement, isClosedLine, LineElement, LineStyle, Point, RectElement, StrokedElement, TriangleElement } from "./elements";
 import { arrowHeadShapes, HeadShape } from "./linear";
 import { brushMake as makeBrush, paramsFromFields, paramsOf } from "./brushes";
 import { isClosedStroke, tidyStroke } from "./tidy";
@@ -354,6 +354,11 @@ function compute(el: StrokedElement): ElementPaths {
   // A line or an arrow: straight segments, or a smooth curve through the points when the edges are rounded.
   const drawable = el.rounded === true && el.points.length >= 3 ? generator.curve(el.points, opts) : generator.linearPath(el.points, opts);
   const pieces = (el.taper ?? 0) > 0 ? taperedPiece(el) : piecesOf(drawable, 1, el.lineStyle ?? `solid`);
+  // A closed line with a fill: the inside is filled first (with the curve that is drawn when the edges are rounded), then the line is drawn over it.
+  if (el.type === `line` && el.fill !== undefined && isClosedLine(el.points)) {
+    const inside = el.rounded === true ? drawnPoints(el) : el.points;
+    pieces.unshift(...piecesOf(generator.polygon(inside, { ...opts, strokeWidth: 0.01, disableMultiStroke: true }), el.fillOpacity, `solid`).filter((p) => p.outline !== true));
+  }
   if (el.type === `arrow`) {
     const heads = arrowHeadShapes(el);
     if (heads) {

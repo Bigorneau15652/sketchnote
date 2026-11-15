@@ -88,7 +88,7 @@ interface Fills {
   fillOpacity?: number;
 }
 
-export interface LineElement extends BaseElement, Strokes {
+export interface LineElement extends BaseElement, Strokes, Fills {
   type: `line`;
   points: Point[];
   // Rounded edges: a smooth curve goes through the points instead of straight segments.
@@ -320,9 +320,17 @@ export function isShape(el: SketchElement): el is ShapeElement {
   return el.type === `rect` || el.type === `ellipse` || el.type === `diamond` || el.type === `triangle`;
 }
 
-// Tells whether an element can have a fill: a shape, or a pen stroke that comes back to its start.
-export function canFill(el: SketchElement): el is ShapeElement | FreedrawElement | IconElement {
-  return isShape(el) || el.type === `icon` || (el.type === `freedraw` && isClosedStroke(el.points, el.strokeWidth));
+// Tells whether a line made of several segments is closed: it has at least three points and ends where it starts (a click on its first point, or a double click, closes it).
+export function isClosedLine(points: Point[]): boolean {
+  if (points.length < 4) return false;
+  const a = points[0];
+  const b = points[points.length - 1];
+  return Math.abs(a[0] - b[0]) < 0.01 && Math.abs(a[1] - b[1]) < 0.01;
+}
+
+// Tells whether an element can have a fill: a shape, a closed line, or a pen stroke that comes back to its start.
+export function canFill(el: SketchElement): el is ShapeElement | FreedrawElement | IconElement | LineElement {
+  return isShape(el) || el.type === `icon` || (el.type === `freedraw` && isClosedStroke(el.points, el.strokeWidth)) || (el.type === `line` && isClosedLine(el.points));
 }
 
 // Tells whether a value is a plain object (not null, not an array).
@@ -553,7 +561,11 @@ function readElement(value: unknown): SketchElement | null {
     const taperField = typeof value.taper === `number` && value.taper > 0 ? { taper: value.taper } : {};
     if (value.rounded !== undefined && typeof value.rounded !== `boolean`) return null;
     const rounded = value.rounded === true ? { rounded: true } : {};
-    if (type === `line`) return { ...base, type, points, ...rounded, ...labelField, ...taperField };
+    if (type === `line`) {
+      const lineFill = readFill(value);
+      if (lineFill === null) return null;
+      return { ...base, ...lineFill, type, points, ...rounded, ...labelField, ...taperField };
+    }
     for (const h of [value.startHead, value.endHead]) if (h !== undefined && !HEADS.includes(h as Head)) return null;
     return {
       ...base,

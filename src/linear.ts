@@ -1,7 +1,7 @@
 // Lines and arrows as lists of free points, with the rules of the line editor of Excalidraw: a handle on every point, a handle in the middle of every segment that
 // creates a new point when it is dragged, free ends (no box around the line), rounded edges, and the shapes of the arrow heads. Pure module.
 import type { ArrowElement, Head, Point, PointsElement, SketchElement } from "./elements";
-import { hasPoints, headOf } from "./elements";
+import { hasPoints, headOf, isClosedLine } from "./elements";
 import { curveSamples, drawnPoints, isRounded } from "./curves";
 import { distToSegment } from "./geometry";
 
@@ -53,7 +53,10 @@ function withPoints<T extends PointsElement>(el: T, points: Point[]): T {
 // Returns the line with a point moved to a position.
 export function movePointTo<T extends PointsElement>(el: T, index: number, p: Point): T {
   if (index < 0 || index >= el.points.length) return el;
-  return withPoints(el, el.points.map((q, i): Point => (i === index ? [r2(p[0]), r2(p[1])] : q)));
+  // The first and the last point of a closed line are the same place: they move together, so that the line stays closed (and filled).
+  const last = el.points.length - 1;
+  const together = el.type === `line` && isClosedLine(el.points) && (index === 0 || index === last);
+  return withPoints(el, el.points.map((q, i): Point => (i === index || (together && (i === 0 || i === last)) ? [r2(p[0]), r2(p[1])] : q)));
 }
 
 // Returns the line with a new point at the given place in the list (the new point has that index).
@@ -65,6 +68,11 @@ export function insertPointAt<T extends PointsElement>(el: T, index: number, p: 
 // Returns the line without one point, or null when it would have fewer than two points left.
 export function removePointAt<T extends PointsElement>(el: T, index: number): T | null {
   if (el.points.length <= 2 || index < 0 || index >= el.points.length) return null;
+  // The corner where a closed line starts and ends is removed with its twin, and the line is closed again on the next point (a closed line keeps at least three corners).
+  if (el.type === `line` && isClosedLine(el.points) && (index === 0 || index === el.points.length - 1)) {
+    const inner = el.points.slice(1, -1);
+    return inner.length >= 3 ? withPoints(el, [...inner, inner[0]]) : null;
+  }
   return withPoints(el, el.points.filter((_, i) => i !== index));
 }
 

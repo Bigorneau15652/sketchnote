@@ -1,5 +1,6 @@
 // Which sections of the properties panel concern what the user is working on. The panel follows the selection (or the tool when nothing is selected): a line has no
 // fill, a shape has no heads, a text has a font. No dependency on Obsidian: tested without the application.
+import { isClosedLine } from "./elements";
 import type { SketchElement } from "./elements";
 import { isClosedStroke } from "./tidy";
 
@@ -30,7 +31,9 @@ function kindsOf(elements: SketchElement[]): Set<string> {
       if (e.type === `icon`) return [`icon`];
       if (e.type === `image`) return [`image`];
       const labelled = (e.type === `rect` || e.type === `ellipse` || e.type === `diamond` || e.type === `triangle` || e.type === `line` || e.type === `arrow`) && e.label;
-      return labelled ? [e.type, `text`] : [e.type];
+      // A line that comes back to its start is a closed shape: it can have a fill.
+      const closed = e.type === `line` && isClosedLine(e.points) ? [`line-closed`] : [];
+      return labelled ? [e.type, `text`, ...closed] : [e.type, ...closed];
     }),
   );
 }
@@ -47,7 +50,7 @@ export function sectionShown(section: PanelSection, kinds: Set<string>): boolean
     case `colour`:
       return kinds.size === 0 || [...kinds].some((k) => k !== `drawing`);
     case `fill`:
-      return some([...SHAPES, `freedraw-closed`, `icon`]);
+      return some([...SHAPES, `freedraw-closed`, `line-closed`, `icon`]);
     case `width`:
       return kinds.size === 0 || some(STROKED);
     case `look`:

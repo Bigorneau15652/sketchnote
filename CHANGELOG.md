@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.31.0
+
+English
+
+One button for each tool, and closed lines. The tools are no longer grouped in the column on the right: each one has its own button (Select, Hand, Rectangle, Diamond, Ellipse, Triangle, Arrow, Line, Free pen, Point, Text), then the windows (Icons, Pictures), the settings (Colours, Look of the line, Effects) and Display and Export, with separations between the groups. The button that was called Line and showed only settings is now called Look of the line, so that Line is the tool that draws a line. The menu of each tool shows the settings of that tool only (a rectangle has its corners, an arrow its heads, a line neither). On a low window the buttons go on two columns so that they all stay in view. An order of buttons saved with the grouped tools is replaced by the usual one. A line made of several segments can now be closed: a click on its first point (it sticks to it) or a double click while drawing closes it, and a closed line can be filled like a shape (colour, hatching, dots, grid, transparency; the inside is touched to select it, and moving its first or last point moves both, so it stays closed). A click on the last point still ends an open line, and an arrow is not closed.
+
+Français
+
+Un bouton par outil, et lignes fermées. Les outils ne sont plus regroupés dans la colonne de droite : chacun a son bouton (Sélectionner, Main, Rectangle, Losange, Ellipse, Triangle, Flèche, Trait, Stylo libre, Point, Texte), puis les fenêtres (Icônes, Images), les réglages (Couleurs, Aspect du trait, Effets) et Affichage et Exporter, avec des séparations entre les groupes. Le bouton qui s'appelait Trait et ne montrait que des réglages s'appelle maintenant Aspect du trait, pour que Trait soit l'outil qui trace un trait. Le menu de chaque outil ne montre que les réglages de cet outil (un rectangle a ses coins, une flèche ses pointes, un trait ni l'un ni l'autre). Sur une fenêtre basse, les boutons passent sur deux colonnes pour rester tous visibles. Un ordre de boutons enregistré avec les outils groupés est remplacé par l'ordre habituel. Une ligne brisée faite de plusieurs segments peut maintenant être fermée : un clic sur son premier point (le point s'y colle) ou un double clic pendant le tracé la ferme, et une ligne fermée se remplit comme une forme (couleur, hachures, points, quadrillage, transparence ; on touche l'intérieur pour la sélectionner, et déplacer son premier ou son dernier point déplace les deux, si bien qu'elle reste fermée). Un clic sur le dernier point termine toujours une ligne ouverte, et une flèche ne se ferme pas.
+
 ## 0.30.4
 
 English
