@@ -17,6 +17,7 @@ import { brightness } from "./page-background";
 import { t } from "./i18n";
 import { panelKinds, PanelSection, sectionShown } from "./panel-kinds";
 import { BRUSH_DEFS, BRUSH_KINDS, BrushKind, BrushParam, brushPieces, paramsOf, previewPoints } from "./brushes";
+import { penCursor } from "./cursors";
 import { allLocked, isLocked } from "./lock";
 import { MAX_REGULARITY } from "./tidy";
 import { PluginApi } from "./plugin-api";
@@ -59,7 +60,27 @@ const BRUSH_SLIDERS: { param: BrushParam; field: `flow` | `hardness` | `spacing`
   { param: `dynamics`, field: `dynamics`, min: 0, max: 100, step: 5, scale: 100 },
 ];
 
-// Returns the label (a word above the slider, with its help as the tooltip) of a setting of the brushes.
+// Returns the word written above the slider of a setting of the brushes.
+function brushSliderShort(param: BrushParam): string {
+  switch (param) {
+    case `flow`:
+      return t(`Flux`);
+    case `hardness`:
+      return t(`Dureté`);
+    case `spacing`:
+      return t(`Espacement`);
+    case `form`:
+      return t(`Forme`);
+    case `rotation`:
+      return t(`Rotation`);
+    case `grain`:
+      return t(`Grain`);
+    case `dynamics`:
+      return t(`Dynamique`);
+  }
+}
+
+// Returns the help (the tooltip of the slider) of a setting of the brushes.
 function brushSliderLabel(param: BrushParam): string {
   switch (param) {
     case `flow`:
@@ -451,7 +472,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.sectionIcon(brushSec, `paintbrush`, t(`Pinceau`));
     this.brushPicker(brushSec);
     for (const def of BRUSH_SLIDERS) {
-      this.slider(brushSec, ``, brushSliderLabel(def.param), def.min, def.max, def.step, (s) => Math.round(s[def.field] * def.scale), (v) => ({ [def.field]: v / def.scale }), (s) => BRUSH_DEFS[s.brush].params.includes(def.param));
+      this.slider(brushSec, brushSliderShort(def.param), brushSliderLabel(def.param), def.min, def.max, def.step, (s) => Math.round(s[def.field] * def.scale), (v) => ({ [def.field]: v / def.scale }), (s) => BRUSH_DEFS[s.brush].params.includes(def.param));
     }
 
     const widthSec = this.section(props, `width`);
@@ -693,8 +714,15 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     for (const sec of this.sections) {
       sec.el.toggleClass(`sketchdraw-hidden`, !sectionShown(sec.name, kinds));
       // With nothing selected the choices of the panel have nothing to apply to (a new shape is always standard): they are dimmed, except the settings of a text.
-      sec.el.toggleClass(`sketchdraw-idle`, (this.selected.size === 0 && sec.name !== `text` && sec.name !== `regularity` && sec.name !== `brush`) || allLocked(this.elementsOf(this.doc), this.selected));
+      sec.el.toggleClass(`sketchdraw-idle`, (this.selected.size === 0 && !this.usableBeforeDrawing(sec.name)) || allLocked(this.elementsOf(this.doc), this.selected));
     }
+  }
+
+  // Tells whether a section of the panel can be used before anything is drawn: the settings of a text, and the settings of the pen (its brush and its regularity, and with the pen
+  // tool its colour and its thickness too), which are kept for the next strokes.
+  private usableBeforeDrawing(name: PanelSection): boolean {
+    if (name === `text` || name === `regularity` || name === `brush`) return true;
+    return this.tool === `pen` && (name === `colour` || name === `width`);
   }
 
   private swatchRows: { stroke: HTMLElement; fill: HTMLElement } | null = null;
@@ -798,6 +826,23 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     return { ...restored, palette: current.palette, ...(current.fillPalette ? { fillPalette: current.fillPalette } : {}) };
   }
 
+  // The colour and the thickness that the pen keeps from one stroke to the next (the other tools always start from the standard look).
+  private penLook: { stroke?: string; strokeWidth?: number } = {};
+
+  // The style a new element is made with: the pen adds its own colour and thickness to the standard style.
+  protected styleFor(tool: CreationTool): ToolStyle | null {
+    return this.style && tool === `pen` ? { ...this.style, ...this.penLook } : this.style;
+  }
+
+  // The cursor of the pen: a ring as large as the stroke, or a small target when the stroke is small (see cursors.ts).
+  protected creationCursor(): string | null {
+    const style = this.styleFor(`pen`);
+    if (this.tool !== `pen` || !style) return null;
+    const def = BRUSH_DEFS[style.brush];
+    const diameter = style.strokeWidth * def.size * (def.shape === `spray` ? 2 : 1) * this.zoom;
+    return penCursor(diameter);
+  }
+
   // The style shown in the panel: the one of the first selected element that has one (several elements can be selected: a change then applies to all of them), otherwise the
   // standard style, which is the one of every new element.
   private currentStyle(): ToolStyle {
@@ -805,7 +850,8 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       const s = styleOf(el);
       if (s) return s;
     }
-    return this.style ?? defaultStyle(`#000000`);
+    const base = this.style ?? defaultStyle(`#000000`);
+    return this.tool === `pen` ? { ...base, ...this.penLook } : base;
   }
 
   // Applies a change of style to the selected elements (one change that can be undone). It never changes the look of the next elements: every new element starts from the
@@ -819,6 +865,11 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       if (clean.font !== undefined) keep.font = clean.font;
       if (clean.fontSize !== undefined) keep.fontSize = clean.fontSize;
       if (clean.align !== undefined) keep.align = clean.align;
+      // With the pen, the colour and the thickness are kept for the next strokes (and the cursor follows the thickness).
+      if (this.tool === `pen`) {
+        if (clean.stroke !== undefined) this.penLook.stroke = clean.stroke;
+        if (clean.strokeWidth !== undefined) this.penLook.strokeWidth = clean.strokeWidth;
+      }
       if (clean.regularity !== undefined) keep.regularity = clean.regularity;
       if (clean.brush !== undefined) keep.brush = clean.brush;
       for (const key of [`flow`, `hardness`, `spacing`, `form`, `brushAngle`, `grain`, `dynamics`] as const) if (clean[key] !== undefined) Object.assign(keep, { [key]: clean[key] });
@@ -831,6 +882,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     }
     this.lastPanel = ``;
     this.syncPanel();
+    this.updateCursor();
   }
 
   // Called when the selection or the tool changes: the panel shows the style that applies.
