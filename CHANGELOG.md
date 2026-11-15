@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.28.0
+
+English
+
+Printing. The Export window has a new Print button (a printer pictogram) that uses the print dialog of the system, on a computer. It uses the same choices as the export: the part (everything or the selection) and the background. Two new rows, Paper (A4 or A3) and Scale, give the layout. Fitted to the sheet shows the whole picture as large as it can be on one sheet, centred, with a margin of 10 mm. Real size keeps the size of the drawing (a unit is a pixel at 96 to the inch) and, when it does not fit, cuts it into as many sheets as it takes, in reading order, to put side by side; it chooses by itself the orientation (portrait or landscape) that takes the fewest sheets, and fits the picture on one sheet when it would take more than 36. The preview line tells how many sheets and which orientation the print will use. The picture is printed from its own data (the fonts and the pictures are written into it) and stays vector, so that it is sharp on paper. On a phone or a tablet, export a PDF and print it from the PDF application. Files of the previous versions open without change.
+
+Français
+
+Impression. La fenêtre Exporter a un nouveau bouton Imprimer (un pictogramme d'imprimante) qui utilise le dialogue d'impression du système, sur ordinateur. Il reprend les choix de l'export : la partie (tout ou la sélection) et le fond. Deux nouvelles lignes, Papier (A4 ou A3) et Échelle, donnent la mise en page. Ajustée à la feuille montre l'image entière aussi grande que possible sur une feuille, centrée, avec une marge de 10 mm. Taille réelle garde la taille du dessin (une unité est un pixel à 96 par pouce) et, quand il ne tient pas, le coupe en autant de feuilles qu'il faut, dans l'ordre de lecture, à assembler côte à côte ; elle choisit d'elle-même l'orientation (portrait ou paysage) qui demande le moins de feuilles, et ajuste l'image sur une feuille quand il en faudrait plus de 36. La ligne de l'aperçu dit combien de feuilles et quelle orientation l'impression utilisera. L'image est imprimée depuis ses propres données (les polices et les images y sont écrites) et reste vectorielle, donc nette sur le papier. Sur téléphone ou tablette, exportez un PDF et imprimez-le depuis l'application de PDF. Les fichiers des versions précédentes s'ouvrent sans changement.
+
 ## 0.27.0
 
 English
