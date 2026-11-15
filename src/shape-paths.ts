@@ -5,7 +5,7 @@ import { RoughGenerator } from "roughjs/bin/generator";
 import { drawnPoints } from "./curves";
 import { ArrowElement, Border, DiamondElement, EllipseElement, FreedrawElement, headOf, LineElement, LineStyle, Point, RectElement, StrokedElement, TriangleElement } from "./elements";
 import { arrowHeadShapes, HeadShape } from "./linear";
-import { brushPieces as makeBrush, paramsFromFields, paramsOf } from "./brushes";
+import { brushMake as makeBrush, paramsFromFields, paramsOf } from "./brushes";
 import { isClosedStroke, tidyStroke } from "./tidy";
 
 // One path to draw: its data, its line colour and width and its fill colour (`none` for no fill).
@@ -20,11 +20,17 @@ export interface PathPiece {
   dash?: string;
   // Whether the piece is the outline of a shape (as opposed to its fill), so that a shape without a border can keep its fill only.
   outline?: boolean;
+  // A blur of the piece (a standard deviation in page units): the soft edge of a brush.
+  blur?: number;
+  // Whether the gaps of the stroke (where there is no paint left on the brush) cut this piece.
+  masked?: boolean;
 }
 
 // What it takes to draw an element: the paths, and an SVG transform (a rotation) when the element is turned.
 export interface ElementPaths {
   pieces: PathPiece[];
+  // For a stroke whose brush has gaps (little paint on it) or soft edges: the data of the gaps (empty for none) and the box that holds the stroke with room for them.
+  holes?: { d: string; box: { x: number; y: number; w: number; h: number } };
   transform: string | null;
 }
 
@@ -252,18 +258,20 @@ function taperedPiece(el: LineElement | ArrowElement): PathPiece[] {
   return SAFE_PATH.test(d) && d !== `` ? [{ d, stroke: `none`, strokeWidth: 0, fill: el.stroke, opacity: 1 }] : [];
 }
 
-// Returns the pieces of the stroke of a pen: what the brush of the stroke leaves along the points. The round brush is the pen as it always was (a stroke that is thicker where the
-// hand is slower, with the opacity of its flow when one was stored by version 0.19.0); the other brushes are made of tips put along the stroke (see brushes.ts).
-function brushPieces(el: FreedrawElement, pts: Point[]): PathPiece[] {
+// Returns the pieces of the stroke of a pen: what the brush of the stroke leaves along the points, and the gaps of the stroke. The round brush is the pen as it always was (a stroke that
+// is thicker where the hand is slower, with the opacity of its flow when one was stored by version 0.19.0); the other brushes are made of tips, dots and bristles (see brushes.ts).
+function brushPieces(el: FreedrawElement, pts: Point[]): { pieces: PathPiece[]; holes: string } {
   const brush = el.brush ?? `round`;
   if (brush !== `round`) {
     const made = makeBrush({ brush, points: pts, width: el.strokeWidth, color: el.stroke, seed: el.seed ?? 1, params: paramsOf(brush, paramsFromFields(el)), dynamic: (el.regularity ?? 0) === 0 });
-    return made.filter((p) => SAFE_PATH.test(p.d)).map((p): PathPiece => ({ d: p.d, stroke: p.stroke, strokeWidth: p.strokeWidth, fill: p.fill, opacity: p.opacity }));
+    const holes = SAFE_PATH.test(made.holes) ? made.holes : ``;
+    const pieces = made.pieces.filter((p) => SAFE_PATH.test(p.d)).map((p): PathPiece => ({ d: p.d, stroke: p.stroke, strokeWidth: p.strokeWidth, fill: p.fill, opacity: p.opacity, ...(p.blur ? { blur: p.blur } : {}), ...(holes !== `` ? { masked: true } : {}) }));
+    return { pieces, holes };
   }
   const closedLook = (el.regularity ?? 0) >= 5;
   const outline = getStroke(pts, { size: el.strokeWidth * 1.6, thinning: closedLook ? 0 : 0.5, smoothing: 0.5, streamline: closedLook ? 0 : 0.5 });
   const d = pathFromOutline(outline);
-  return SAFE_PATH.test(d) && d !== `` ? [{ d, stroke: `none`, strokeWidth: 0, fill: el.stroke, opacity: el.flow ?? 1 }] : [];
+  return { pieces: SAFE_PATH.test(d) && d !== `` ? [{ d, stroke: `none`, strokeWidth: 0, fill: el.stroke, opacity: el.flow ?? 1 }] : [], holes: `` };
 }
 
 // Computes the paths of an element.
@@ -280,8 +288,15 @@ function compute(el: StrokedElement): ElementPaths {
       const poly = resample(pts, 4);
       pieces.push(...piecesOf(generator.polygon(poly, { ...opts, strokeWidth: 0.01, disableMultiStroke: true }), el.fillOpacity, `solid`).filter((p) => p.outline !== true));
     }
-    pieces.push(...brushPieces(el, pts));
-    return { pieces, transform: null };
+    const brush = brushPieces(el, pts);
+    pieces.push(...brush.pieces);
+    if (brush.holes === `` && !brush.pieces.some((p) => p.blur)) return { pieces, transform: null };
+    // The box that holds the stroke (the gaps and the soft edges stay inside it).
+    const margin = el.strokeWidth * 8 + 20;
+    const xs = pts.map((p) => p[0]);
+    const ys = pts.map((p) => p[1]);
+    const box = { x: Math.min(...xs) - margin, y: Math.min(...ys) - margin, w: Math.max(...xs) - Math.min(...xs) + 2 * margin, h: Math.max(...ys) - Math.min(...ys) + 2 * margin };
+    return { pieces, holes: { d: brush.holes, box }, transform: null };
   }
   // A line or an arrow: straight segments, or a smooth curve through the points when the edges are rounded.
   const drawable = el.rounded === true && el.points.length >= 3 ? generator.curve(el.points, opts) : generator.linearPath(el.points, opts);

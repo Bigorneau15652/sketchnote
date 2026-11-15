@@ -47,11 +47,36 @@ function mirrored(el: SketchElement, parent: Element): Element {
 
 // Draws one element with a stroke (everything except a drawing frame and a text).
 function drawStroked(el: Exclude<SketchElement, DrawingElement | TextElement>, parent: Element, options: RenderOptions): void {
-  const { pieces, transform } = elementPaths(el);
+  const { pieces, transform, holes } = elementPaths(el);
   const turned = svgEl(`g`, transform ? { transform } : {}, parent);
   const group = mirrored(el, turned);
+  // The gaps of a brush with little paint on it cut the pieces of the brush with a mask (white everywhere, black in the gaps); a soft edge is a blur of the piece.
+  let target: Element = group;
+  let defs: Element | null = null;
+  if (holes && holes.d !== ``) {
+    effectCount++;
+    const id = `skbr${effectCount}`;
+    defs = svgEl(`defs`, {}, group);
+    const mask = svgEl(`mask`, { id: `${id}-m`, maskUnits: `userSpaceOnUse`, x: holes.box.x, y: holes.box.y, width: holes.box.w, height: holes.box.h }, defs);
+    svgEl(`rect`, { x: holes.box.x, y: holes.box.y, width: holes.box.w, height: holes.box.h, fill: `#ffffff` }, mask);
+    svgEl(`path`, { d: holes.d, fill: `#000000`, stroke: `none` }, mask);
+    target = svgEl(`g`, { mask: `url(#${id}-m)` }, group);
+  }
   for (const p of pieces) {
-    svgEl(`path`, { d: p.d, stroke: p.stroke, "stroke-width": p.strokeWidth, fill: p.fill, ...(p.opacity < 1 ? { opacity: p.opacity } : {}), ...(p.dash ? { "stroke-dasharray": p.dash } : {}), "stroke-linecap": `round`, "stroke-linejoin": `round` }, group);
+    let into: Element = p.masked ? target : group;
+    if (p.blur) {
+      // The region of the filter is written in page units, so that a thin line keeps its soft edge.
+      effectCount++;
+      const fid = `skbl${effectCount}`;
+      defs = defs ?? svgEl(`defs`, {}, group);
+      const fdefs = defs;
+      const margin = p.blur * 4 + 4;
+      const box = holes ? holes.box : { x: -1e5, y: -1e5, w: 2e5, h: 2e5 };
+      const filter = svgEl(`filter`, { id: fid, filterUnits: `userSpaceOnUse`, x: box.x - margin, y: box.y - margin, width: box.w + 2 * margin, height: box.h + 2 * margin }, fdefs);
+      svgEl(`feGaussianBlur`, { stdDeviation: p.blur }, filter);
+      into = svgEl(`g`, { filter: `url(#${fid})` }, into);
+    }
+    svgEl(`path`, { d: p.d, stroke: p.stroke, "stroke-width": p.strokeWidth, fill: p.fill, ...(p.opacity < 1 ? { opacity: p.opacity } : {}), ...(p.dash ? { "stroke-dasharray": p.dash } : {}), "stroke-linecap": `round`, "stroke-linejoin": `round` }, into);
   }
   if ((el.type === `rect` || el.type === `ellipse` || el.type === `diamond` || el.type === `triangle`) && el.label) drawLabel(el, group, options.ink);
   if ((el.type === `line` || el.type === `arrow`) && el.label) drawLineLabel(el, turned);

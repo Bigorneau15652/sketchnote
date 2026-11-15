@@ -393,6 +393,8 @@
 
 .sketchdraw-side .sketchdraw-brush-list.is-open {
   display: block;
+  max-height: 420px;
+  overflow-y: auto;
 }
 
 /* On a narrow window the properties are hidden until the Properties button is pressed, and the toolbar is narrower. */

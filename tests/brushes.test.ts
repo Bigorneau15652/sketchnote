@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BRUSH_DEFS, BRUSH_KINDS, BRUSH_PARAMS, BrushKind, BrushParams, brushPieces, cleanParam, fieldsOf, isBrush, isParamValue, paramsFromFields, paramsOf, PARAM_RANGES, previewPoints, sparseParams, spaced, speedFactors, sprayPath } from "../src/brushes";
+import { BRUSH_DEFS, BRUSH_KINDS, BRUSH_PARAMS, BrushKind, BrushParams, brushMake, brushPieces, cleanParam, paintHoles, fieldsOf, isBrush, isParamValue, paramsFromFields, paramsOf, PARAM_RANGES, previewPoints, sparseParams, spaced, speedFactors, sprayPath } from "../src/brushes";
 import { FreedrawElement, Point, readElements, SketchElement } from "../src/elements";
 import { elementPaths } from "../src/shape-paths";
 import { applyStyle, brushDefaultsPatch, cleanPatch, defaultStyle, styleOf } from "../src/style";
@@ -48,7 +48,7 @@ test(`les points sont repartis regulierement en gardant le premier et le dernier
 });
 
 test(`chaque pinceau a ses reglages habituels dans leurs limites, et ne montre que ceux qui le concernent`, () => {
-  assert.equal(BRUSH_KINDS.length, 10);
+  assert.equal(BRUSH_KINDS.length, 17);
   for (const b of BRUSH_KINDS) {
     const def = BRUSH_DEFS[b];
     for (const p of BRUSH_PARAMS) assert.ok(isParamValue(p, def.defaults[p]), `${b} ${p}`);
@@ -123,28 +123,104 @@ test(`tous les polygones d'un pinceau tournent dans le meme sens, sinon leurs re
   }
 });
 
-test(`le flux s'accumule : chaque couche porte la peinture d'une touche, et plus de flux donne un trait plus plein`, () => {
-  const light = brushPieces(input(`felt`, { params: { flow: 0.2 } }));
-  const full = brushPieces(input(`felt`, { params: { flow: 1 } }));
-  assert.ok(light.length >= 2 && light.length <= 5, `plusieurs couches qui s'additionnent: ${light.length}`);
-  assert.ok(light.every((p) => Math.abs(p.opacity - 0.04) < 1e-9), `la peinture d'une touche croit plus vite que le flux`);
-  assert.ok(full.every((p) => p.opacity === 1));
-  // Where the touches overlap, the paint adds up: with N layers of this paint, the stroke is denser than one touch.
-  const density = 1 - Math.pow(1 - 0.04, light.length);
-  assert.ok(density > 0.04, `le trait se renforce quand les touches se recouvrent: ${density}`);
-  // The flow is not the opacity of the element: the element has none stored.
-  assert.equal(`opacity` in (penElement(horizontal, { ...defaultStyle(`#000000`), brush: `felt`, ...brushDefaultsPatch(`felt`) }, `a`, 1, 5000) as object), false);
+// The pixels of the gaps: the share of a stroke (as a width of 8 along 400 units) that the holes of the brush take away.
+const holeArea = (flow: number, seed = 3): number => polygons(paintHoles(horizontal, 8, flow, seed)).reduce((sum, poly) => sum + Math.abs(signedArea(poly)), 0);
+
+test(`le flux est la quantite de peinture sur le pinceau : plein il n'y a aucun blanc, en dessous du blanc apparait, de plus en plus quand il baisse`, () => {
+  assert.equal(paintHoles(horizontal, 8, 1, 3), ``, `a 100 % le trait est continu`);
+  const light = holeArea(0.8);
+  const half = holeArea(0.5);
+  const dry = holeArea(0.1);
+  assert.ok(light > 0, `un peu de blanc des 80 %`);
+  assert.ok(half > light * 1.5 && dry > half * 1.3, `${light} puis ${half} puis ${dry}`);
+  assert.match(paintHoles(horizontal, 8, 0.4, 3), SAFE);
+  // The gaps are always the same ones for a stroke, and not the same ones for another.
+  assert.equal(paintHoles(horizontal, 8, 0.4, 3), paintHoles(horizontal, 8, 0.4, 3));
+  assert.notEqual(paintHoles(horizontal, 8, 0.4, 3), paintHoles(horizontal, 8, 0.4, 4));
+  // The brush runs out of paint along the stroke: more gaps in the second half than in the first.
+  const polys = polygons(paintHoles(horizontal, 8, 0.4, 3));
+  const x = (poly: Point[]): number => poly.reduce((a, p) => a + p[0], 0) / poly.length;
+  const first = polys.filter((q) => x(q) < 107).reduce((a, q) => a + Math.abs(signedArea(q)), 0);
+  const second = polys.filter((q) => x(q) >= 107).reduce((a, q) => a + Math.abs(signedArea(q)), 0);
+  assert.ok(second > first * 1.2, `${first} puis ${second}`);
+  // The gaps stay inside the stroke, so the paper shows through only where there is paint.
+  const ys = polys.flat().map((p) => p[1]);
+  assert.ok(Math.max(...ys) <= 50 + 7 && Math.min(...ys) >= 50 - 7, `dans la largeur du trait`);
+  assert.deepEqual(paintHoles([[0, 0]], 8, 0.4, 3), ``);
 });
 
-test(`la durete donne des bords flous : plusieurs pointes de plus en plus petites s'ajoutent`, () => {
-  const count = (hardness: number): number => brushPieces(input(`soft`, { params: { hardness } })).flatMap((p) => polygons(p.d)).length;
-  const hard = count(1);
-  const soft = count(0);
-  assert.ok(soft >= hard * 3 && soft <= hard * 4 + 4, `${hard} puis ${soft}`);
-  // A softer brush lays a lighter paint on each touch.
-  const alphaOf = (hardness: number): number => brushPieces(input(`soft`, { params: { hardness, flow: 1 } }))[0].opacity;
-  assert.ok(alphaOf(0) < alphaOf(1));
-  assert.equal(alphaOf(1), 1);
+test(`le flux ne change pas le contour ni l'opacite : le trait garde son opacite et c'est un masque qui le troue`, () => {
+  const full = brushMake(input(`felt`, { params: { flow: 1 } }));
+  const low = brushMake(input(`felt`, { params: { flow: 0.3 } }));
+  assert.equal(full.holes, ``);
+  assert.notEqual(low.holes, ``);
+  assert.deepEqual(full.pieces, low.pieces, `la peinture est la meme, ce sont les blancs qui changent`);
+  assert.ok(low.pieces.every((p) => p.opacity === 1), `l'opacite n'est pas touchee`);
+  // The gaps cut the stamps of the brush, the dots of a pencil are fewer instead.
+  assert.equal(brushMake(input(`pencil`, { params: { flow: 0.3 } })).holes, ``);
+  const dots = (flow: number): number => (brushMake(input(`pencil`, { params: { flow } })).pieces.map((p) => p.d).join(` `).match(/M/g) ?? []).length;
+  assert.ok(dots(1) > dots(0.2) * 2, `${dots(0.2)} puis ${dots(1)}`);
+  // The spray of dots is thinner too.
+  const spray = (flow: number): number => (brushMake(input(`aerosol`, { params: { flow } })).pieces.map((p) => p.d).join(` `).match(/M/g) ?? []).length;
+  assert.ok(spray(1) > spray(0.2) * 2);
+});
+
+test(`la durete ne change que le contour : un flou sur les bords, jamais la couleur du milieu`, () => {
+  const blur = (hardness: number): number => brushMake(input(`soft`, { params: { hardness } })).pieces[0].blur ?? 0;
+  assert.equal(blur(1), 0, `un pinceau dur n'est pas flou`);
+  assert.ok(blur(0.5) > 0 && blur(0) > blur(0.5), `${blur(1)}, ${blur(0.5)}, ${blur(0)}`);
+  // The paint is the same whatever the hardness: the same tips, the same opacity.
+  const hard = brushMake(input(`soft`, { params: { hardness: 1 } })).pieces[0];
+  const soft = brushMake(input(`soft`, { params: { hardness: 0 } })).pieces[0];
+  assert.equal(hard.d, soft.d);
+  assert.equal(hard.opacity, soft.opacity);
+  assert.equal(hard.opacity, 1);
+  // The blur is proportional to the size of the tip, and a brush without a hardness setting is not blurred.
+  const big = brushMake(input(`soft`, { width: 20, params: { hardness: 0 } })).pieces[0].blur ?? 0;
+  assert.ok(big > blur(0) * 3);
+  assert.equal(brushMake(input(`felt`)).pieces[0].blur, undefined);
+  // The translucent brushes are translucent by nature, the opacity of the effects is another thing.
+  assert.equal(brushMake(input(`airbrush`)).pieces[0].opacity, 0.5);
+  assert.equal(brushMake(input(`watercolor`)).pieces[0].opacity, 0.55);
+  assert.equal(brushMake(input(`soft`)).pieces[0].opacity, 1);
+});
+
+test(`les pinceaux de peinture : les poils, la brosse seche et le grain`, () => {
+  const bristles = (b: BrushKind, params = {}): number => (brushMake(input(b, { width: 8, params })).pieces.filter((p) => p.fill === `none`).map((p) => p.d).join(` `).match(/M/g) ?? []).length;
+  // The length of ink that the bristles leave.
+  const ink = (b: BrushKind, params = {}): number => {
+    let total = 0;
+    for (const piece of brushMake(input(b, { width: 8, params })).pieces.filter((q) => q.fill === `none`)) {
+      for (const part of piece.d.split(`M`).filter((q) => q.trim() !== ``)) {
+        const pts = (part.match(/-?[0-9.]+,-?[0-9.]+/g) ?? []).map((m): Point => [Number(m.split(`,`)[0]), Number(m.split(`,`)[1])]);
+        for (let i = 0; i + 1 < pts.length; i++) total += Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+      }
+    }
+    return total;
+  };
+  // A dry brush leaves bristles that skip: with a rougher grain there is less ink on the stroke.
+  assert.ok(ink(`drybrush`, { grain: 1 }) < ink(`drybrush`, { grain: 0 }) * 0.8, `${ink(`drybrush`, { grain: 0 })} puis ${ink(`drybrush`, { grain: 1 })}`);
+  assert.ok(ink(`drybrush`, { grain: 0 }) > 0);
+  // An oil brush has bristles on a body of paint, and a watercolour has none.
+  assert.ok(bristles(`oil`) > 10);
+  assert.equal(BRUSH_DEFS.watercolor.bristles, undefined);
+  assert.ok(bristles(`oil`) > bristles(`gouache`) * 0.5);
+  assert.ok(brushMake(input(`oil`)).pieces.some((p) => p.fill !== `none`), `un corps de peinture sous les poils`);
+  assert.ok(brushMake(input(`drybrush`)).pieces.every((p) => p.fill === `none`), `la brosse seche n'a que des poils`);
+  // The bristles stay across the width of the stroke.
+  const ys = polygons(`M0,0`).length;
+  assert.equal(ys, 1);
+  const lines = brushMake(input(`oil`, { width: 8 })).pieces.filter((p) => p.fill === `none`).flatMap((p) => (p.d.match(/-?[0-9.]+,-?[0-9.]+/g) ?? []).map((m) => Number(m.split(`,`)[1])));
+  assert.ok(Math.max(...lines) - Math.min(...lines) <= 8 * BRUSH_DEFS.oil.size + 1, `dans la largeur`);
+  // A chalk has dots and a rough edge, a charcoal is rougher still.
+  const dots = (b: BrushKind, grain: number): number => (brushMake(input(b, { params: { grain } })).pieces.filter((p) => p.fill === `none`).map((p) => p.d).join(` `).match(/M/g) ?? []).length;
+  assert.ok(dots(`chalk`, 1) > dots(`chalk`, 0), `plus de grain, plus de points`);
+  assert.ok(dots(`charcoal`, 0.7) >= dots(`pastel`, 0.4), `le fusain est plus grainu que le pastel`);
+  for (const b of [`watercolor`, `gouache`, `oil`, `drybrush`, `chalk`, `pastel`, `charcoal`] as const) {
+    const made = brushMake(input(b));
+    assert.ok(made.pieces.length >= 1, b);
+    for (const piece of made.pieces) assert.match(piece.d, SAFE, b);
+  }
 });
 
 test(`l'espacement change le nombre de touches`, () => {
@@ -275,7 +351,7 @@ test(`le crayon prend le pinceau et les reglages du style, le reglage change la 
   assert.deepEqual([changed.brush, changed.flow, changed.spacing], [`felt`, 0.9, 0.4]);
   const again = applyStyle(changed as SketchElement, { flow: 0.7 }) as FreedrawElement;
   assert.deepEqual([again.flow, again.spacing], [0.7, 0.4], `les autres reglages sont gardes`);
-  const usual = applyStyle(again as SketchElement, { flow: 0.5, spacing: 0.15 }) as FreedrawElement;
+  const usual = applyStyle(again as SketchElement, { flow: 1, spacing: 0.15 }) as FreedrawElement;
   assert.equal(`flow` in usual, false, `la valeur habituelle du feutre n'est pas gardee`);
   const back = applyStyle(changed as SketchElement, { brush: `round` }) as FreedrawElement;
   assert.deepEqual([`brush` in back, `flow` in back, `spacing` in back], [false, false, false]);
@@ -285,7 +361,7 @@ test(`le crayon prend le pinceau et les reglages du style, le reglage change la 
   assert.deepEqual(cleanPatch({ brush: `felt-tip` as never }), {});
   assert.deepEqual(cleanPatch({ brush: `square`, flow: 9, brushAngle: 400, hardness: -3, spacing: 9, form: 0, grain: 7, dynamics: 2 }), { brush: `square`, flow: 1, brushAngle: 180, hardness: 0, spacing: 2, form: 0.1, grain: 1, dynamics: 1 });
   assert.deepEqual(cleanPatch({ flow: 0, brushAngle: -5 }), { flow: 0.05, brushAngle: 0 });
-  assert.deepEqual(brushDefaultsPatch(`airbrush`), { flow: 0.3, hardness: 0.05, spacing: 0.08, form: 1, brushAngle: 45, grain: 0, dynamics: 0 });
+  assert.deepEqual(brushDefaultsPatch(`airbrush`), { flow: 1, hardness: 0.05, spacing: 0.08, form: 1, brushAngle: 45, grain: 0, dynamics: 0 });
 });
 
 test(`chaque pinceau dessine autre chose, et le rond reste le crayon d'avant`, () => {
@@ -300,9 +376,15 @@ test(`chaque pinceau dessine autre chose, et le rond reste le crayon d'avant`, (
   assert.ok(aerosol.length >= 1 && aerosol.every((p) => p.fill === `none` && p.stroke === `#000000`));
   // A flow stored by version 0.19.0 on a round brush is still the opacity of the stroke.
   assert.equal(elementPaths(make({ flow: 0.5 })).pieces[0].opacity, 0.5);
-  // The flow of the other brushes is the paint of each layer, not the opacity of the element.
-  const felt = elementPaths(make({ brush: `felt`, flow: 0.3 })).pieces;
-  assert.ok(felt.every((p) => Math.abs(p.opacity - 0.09) < 1e-9) && felt.length >= 2);
+  // The flow of the other brushes is the quantity of paint on the brush: it makes gaps, and the paint keeps its opacity.
+  const felt = elementPaths(make({ brush: `felt`, flow: 0.3 }));
+  assert.ok(felt.holes && felt.holes.d !== ``, `des blancs`);
+  assert.ok(felt.pieces.every((p) => p.opacity === 1 && p.masked === true));
+  assert.equal(elementPaths(make({ brush: `felt` })).holes, undefined, `a 100 % il n'y a ni blanc ni masque`);
+  // A soft brush is blurred, with a box that holds the blur.
+  const soft = elementPaths(make({ brush: `soft` }));
+  assert.ok(soft.pieces[0].blur !== undefined && soft.holes !== undefined && soft.holes.d === ``);
+  assert.ok(soft.holes && soft.holes.box.w > 300, `la boite contient le trait`);
   // A tidied stroke has a constant width (no dynamics).
   const tidy = elementPaths(make({ brush: `ink`, regularity: 5 })).pieces.map((p) => p.d).join(`|`);
   const free = elementPaths(make({ brush: `ink` })).pieces.map((p) => p.d).join(`|`);
