@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.29.1
+
+English
+
+Tooltips. The name of a button showed twice when the pointer stayed on it: the tooltip of Obsidian, then the tooltip of the system a moment later (the two were set on every button). Only the tooltip of Obsidian is kept, on the buttons of the bars, of the panel, of the windows and of the colour swatches (which now say in it that a double click changes the colour). The tooltip of a box to check and of a few counters, which had no other, stays.
+
+Français
+
+Info-bulles. Le nom d'un bouton s'affichait deux fois quand le pointeur restait dessus : l'info-bulle d'Obsidian, puis celle du système un instant plus tard (les deux étaient posées sur chaque bouton). Seule l'info-bulle d'Obsidian est gardée, sur les boutons des barres, du panneau, des fenêtres et des pastilles de couleur (qui disent maintenant dedans qu'un double clic change la couleur). L'info-bulle d'une case à cocher et de quelques compteurs, qui n'en avaient pas d'autre, reste.
+
 ## 0.29.0
 
 English

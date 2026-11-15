@@ -43,7 +43,6 @@ export class ImageModal extends Modal {
     const add = bar.createEl(`button`, { cls: `sketchnote-images-add` });
     setIcon(add, `image-plus`);
     add.setAttribute(`aria-label`, t(`Ajouter une image`));
-    add.setAttribute(`title`, t(`Ajouter une image`));
     add.addEventListener(`click`, () => this.openAdd());
     this.places = contentEl.createDiv({ cls: `sketchnote-icons-themes` });
     this.info = contentEl.createDiv({ cls: `sketchnote-icons-info` });
@@ -99,7 +98,6 @@ export class ImageModal extends Modal {
     for (const file of list.slice(0, this.shown)) {
       const cell = this.grid.createEl(`button`, { cls: `sketchnote-icons-cell sketchnote-images-cell` });
       cell.setAttribute(`aria-label`, file.path);
-      cell.setAttribute(`title`, file.path);
       const holder = cell.createDiv({ cls: `sketchnote-icons-holder sketchnote-images-holder` });
       const img = holder.createEl(`img`, { attr: { alt: ``, loading: `lazy`, decoding: `async`, src: this.app.vault.getResourcePath(file) } });
       img.draggable = false;
