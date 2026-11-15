@@ -383,6 +383,11 @@ export abstract class CanvasView<D> extends TextFileView {
   }
 
   // The cursor of the tool that is active, when it has one of its own (a value of the CSS property cursor), or null for the usual cross. A view can give one.
+  // Tells whether the handles of the selected picture cut its sides instead of stretching it (the crop mode of a drawing). Overridden by the view that has the mode.
+  protected isCropping(): boolean {
+    return false;
+  }
+
   protected creationCursor(): string | null {
     return null;
   }
@@ -451,6 +456,15 @@ export abstract class CanvasView<D> extends TextFileView {
   // ---------------------------------------------------------------------------------------------------------------- drawing
 
   // Draws everything again: the surface, the elements and the editor overlay. Used when the surface itself changes.
+  // Draws everything again after a picture of the vault was added, moved or deleted (the pictures that were missing may be found, and the ones that were moved are missing).
+  refreshImages(): void {
+    try {
+      this.renderAll();
+    } catch {
+      // The view is closing: nothing to draw.
+    }
+  }
+
   protected renderAll(): void {
     const scroller = this.ensureFrame();
     this.svg?.remove();
@@ -1084,10 +1098,10 @@ export abstract class CanvasView<D> extends TextFileView {
       this.dragMove(g, p, e);
     } else if (g.kind === `resize`) {
       g.moved = true;
-      this.replaceElement(resizeElement(g.orig, g.corner, p, e.shiftKey));
+      this.replaceElement(resizeElement(g.orig, g.corner, p, e.shiftKey, this.isCropping()));
     } else if (g.kind === `resizeSide`) {
       g.moved = true;
-      this.replaceElement(resizeSide(g.orig, g.side, p, e.shiftKey));
+      this.replaceElement(resizeSide(g.orig, g.side, p, e.shiftKey, this.isCropping()));
     } else if (g.kind === `rotate`) {
       g.moved = true;
       let delta = this.angleTo(g.center, p) - g.startAngle;

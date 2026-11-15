@@ -6,6 +6,8 @@ import { DrawingStore } from "./drawings";
 import { registerIcons } from "./custom-icons";
 import { FontStore } from "./font-store";
 import { IconStore } from "./icon-store";
+import { isImageName } from "./image-files";
+import { setImageResolver } from "./image-registry";
 import { createEmptyDoc, serializeSketchnote } from "./file-format";
 import { setLanguage, t } from "./i18n";
 import { PluginApi } from "./plugin-api";
@@ -29,6 +31,11 @@ export default class SketchnotePlugin extends Plugin {
     this.fonts = new FontStore(this.app, () => this.settingsData.fontsFolder);
     this.icons = new IconStore(this.app, () => this.settingsData.iconsFolder);
     this.icons.start();
+    // The pictures of the drawings are found in the vault by their path.
+    setImageResolver((path) => {
+      const file = this.app.vault.getAbstractFileByPath(normalizePath(path));
+      return file instanceof TFile ? this.app.vault.getResourcePath(file) : null;
+    });
     const api: PluginApi = { drawings: this.drawings, fonts: this.fonts, icons: this.icons, settings: () => this.settingsData, origins: this.origins };
     this.registerView(VIEW_TYPE, (leaf) => new SketchnoteView(leaf, api));
     this.registerView(DRAW_VIEW_TYPE, (leaf) => new SketchdrawView(leaf, api));
@@ -64,6 +71,21 @@ export default class SketchnotePlugin extends Plugin {
     }));
     this.app.workspace.onLayoutReady(() => void this.fonts.start());
     this.registerEvent(this.app.vault.on(`rename`, (file, oldPath) => void this.drawings.handleRename(file, oldPath)));
+    // The open drawings and pages are drawn again (a moment after the last change) when a picture is added, moved or deleted.
+    let imageTimer: number | null = null;
+    const imagesChanged = (path: string): void => {
+      if (!isImageName(path)) return;
+      if (imageTimer !== null) window.clearTimeout(imageTimer);
+      imageTimer = window.setTimeout(() => {
+        for (const type of [VIEW_TYPE, DRAW_VIEW_TYPE]) for (const leaf of this.app.workspace.getLeavesOfType(type)) if (leaf.view instanceof CanvasView) leaf.view.refreshImages();
+      }, 300);
+    };
+    this.registerEvent(this.app.vault.on(`create`, (file) => imagesChanged(file.path)));
+    this.registerEvent(this.app.vault.on(`delete`, (file) => imagesChanged(file.path)));
+    this.registerEvent(this.app.vault.on(`rename`, (file, oldPath) => {
+      imagesChanged(file.path);
+      imagesChanged(oldPath);
+    }));
     this.registerEvent(this.app.vault.on(`delete`, (file) => this.drawings.handleDelete(file)));
   }
 

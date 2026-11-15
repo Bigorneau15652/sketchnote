@@ -254,13 +254,53 @@ export interface IconShapeData {
   closed: boolean;
 }
 
+// A picture of the vault (a PNG, a JPEG, a WebP, a GIF or an SVG file), kept by its path: the file stays in the vault and is not copied into the drawing. The box shows the part that is
+// kept (see `crop`); a border and rounded corners are options. The colour, the width, the hand drawn look and the border style of the panel are the ones of the border.
+export interface ImageElement extends BaseElement, Strokes {
+  type: `image`;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  angle?: number;
+  path: string;
+  // What is cut off the picture, as a part of the whole picture, on the left, the top, the right and the bottom. Absent when nothing is cut.
+  crop?: [number, number, number, number];
+  radius?: number;
+  // A border is drawn around the picture (absent: none), in the style of `border` (simple when absent, like the borders of the shapes).
+  frame?: true;
+  border?: Border;
+}
+
+// The most that can be cut off a picture on each side, and the part of the picture that must remain visible.
+export const MAX_CROP_SIDE = 0.9;
+export const MIN_CROP_VISIBLE = 0.1;
+
+// The file types of the pictures that can be shown.
+export const IMAGE_EXTENSIONS = [`png`, `jpg`, `jpeg`, `webp`, `gif`, `svg`] as const;
+
+// Tells whether a path is a safe path of a picture of the vault: relative, no `..`, no colon (so no address of a site), no control character, and the extension of a picture.
+export function isSafeImagePath(value: unknown): value is string {
+  if (typeof value !== `string` || value.length === 0 || value.length > MAX_PATH_LENGTH) return false;
+  if (value.startsWith(`/`) || value.startsWith(`\\`) || value.includes(`:`) || /[\u0000-\u001f]/.test(value)) return false;
+  if (value.split(/[\\/]/).some((part) => part === `..` || part === `.` || part === ``)) return false;
+  const dot = value.lastIndexOf(`.`);
+  return dot > 0 && (IMAGE_EXTENSIONS as readonly string[]).includes(value.slice(dot + 1).toLowerCase());
+}
+
+// Tells whether four numbers can be the crop of a picture: each one from 0 to the most, and a visible part left in both directions.
+export function isCrop(value: unknown): value is [number, number, number, number] {
+  if (!Array.isArray(value) || value.length !== 4 || !value.every((n) => typeof n === `number` && Number.isFinite(n) && n >= 0 && n <= MAX_CROP_SIDE)) return false;
+  return 1 - value[0] - value[2] >= MIN_CROP_VISIBLE - 1e-9 && 1 - value[1] - value[3] >= MIN_CROP_VISIBLE - 1e-9;
+}
+
 export const MAX_ICON_SHAPES_STORED = 400;
 // The most that the shapes of one icon may weigh in a file (the length of their data).
 export const MAX_ICON_WEIGHT = 200000;
 
 export type PointsElement = LineElement | ArrowElement | FreedrawElement;
 export type ShapeElement = RectElement | EllipseElement | DiamondElement | TriangleElement;
-export type StrokedElement = PointsElement | ShapeElement | IconElement;
+export type StrokedElement = PointsElement | ShapeElement | IconElement | ImageElement;
 export type SketchElement = StrokedElement | DrawingElement | TextElement;
 
 export type ElementsResult = { ok: true; elements: SketchElement[] } | { ok: false; index: number } | { ok: false; tooMany: true };
@@ -554,6 +594,16 @@ function readElement(value: unknown): SketchElement | null {
     // An icon needs a drawing: a name of Lucide, or shapes.
     if (lucide === undefined && customFields.shapes === undefined) return null;
     return { ...base, ...fill, ...turn, type, x, y, width, height, ...(lucide !== undefined ? { icon: lucide } : {}), ...(typeof value.name === `string` && value.name !== `` ? { name: value.name } : {}), ...customFields };
+  }
+  if (type === `image`) {
+    const { x, y, width, height } = value;
+    if (!isCoord(x) || !isCoord(y) || !isSize(width) || !isSize(height) || !isSafeImagePath(value.path)) return null;
+    if (value.crop !== undefined && !isCrop(value.crop)) return null;
+    if (value.frame !== undefined && typeof value.frame !== `boolean`) return null;
+    const frame = readBorder(value, true);
+    if (frame === null) return null;
+    const crop = value.crop !== undefined && (value.crop as number[]).some((n) => n > 0) ? { crop: [...(value.crop as number[])] as [number, number, number, number] } : {};
+    return { ...base, ...turn, ...frame, ...crop, ...(value.frame === true ? { frame: true as const } : {}), type, x, y, width, height, path: value.path };
   }
   const border = readBorder(value, type === `rect`);
   if (border === null) return null;

@@ -1,6 +1,6 @@
 // Pure transformations of elements: move, resize from a corner and rotate. Each function returns a new element and never changes its argument.
-import { hasPoints, MAX_FONT_SIZE, MIN_FONT_SIZE } from "./elements";
-import type { Point, SketchElement } from "./elements";
+import { hasPoints, MAX_CROP_SIDE, MAX_FONT_SIZE, MIN_CROP_VISIBLE, MIN_FONT_SIZE } from "./elements";
+import type { ImageElement, Point, SketchElement } from "./elements";
 import { Box, boxOf, centerOf, rotatePoint, Side } from "./geometry";
 
 export const MIN_SIZE = 4;
@@ -19,7 +19,7 @@ export function translate(el: SketchElement, dx: number, dy: number): SketchElem
 // Returns a rectangle or an ellipse with a new box, keeping everything else. A text takes the size of its font from its height, so that it grows like a picture.
 function withBox(el: SketchElement, box: Box, scaleText = true): SketchElement {
   if (el.type === `text`) return { ...el, x: r2(box.x), y: r2(box.y), width: r2(box.w), height: r2(box.h), ...(scaleText ? { size: scaledSize(el.size, box.h / el.height) } : {}) };
-  if (el.type === `rect` || el.type === `diamond` || el.type === `triangle` || el.type === `drawing` || el.type === `icon`) return { ...el, x: r2(box.x), y: r2(box.y), width: r2(box.w), height: r2(box.h) };
+  if (el.type === `rect` || el.type === `diamond` || el.type === `triangle` || el.type === `drawing` || el.type === `icon` || el.type === `image`) return { ...el, x: r2(box.x), y: r2(box.y), width: r2(box.w), height: r2(box.h) };
   if (el.type === `ellipse`) return { ...el, cx: r2(box.x + box.w / 2), cy: r2(box.y + box.h / 2), rx: r2(box.w / 2), ry: r2(box.h / 2) };
   return el;
 }
@@ -47,12 +47,47 @@ function resizeLine(el: SketchElement, corner: number, pointer: Point, keepRatio
   return { ...el, points: el.points.map(map) };
 }
 
+// Crop mode of a picture: the sides are moved over the picture instead of stretching it. `left`, `right`, `top` and `bottom` tell which sides the user drags; the new size is limited so
+// that nothing is added beyond the whole picture and a part of it stays visible, and the crop that goes with it is returned.
+function limitCrop(el: ImageElement, sides: { x: `l` | `r` | null; y: `t` | `b` | null }, nw: number, nh: number): { nw: number; nh: number; crop: [number, number, number, number] } {
+  const crop: [number, number, number, number] = el.crop ? [el.crop[0], el.crop[1], el.crop[2], el.crop[3]] : [0, 0, 0, 0];
+  const fx = 1 - crop[0] - crop[2];
+  const fy = 1 - crop[1] - crop[3];
+  const unitX = el.width / fx;
+  const unitY = el.height / fy;
+  if (sides.x) {
+    const i = sides.x === `l` ? 0 : 2;
+    const most = Math.min(fx + crop[i], 1 - crop[2 - i]) * unitX;
+    nw = Math.min(most, Math.max(MIN_CROP_VISIBLE * unitX, nw));
+    crop[i] = Math.min(MAX_CROP_SIDE, Math.max(0, r4(crop[i] + fx - nw / unitX)));
+  }
+  if (sides.y) {
+    const i = sides.y === `t` ? 1 : 3;
+    const most = Math.min(fy + crop[i], 1 - crop[4 - i]) * unitY;
+    nh = Math.min(most, Math.max(MIN_CROP_VISIBLE * unitY, nh));
+    crop[i] = Math.min(MAX_CROP_SIDE, Math.max(0, r4(crop[i] + fy - nh / unitY)));
+  }
+  return { nw, nh, crop };
+}
+
+// Rounds to four decimals (the crop is a part of the picture).
+const r4 = (n: number): number => Math.round(n * 10000) / 10000;
+
+// Returns a picture with a crop, or without the field when nothing is cut.
+function withCrop(el: SketchElement, crop: [number, number, number, number]): SketchElement {
+  if (el.type !== `image`) return el;
+  const { crop: _c, ...rest } = el;
+  void _c;
+  return crop.some((n) => n > 0) ? { ...rest, crop } : rest;
+}
+
 // Resizes an element by dragging one corner to a point. The opposite corner stays where it is on the page, even when the element is rotated.
 // With keepRatio the shape keeps its proportions.
-export function resizeElement(el: SketchElement, corner: 0 | 1 | 2 | 3, pointer: Point, keepRatio: boolean): SketchElement {
+export function resizeElement(el: SketchElement, corner: 0 | 1 | 2 | 3, pointer: Point, keepRatio: boolean, cropping = false): SketchElement {
   if (hasPoints(el)) return resizeLine(el, corner, pointer, keepRatio);
   // A drawing frame and an icon always keep the proportions of their drawing from a corner, like a picture (the sides stretch them).
-  if (el.type === `drawing` || el.type === `text` || el.type === `icon`) keepRatio = true;
+  const crop = cropping && el.type === `image`;
+  if (el.type === `drawing` || el.type === `text` || el.type === `icon` || el.type === `image`) keepRatio = !crop;
   const { box, angle } = boxOf(el);
   const [sx, sy] = SIGNS[corner];
   const c = centerOf(box);
@@ -66,15 +101,23 @@ export function resizeElement(el: SketchElement, corner: 0 | 1 | 2 | 3, pointer:
     nw = Math.max(MIN_SIZE, box.w * s);
     nh = Math.max(MIN_SIZE, box.h * s);
   }
+  let kept: [number, number, number, number] | null = null;
+  if (crop && el.type === `image`) {
+    const limited = limitCrop(el, { x: sx === -1 ? `l` : `r`, y: sy === -1 ? `t` : `b` }, nw, nh);
+    nw = limited.nw;
+    nh = limited.nh;
+    kept = limited.crop;
+  }
   const centre = rotatePoint([c[0] + ox + (sx * nw) / 2, c[1] + oy + (sy * nh) / 2], c, angle);
-  return withBox(el, { x: centre[0] - nw / 2, y: centre[1] - nh / 2, w: nw, h: nh });
+  const out = withBox(el, { x: centre[0] - nw / 2, y: centre[1] - nh / 2, w: nw, h: nh });
+  return kept ? withCrop(out, kept) : out;
 }
 
 // Resizes an element by dragging the middle of one of its sides (0 top, 1 right, 2 bottom, 3 left): the opposite side stays where it is on the page, even when the element is
 // rotated. The element is stretched or squashed along that side only; with keepRatio it keeps its proportions instead (the other side follows, about its middle). A text zone
 // changes its width so that the text wraps again, and its top and bottom change the size of the letters; with keepRatio its letters grow with it.
-export function resizeSide(el: SketchElement, side: Side, pointer: Point, keepRatio: boolean): SketchElement {
-  if (el.type !== `rect` && el.type !== `ellipse` && el.type !== `diamond` && el.type !== `triangle` && el.type !== `icon` && !(el.type === `text` && el.zone === true)) return el;
+export function resizeSide(el: SketchElement, side: Side, pointer: Point, keepRatio: boolean, cropping = false): SketchElement {
+  if (el.type !== `rect` && el.type !== `ellipse` && el.type !== `diamond` && el.type !== `triangle` && el.type !== `icon` && el.type !== `image` && !(el.type === `text` && el.zone === true)) return el;
   const { box, angle } = boxOf(el);
   const c = centerOf(box);
   const local = rotatePoint(pointer, c, -angle);
@@ -86,19 +129,28 @@ export function resizeSide(el: SketchElement, side: Side, pointer: Point, keepRa
   const length = Math.max(MIN_SIZE, sign * ((horizontal ? local[0] : local[1]) - edge));
   let nw = horizontal ? length : box.w;
   let nh = horizontal ? box.h : length;
-  if (keepRatio) {
+  const crop = cropping && el.type === `image`;
+  if (keepRatio && !crop) {
     const k = length / oldLength;
     nw = box.w * k;
     nh = box.h * k;
   }
   nw = Math.max(MIN_SIZE, nw);
   nh = Math.max(MIN_SIZE, nh);
+  let kept: [number, number, number, number] | null = null;
+  if (crop && el.type === `image`) {
+    const limited = limitCrop(el, { x: horizontal ? (side === 3 ? `l` : `r`) : null, y: horizontal ? null : side === 0 ? `t` : `b` }, nw, nh);
+    nw = limited.nw;
+    nh = limited.nh;
+    kept = limited.crop;
+  }
   // The middle of the opposite side stays; the box grows from it along the moving axis and about its middle along the other one.
   const centreLocal: Point = horizontal ? [edge + (sign * nw) / 2, c[1]] : [c[0], edge + (sign * nh) / 2];
   const centre = rotatePoint(centreLocal, c, angle);
   // The top and the bottom of a text zone change the size of the letters (the text fills the new height); its left and right change the width only, and the text wraps again.
   const letters = keepRatio || (el.type === `text` && !horizontal);
-  return withBox(el, { x: centre[0] - nw / 2, y: centre[1] - nh / 2, w: nw, h: nh }, letters);
+  const out = withBox(el, { x: centre[0] - nw / 2, y: centre[1] - nh / 2, w: nw, h: nh }, letters);
+  return kept ? withCrop(out, kept) : out;
 }
 
 // Brings an angle in degrees into the range from -180 to 180.

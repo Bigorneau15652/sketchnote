@@ -4,6 +4,9 @@ import { Menu, Notice, setIcon, WorkspaceLeaf } from "obsidian";
 import { CanvasView, Tool } from "./canvas-view";
 import { ColorChoice, ColorModal } from "./color-modal";
 import { ConfirmModal } from "./confirm-modal";
+import { ImageModal } from "./image-modal";
+import { imageUrl } from "./image-registry";
+import { importImages } from "./image-import";
 import { IconModal, warningText } from "./icon-modal";
 import { iconData } from "./icon-registry";
 import { iconToElements, strokeCount } from "./icon-strokes";
@@ -14,11 +17,11 @@ import { toHex6 } from "./page-background";
 import { CANVAS_HEIGHT, CANVAS_WIDTH, contentBox, createEmptyDrawing, guideBox, parseSketchdraw, serializeSketchdraw, SketchdrawDoc } from "./drawing-file";
 import { drawElements, PLAIN } from "./element-render";
 import { BORDER_KINDS, BorderKind, CORNER_RADII, SHADOW_MAX_BLUR, SHADOW_MAX_DISTANCE } from "./effects";
-import { ArrowElement, IconElement, MAX_ROUGHNESS, Head, HEADS, LineElement, Point, SketchElement, TextElement } from "./elements";
+import { ArrowElement, IconElement, ImageElement, MAX_ROUGHNESS, Head, HEADS, LineElement, Point, SketchElement, TextElement } from "./elements";
 import { fontStack } from "./fonts";
 import { openTextEditor } from "./text-editor";
 import { refitText, wrapLines } from "./text-layout";
-import { Box, unionBox as unionBoxes } from "./geometry";
+import { Box, rotatePoint, unionBox as unionBoxes } from "./geometry";
 import { brightness } from "./page-background";
 import { t } from "./i18n";
 import { panelKinds, PanelSection, sectionShown } from "./panel-kinds";
@@ -408,6 +411,112 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.contentEl.focus({ preventScroll: true });
   }
 
+  // Opens the window of the pictures of the vault (the images folder is created the first time).
+  private async openImages(): Promise<void> {
+    try {
+      await this.api.drawings.ensureFolder(this.api.settings().imagesFolder);
+    } catch {
+      // The folder is not available: the pictures of the vault can still be chosen.
+    }
+    new ImageModal(this.app, () => this.api.settings().imagesFolder, (path) => void this.insertImages([path])).open();
+  }
+
+  // Copies pictures dropped or pasted into the images folder, then puts them in the drawing.
+  private async takePictures(files: File[]): Promise<void> {
+    const report = await importImages(this.app, this.api.settings().imagesFolder, files);
+    if (report.paths.length > 0) await this.insertImages(report.paths);
+    const bad = report.skipped.length + report.failed.length;
+    if (bad > 0) new Notice(t(`Fichiers non utilisables comme images (type inconnu, trop volumineux ou copie impossible) : {0}`, [...report.skipped, ...report.failed].join(`, `)));
+  }
+
+  // Returns the size that a picture of the vault has once loaded, or null when it cannot be read within a few seconds.
+  private measurePicture(path: string): Promise<[number, number] | null> {
+    const url = imageUrl(path);
+    if (url === null) return Promise.resolve(null);
+    return new Promise((resolve) => {
+      const img = new Image();
+      const timer = window.setTimeout(() => resolve(null), 4000);
+      img.onload = () => {
+        window.clearTimeout(timer);
+        resolve(img.naturalWidth > 0 && img.naturalHeight > 0 ? [img.naturalWidth, img.naturalHeight] : null);
+      };
+      img.onerror = () => {
+        window.clearTimeout(timer);
+        resolve(null);
+      };
+      img.src = url;
+    });
+  }
+
+  // Returns the middle of the part of the surface that is seen, in page units.
+  private viewCentre(): Point {
+    let cx = 200;
+    let cy = 200;
+    if (this.scroller && this.svg) {
+      const sr = this.scroller.getBoundingClientRect();
+      const r = this.svg.getBoundingClientRect();
+      cx = (Math.max(sr.left, r.left) + Math.min(sr.right, r.right)) / 2 - r.left;
+      cy = (Math.max(sr.top, r.top) + Math.min(sr.bottom, r.bottom)) / 2 - r.top;
+      cx /= this.zoom;
+      cy /= this.zoom;
+    }
+    return [cx, cy];
+  }
+
+  // Puts pictures of the vault in the middle of what is shown, as one change that can be undone: each one keeps its proportions (the longest side is at most 360), has no border
+  // and the standard look, and is selected. Several pictures are placed one after the other, a little apart.
+  private async insertImages(paths: string[]): Promise<void> {
+    if (!this.style) return;
+    const made: SketchElement[] = [];
+    const [cx, cy] = this.viewCentre();
+    for (const path of paths) {
+      const size = await this.measurePicture(path);
+      const [nw, nh] = size ?? [4, 3];
+      const k = Math.min(1, 360 / Math.max(nw, nh));
+      const width = Math.max(24, Math.round(nw * k * (size ? 1 : 60)));
+      const height = Math.max(24, Math.round(nh * k * (size ? 1 : 60)));
+      const shift = made.length * 24;
+      made.push({ id: newId([...this.doc.elements, ...made]), type: `image`, x: Math.round(cx - width / 2 + shift), y: Math.round(cy - height / 2 + shift), width, height, path, stroke: this.style.stroke, strokeWidth: this.style.strokeWidth, roughness: this.style.roughness, seed: Math.floor(Math.random() * 1000000) + 1 });
+    }
+    if (made.length === 0) return;
+    this.selected = new Set(made.map((m) => m.id));
+    this.tool = `select`;
+    this.commitElements([...this.doc.elements, ...made]);
+  }
+
+  // The crop mode: the handles of the selected picture cut its sides. It stops by itself when the selection is no longer one picture.
+  private cropMode = false;
+
+  protected isCropping(): boolean {
+    const only = this.selectedElements();
+    if (this.cropMode && !(only.length === 1 && only[0].type === `image` && !isLocked(only[0]))) this.cropMode = false;
+    return this.cropMode;
+  }
+
+  // Changes the selected pictures that are not locked with a function (their path, their crop or their border), as one change that can be undone.
+  private editPictures(change: (el: ImageElement) => ImageElement): void {
+    const ids = new Set(this.selectedElements().filter((e) => e.type === `image` && !isLocked(e)).map((e) => e.id));
+    if (ids.size === 0) return;
+    this.commitElements(this.doc.elements.map((e) => (e.type === `image` && ids.has(e.id) ? change(e) : e)));
+  }
+
+  // The line of the panel that names the file of the picture that is selected.
+  private imageName: HTMLElement | null = null;
+
+  // Returns a picture whose crop was removed with its box widened to show the whole picture at the same scale (the visible part keeps its size on the page).
+  private keepRatioAfterCrop(el: ImageElement, rest: ImageElement): ImageElement {
+    const [cl, ct, cr, cb] = el.crop ?? [0, 0, 0, 0];
+    const width = el.width / (1 - cl - cr);
+    const height = el.height / (1 - ct - cb);
+    // The new centre, in the frame of the picture (before its rotation), then on the page.
+    const dx = -cl * width + width / 2 - el.width / 2;
+    const dy = -ct * height + height / 2 - el.height / 2;
+    const c: Point = [el.x + el.width / 2, el.y + el.height / 2];
+    const moved = rotatePoint([c[0] + dx, c[1] + dy], c, el.angle ?? 0);
+    const r2 = (n: number): number => Math.round(n * 100) / 100;
+    return { ...rest, x: r2(moved[0] - width / 2), y: r2(moved[1] - height / 2), width: r2(width), height: r2(height) };
+  }
+
   // The line of the panel that names the icon that is selected.
   private iconName: HTMLElement | null = null;
 
@@ -535,6 +644,25 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.toolButton(tools, `point`, `dot`, t(`Point`));
     this.toolButton(tools, `text`, `type`, t(`Texte`));
     this.button(tools, `shapes`, t(`Insérer une icône de la bibliothèque`), () => void this.openIcons());
+    this.button(tools, `image-plus`, t(`Insérer une image`), () => void this.openImages());
+    // Pictures are also dropped on the drawing from the computer or pasted from the clipboard.
+    this.registerDomEvent(this.contentEl, `dragover`, (e: DragEvent) => {
+      if (e.dataTransfer && Array.from(e.dataTransfer.types).includes(`Files`)) e.preventDefault();
+    });
+    this.registerDomEvent(this.contentEl, `drop`, (e: DragEvent) => {
+      const files = Array.from(e.dataTransfer?.files ?? []);
+      if (files.length === 0) return;
+      e.preventDefault();
+      void this.takePictures(files);
+    });
+    this.registerDomEvent(this.contentEl, `paste`, (e: ClipboardEvent) => {
+      const target = e.target;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable)) return;
+      const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith(`image/`));
+      if (files.length === 0) return;
+      e.preventDefault();
+      void this.takePictures(files);
+    });
     // The pin keeps the tool that is active after each stroke (it is not the lock of the elements, which is a button of the bar of the selection).
     const lock = this.button(tools, `pin-off`, t(`Garder l'outil actif après chaque tracé`), () => {
       this.toolLocked = !this.toolLocked;
@@ -661,6 +789,31 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       if (strokesBox.checked) this.strokesFromIcons(() => (strokesBox.checked = false));
     });
     this.checks.push({ input: strokesBox, read: () => false });
+
+    // A picture: its file name, the crop mode (the handles cut the sides instead of stretching), the crop to undo and another file for the same picture.
+    const imageSec = this.section(props, `image`);
+    this.sectionIcon(imageSec, `image`, t(`Image`));
+    this.imageName = imageSec.createDiv({ cls: `sketchdraw-slider-label` });
+    const cropBox = imageSec.createEl(`label`, { cls: `sketchdraw-check` });
+    const cropInput = cropBox.createEl(`input`, { type: `checkbox` });
+    cropBox.createSpan({ text: t(`Rogner`) });
+    cropBox.setAttribute(`title`, t(`Rogner : les poignées coupent les bords de l'image au lieu de l'étirer`));
+    cropInput.addEventListener(`change`, () => {
+      this.cropMode = cropInput.checked;
+      this.renderUi();
+    });
+    this.checks.push({ input: cropInput, read: () => this.isCropping() });
+    const imageRow = imageSec.createDiv({ cls: `sketchdraw-row` });
+    const whole = this.button(imageRow, `rotate-ccw`, t(`Rétablir l'image entière`), () => this.editPictures((el) => {
+      const { crop: _c, ...rest } = el;
+      void _c;
+      return this.keepRatioAfterCrop(el, rest);
+    }));
+    whole.addClass(`sketchdraw-chip`);
+    const other = this.button(imageRow, `replace`, t(`Choisir une autre image`), () => {
+      new ImageModal(this.app, () => this.api.settings().imagesFolder, (path) => this.editPictures((el) => ({ ...el, path }))).open();
+    });
+    other.addClass(`sketchdraw-chip`);
 
     // The distortion of a text and its vertical writing: one menu, a slider for the strength (only with a distortion) and a box to check.
     const warpSec = this.section(props, `warp`);
@@ -1052,6 +1205,10 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       d.el.setAttribute(`title`, d.name(s));
     }
     for (const f of this.syncers) f(s);
+    if (this.imageName) {
+      const picture = this.selectedElements().find((e): e is ImageElement => e.type === `image`);
+      this.imageName.setText(picture ? picture.path : ``);
+    }
     if (this.iconName) {
       const icon = this.selectedElements().find((e): e is IconElement => e.type === `icon`);
       this.iconName.setText(icon ? (icon.icon ? `Lucide : ${icon.icon}` : icon.name ?? ``) : ``);

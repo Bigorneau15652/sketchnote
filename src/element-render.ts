@@ -1,7 +1,8 @@
 // Draws the elements of a page or of a drawing into an SVG group. Built with the DOM only: nothing is ever parsed from text.
 // A hand drawn or clean line comes from shape-paths; a frame of a drawing shows the drawing it points to, fitted to its width.
 import { DEFAULT_WARP_AMOUNT, glyphTransform, layoutWarp } from "./text-warp";
-import { ArrowElement, DrawingElement, isStroked, LineElement, SketchElement, TextElement } from "./elements";
+import { ArrowElement, DrawingElement, ImageElement, isStroked, LineElement, SketchElement, TextElement } from "./elements";
+import { imageUrl } from "./image-registry";
 import { outlineExtent } from "./extent";
 import { boxOf, elementBounds } from "./geometry";
 import { fontStack } from "./fonts";
@@ -46,11 +47,39 @@ function mirrored(el: SketchElement, parent: Element): Element {
   return flip ? svgEl(`g`, { transform: flip }, parent) : parent;
 }
 
+// Draws the picture of an image element in the box of the element: the kept part of the file (the crop cuts the sides) stretched to the box, with rounded corners when the element has
+// them. A picture that cannot be found (the file was moved or deleted) is a dotted box with a cross, so that it can still be selected and replaced.
+function drawPicture(el: ImageElement, parent: Element): void {
+  const url = imageUrl(el.path);
+  const radius = Math.min(el.radius ?? 0, el.width / 2, el.height / 2);
+  if (url === null) {
+    const miss = svgEl(`g`, { class: `sketchnote-image-missing`, stroke: el.stroke, fill: `none`, "stroke-width": 1.5, "stroke-dasharray": `8 6`, opacity: 0.7 }, parent);
+    svgEl(`rect`, { x: el.x, y: el.y, width: el.width, height: el.height, rx: radius }, miss);
+    svgEl(`path`, { d: `M${el.x} ${el.y}L${el.x + el.width} ${el.y + el.height}M${el.x + el.width} ${el.y}L${el.x} ${el.y + el.height}` }, miss);
+    return;
+  }
+  const [cl, ct, cr, cb] = el.crop ?? [0, 0, 0, 0];
+  const holder = svgEl(`g`, { class: `sketchnote-image` }, parent);
+  if (radius > 0) {
+    effectCount++;
+    const id = `skim${effectCount}`;
+    const defs = svgEl(`defs`, {}, holder);
+    const clip = svgEl(`clipPath`, { id }, defs);
+    svgEl(`rect`, { x: el.x, y: el.y, width: el.width, height: el.height, rx: radius, ry: radius }, clip);
+    holder.setAttribute(`clip-path`, `url(#${id})`);
+  }
+  // The nested picture area is in units of the whole picture: the visible part of it is stretched to the box.
+  const area = svgEl(`svg`, { x: el.x, y: el.y, width: el.width, height: el.height, viewBox: `${cl} ${ct} ${1 - cl - cr} ${1 - ct - cb}`, preserveAspectRatio: `none`, overflow: `hidden` }, holder);
+  svgEl(`image`, { href: url, x: 0, y: 0, width: 1, height: 1, preserveAspectRatio: `none` }, area);
+}
+
 // Draws one element with a stroke (everything except a drawing frame and a text).
 function drawStroked(el: Exclude<SketchElement, DrawingElement | TextElement>, parent: Element, options: RenderOptions): void {
-  const { pieces, transform, holes } = elementPaths(el);
+  const { pieces, transform, holes, inner } = elementPaths(el);
   const turned = svgEl(`g`, transform ? { transform } : {}, parent);
-  const group = mirrored(el, turned);
+  const placed = mirrored(el, turned);
+  if (el.type === `image`) drawPicture(el, placed);
+  const group = inner ? svgEl(`g`, { transform: inner }, placed) : placed;
   // The gaps of a brush with little paint on it cut the pieces of the brush with a mask (white everywhere, black in the gaps); a soft edge is a blur of the piece.
   let target: Element = group;
   let defs: Element | null = null;
