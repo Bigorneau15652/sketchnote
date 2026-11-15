@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.21.0
+
+English
+
+A pen mode that goes on, the cursor of the pen, and sliders with room. Sliders: the sliders of the Brush section were drawn on top of each other (each one now has its own room, is tall enough for its thumb, and has its word written above it: flow, hardness, spacing, shape, rotation, grain, dynamics). Pen mode: the pen stays active after each stroke, so strokes follow one another without going back to the Select tool; the stroke that was just drawn is selected, so the panel acts on it (a closed stroke shows the Fill section, the brush and its settings can be changed) while the pen is still active, and a new stroke starts as soon as the mouse is pressed. Escape, or the Select tool, ends it. With the pen, the colour and the thickness are kept for the next strokes (they can be set before drawing; the other tools still start from the standard look), as the brush and its settings already were. Cursor: with the pen the mouse cursor is a ring as large as the stroke on the screen (it follows the thickness, the brush and the zoom) when the stroke is large enough to be seen, and a small target when it is small: four short marks above, below, left and right that do not touch, so that the stroke starts in the small empty space between them. The marks have a white edge so that they can be seen on any background. Files of the previous versions open without change.
+
+Français
+
+Un mode crayon qui continue, le curseur du crayon et des réglettes qui ont leur place. Réglettes : celles de la section Pinceau étaient dessinées les unes sur les autres (chacune a maintenant sa place, est assez haute pour sa poignée, et porte son mot au-dessus : flux, dureté, espacement, forme, rotation, grain, dynamique). Mode crayon : le crayon reste actif après chaque tracé, les tracés s'enchaînent donc sans repasser par l'outil Sélectionner ; le tracé qui vient d'être dessiné est sélectionné, le panneau agit donc dessus (un tracé fermé montre la section Remplissage, le pinceau et ses réglages peuvent être changés) alors que le crayon est toujours actif, et un nouveau tracé commence dès que la souris est enfoncée. Échap, ou l'outil Sélectionner, y met fin. Avec le crayon, la couleur et l'épaisseur sont conservées pour les tracés suivants (on peut les régler avant de dessiner ; les autres outils partent toujours de l'aspect standard), comme l'étaient déjà le pinceau et ses réglages. Curseur : avec le crayon, le curseur de la souris est un rond aussi grand que le tracé à l'écran (il suit l'épaisseur, le pinceau et le zoom) quand le tracé est assez gros pour être vu, et une petite cible quand il est petit : quatre petits traits au-dessus, au-dessous, à gauche et à droite qui ne se touchent pas, pour que le tracé commence dans le petit espace vide entre eux. Les traits ont un bord blanc pour être visibles sur tous les fonds. Les fichiers des versions précédentes s'ouvrent sans changement.
+
 ## 0.20.0
 
 English

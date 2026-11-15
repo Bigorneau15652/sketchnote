@@ -369,12 +369,26 @@ export abstract class CanvasView<D> extends TextFileView {
   }
 
   // Chooses the mouse cursor: an open hand when the surface can be dragged, a cross when a tool creates elements.
-  private updateCursor(): void {
+  protected updateCursor(): void {
     const panning = this.spaceDown || this.tool === `hand`;
     this.scroller?.toggleClass(`is-panning`, panning);
     this.scroller?.toggleClass(`is-dragging`, this.gesture?.kind === `pan`);
     this.scroller?.toggleClass(`is-creating`, !panning && this.tool !== `select`);
-    if (this.scroller && (panning || this.tool !== `select`)) this.scroller.style.cursor = ``;
+    // A tool that makes elements can have a cursor of its own (the ring of the pen); the others have the cross of the style sheet.
+    if (this.scroller && (panning || this.tool !== `select`)) this.scroller.style.cursor = (!panning && this.tool !== `select` ? this.creationCursor() : null) ?? ``;
+    // The drawn cursor of a tool does not stay when the Select tool is back (the cursors of the Select tool are set when the pointer moves).
+    else if (this.scroller && this.scroller.style.cursor.startsWith(`url(`)) this.scroller.style.cursor = ``;
+  }
+
+  // The cursor of the tool that is active, when it has one of its own (a value of the CSS property cursor), or null for the usual cross. A view can give one.
+  protected creationCursor(): string | null {
+    return null;
+  }
+
+  // The style that a new element of a tool is made with. A view can add what it keeps for a tool (the pen keeps its colour and its thickness).
+  protected styleFor(_tool: CreationTool): ToolStyle | null {
+    void _tool;
+    return this.style;
   }
 
   // Sets the cursor over what the pointer would act on with the Select tool, as the hand of Bigorneau shows what can be moved: an open hand over an element that can be
@@ -765,18 +779,19 @@ export abstract class CanvasView<D> extends TextFileView {
 
   // Builds the element of a creation gesture for the current pointer position and shows it.
   private updateCreation(g: Extract<Gesture, { kind: `create` }>, p: Point, e: { shiftKey: boolean; altKey: boolean }): void {
-    if (!this.baseDoc || !this.style) return;
+    const style = this.styleFor(g.tool);
+    if (!this.baseDoc || !this.style || !style) return;
     const base = this.elementsOf(this.baseDoc);
     const id = g.made ? g.made.id : newId(base);
     const seed = g.made && `seed` in g.made && g.made.seed ? g.made.seed : this.newSeed();
     let made: SketchElement | null = null;
     if (g.tool === `pen`) {
       g.pen = addPenPoint(g.pen, p, 1.5 / this.zoom);
-      made = penElement(g.pen, this.style, id, seed, MAX_FREEDRAW_POINTS);
+      made = penElement(g.pen, style, id, seed, MAX_FREEDRAW_POINTS);
     } else if (g.tool === `point`) {
-      made = pointElement(p, this.style, id, seed);
+      made = pointElement(p, style, id, seed);
     } else {
-      made = elementFromDrag(g.tool, g.start, p, { shift: e.shiftKey, alt: e.altKey }, this.style, id, seed);
+      made = elementFromDrag(g.tool, g.start, p, { shift: e.shiftKey, alt: e.altKey }, style, id, seed);
     }
     g.made = made;
     this.doc = this.withElements(this.baseDoc, made ? [...base, made] : base);
@@ -1207,7 +1222,8 @@ export abstract class CanvasView<D> extends TextFileView {
     if (base && g.made) {
       this.history.push(base);
       this.selected = new Set([g.made.id]);
-      if (!this.toolLocked) this.tool = `select`;
+      // The pen stays active: strokes follow one another, and the stroke that was just drawn is the one the panel acts on. Escape or the Select tool end it.
+      if (!this.toolLocked && g.tool !== `pen`) this.tool = `select`;
       this.onElementsChanged();
       this.requestSave();
     } else if (base) {
@@ -1296,6 +1312,8 @@ export abstract class CanvasView<D> extends TextFileView {
     this.svg.setAttribute(`height`, String(size.h * this.zoom));
     this.showZoom();
     this.renderUi();
+    // The ring of the pen is as large as the stroke on the screen, so it follows the zoom.
+    this.updateCursor();
   }
 
   // Shows the zoom level in the bottom bar and moves the slider.

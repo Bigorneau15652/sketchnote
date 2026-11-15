@@ -1,6 +1,13 @@
 // English translations: the French text is the key. Every text passed to t() in the code must be listed here (a test checks it).
 // Variable values are written {0}, {1}... as in the French text.
 const PAIRS: [string, string][] = [
+  [`Flux`, `Flow`],
+  [`Dureté`, `Hardness`],
+  [`Espacement`, `Spacing`],
+  [`Forme`, `Shape`],
+  [`Rotation`, `Rotation`],
+  [`Grain`, `Grain`],
+  [`Dynamique`, `Dynamics`],
   [`Pinceau`, `Brush`],
   [`Pinceau rond`, `Round brush`],
   [`Pinceau rond souple`, `Soft round brush`],

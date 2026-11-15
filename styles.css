@@ -298,13 +298,16 @@
   width: 100%;
   min-width: 0;
   max-width: none;
-  margin: 4px 0;
+  height: 22px;
+  margin: 2px 0;
   box-sizing: border-box;
 }
 
+/* Each slider has its own room: a thumb is taller than the track, so two sliders one under the other would overlap without it. */
 .sketchdraw-slider {
   display: block;
   width: 100%;
+  margin: 4px 0 10px;
 }
 
 .sketchdraw-slider-label {

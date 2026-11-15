@@ -10,12 +10,20 @@ export type PanelSection = `colour` | `fill` | `width` | `dash` | `look` | `bord
 // (Select and Hand) give no kind.
 export function panelKinds(tool: string, selected: SketchElement[]): Set<string> {
   if (tool !== `select` && tool !== `hand`) {
+    // With the pen, the strokes that were just drawn are selected: the panel then shows what they can have (a closed stroke has a fill).
+    const strokes = tool === `pen` ? selected.filter((e) => e.type === `freedraw`) : [];
+    if (strokes.length > 0) return kindsOf(strokes);
     const made: Record<string, string> = { line: `new-line`, pen: `freedraw`, point: `new-point` };
     return new Set([made[tool] ?? tool]);
   }
-  // A shape or a line that has a text written in it also gets the settings of a text. A pen stroke that comes back to its start is a closed one: it can have a fill.
+  return kindsOf(selected);
+}
+
+// Returns the kinds of a list of elements. A shape or a line that has a text written in it also gets the settings of a text. A pen stroke that comes back to its start is a
+// closed one: it can have a fill.
+function kindsOf(elements: SketchElement[]): Set<string> {
   return new Set(
-    selected.flatMap((e): string[] => {
+    elements.flatMap((e): string[] => {
       if (e.type === `freedraw`) return [isClosedStroke(e.points, e.strokeWidth) ? `freedraw-closed` : `freedraw`];
       const labelled = (e.type === `rect` || e.type === `ellipse` || e.type === `diamond` || e.type === `triangle` || e.type === `line` || e.type === `arrow`) && e.label;
       return labelled ? [e.type, `text`] : [e.type];
