@@ -4,7 +4,7 @@
 import { t } from "./i18n";
 import type { PanelSection } from "./panel-kinds";
 
-export type DrawFunctionId = `select` | `draw` | `shapes` | `lines` | `text` | `icons` | `images` | `colours` | `stroke` | `effects` | `organise` | `display` | `export`;
+export type DrawFunctionId = `select` | `draw` | `shapes` | `lines` | `text` | `icons` | `images` | `colours` | `stroke` | `effects` | `display` | `export`;
 
 export interface DrawFunction {
   id: DrawFunctionId;
@@ -137,16 +137,6 @@ export function drawFunctions(): DrawFunction[] {
       sections: [`effects`],
     },
     {
-      id: `organise`,
-      icon: `layers`,
-      name: () => t(`Organiser`),
-      help: () => [
-        t(`Agit sur les éléments sélectionnés : grouper, verrouiller, dupliquer, retourner, changer de niveau (premier plan, monter, descendre, arrière plan) et supprimer.`),
-      ],
-      tools: [],
-      sections: [`organise`],
-    },
-    {
       id: `display`,
       icon: `eye`,
       name: () => t(`Affichage`),
@@ -181,7 +171,7 @@ export function functionOfTool(tool: string): DrawFunctionId | null {
 export const isSeparator = (id: string): boolean => /^sep:\d+$/.test(id);
 
 // The usual order: the tools, then the windows, then the settings, then what acts on the drawing.
-export const DEFAULT_ORDER: string[] = [`select`, `draw`, `shapes`, `lines`, `text`, `sep:1`, `icons`, `images`, `sep:2`, `colours`, `stroke`, `effects`, `sep:3`, `organise`, `display`, `export`];
+export const DEFAULT_ORDER: string[] = [`select`, `draw`, `shapes`, `lines`, `text`, `sep:1`, `icons`, `images`, `sep:2`, `colours`, `stroke`, `effects`, `sep:3`, `display`, `export`];
 
 // Tells whether a value can be an entry of a saved order: a known function or a separation.
 export function isOrderEntry(value: unknown, known: string[]): value is string {

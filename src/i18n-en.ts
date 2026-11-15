@@ -391,7 +391,6 @@ const PAIRS: [string, string][] = [
   [`Effets`, `Effects`],
   [`Règle l'opacité de l'élément, son ombre (éloignement, flou, densité, couleur) et son reflet (profondeur, dégradé, éloignement).`, `Sets the opacity of the element, its shadow (distance, blur, density, colour) and its reflection (depth, fade, distance).`],
   [`Organiser`, `Arrange`],
-  [`Agit sur les éléments sélectionnés : grouper, verrouiller, dupliquer, retourner, changer de niveau (premier plan, monter, descendre, arrière plan) et supprimer.`, `Acts on the selected elements: group, lock, duplicate, mirror, change level (front, forward, backward, back) and delete.`],
   [`Montre ce dessin seul, ou avec les dessins des autres zones de la page, estompés derrière lui, pour voir comment ils se placent autour.`, `Shows this drawing alone, or with the drawings of the other zones of the page, faded behind it, to see how they sit around it.`],
   [`Les autres dessins sont sur un autre calque : on ne peut pas les modifier depuis ce dessin.`, `The other drawings are on another layer: they cannot be changed from this drawing.`],
   [`Ouvre la fenêtre d'export : image PNG, SVG ou PDF, de tout le dessin ou de la sélection, avec enregistrement dans le coffre, copie et lien dans la note, ou impression.`, `Opens the export window: PNG, SVG or PDF picture, of the whole drawing or of the selection, with saving in the vault, copy and link in the note, or printing.`],

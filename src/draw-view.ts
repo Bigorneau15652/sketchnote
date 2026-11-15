@@ -1101,12 +1101,13 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.slider(reflectBox, t(`Dégradé du reflet`), t(`Dégradé du reflet : de pas de dégradé à un reflet qui disparaît`), 0, 100, 5, (s) => Math.round(s.reflectionFade * 100), (v) => ({ reflectionFade: v / 100 }), reflectOn);
     this.slider(reflectBox, t(`Éloignement du reflet`), t(`Éloignement du reflet : de bord à bord à un reflet éloigné`), 0, 100, 5, (s) => Math.round(s.reflectionGap * 100), (v) => ({ reflectionGap: v / 100 }), reflectOn);
 
-    // What acts on the selection (group, lock, duplicate, mirror, levels, delete) and the display of the drawing.
+    // The display of the drawing, then what acts on the selection (group, lock, duplicate, mirror, levels, delete): the last group of the ribbon, shown with every button as soon as
+    // something is selected.
+    const displaySec = this.section(props, `display`);
+    this.buildDisplaySection(displaySec);
     const organise = this.section(props, `organise`);
     this.sectionIcon(organise, `layers`, t(`Organiser`));
     this.buildSelectionActions(organise).addClass(`sketchdraw-organise`);
-    const displaySec = this.section(props, `display`);
-    this.buildDisplaySection(displaySec);
     this.refreshPastilles();
   }
 
@@ -1317,7 +1318,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     let any = false;
     for (const sec of this.sections) {
       // A section is shown when the active function has it and it concerns what is selected (or the tool).
-      const shown = allowed.has(sec.name) && sectionShown(sec.name, kinds);
+      const shown = sec.name === `organise` ? this.selected.size > 0 : allowed.has(sec.name) && sectionShown(sec.name, kinds);
       sec.el.toggleClass(`sketchdraw-hidden`, !shown);
       if (shown) any = true;
       // With nothing selected the choices of the menu have nothing to apply to (a new shape is always standard): they are dimmed, except the settings of a text.
