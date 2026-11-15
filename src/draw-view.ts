@@ -886,8 +886,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       button.dataset.fn = fn.id;
       setIcon(button, fn.icon);
       button.setAttribute(`aria-label`, fn.name());
-      // The button of the zen mode shows that the mode is on; the others show the active function.
-      button.toggleClass(`is-active`, fn.id === `zen` ? this.api.zen.active() : this.activeFn === fn.id);
+      button.toggleClass(`is-active`, this.activeFn === fn.id);
       button.addEventListener(`click`, () => this.chooseFunction(fn));
     }
   }
@@ -914,7 +913,6 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     if (fn.opens === `icons`) void this.openIcons();
     else if (fn.opens === `images`) void this.openImages();
     else if (fn.opens === `export`) this.openExport();
-    else if (fn.opens === `zen`) void this.api.zen.toggle();
     this.contentEl.focus({ preventScroll: true });
   }
 

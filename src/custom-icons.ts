@@ -16,6 +16,14 @@ const FRAME = tag(`rect`, { x: 18, y: 18, width: 64, height: 64, rx: 6, fill: `n
 const ICONS: Record<string, string> = {
   // The button of the plugin at the top of the column of a drawing: a page and a pencil.
   "sketchnote-logo": tag(`rect`, { x: 14, y: 12, width: 52, height: 76, rx: 7, fill: `none`, stroke: `currentColor`, "stroke-width": 7 }) + tag(`path`, { d: `M27 34H53M27 50H43`, ...line, "stroke-width": 7 }) + tag(`path`, { d: `M56 80L84 36L94 43L66 87Z`, fill: `currentColor`, stroke: `currentColor`, "stroke-linejoin": `round`, "stroke-width": 4 }),
+  // The pictogram of the zen mode, the same as in the plugin Bigorneau: a figure sitting cross-legged in meditation (drawn on a 24 grid, scaled to the 100 grid).
+  "sketchnote-zen": `<g transform=${Q}scale(4.1667)${Q} fill=${Q}none${Q} stroke=${Q}currentColor${Q} stroke-width=${Q}2${Q} stroke-linecap=${Q}round${Q} stroke-linejoin=${Q}round${Q}>` +
+    tag(`circle`, { cx: 12, cy: 4.6, r: 3, fill: `currentColor`, stroke: `none` }) +
+    tag(`path`, { d: `M9 9c.9-.6 5.1-.6 6 0l.8 6.2H8.2z`, fill: `currentColor`, stroke: `none` }) +
+    tag(`path`, { d: `M8.6 10.4 3.8 14.6M15.4 10.4l4.8 4.2`, "stroke-width": 2.4 }) +
+    tag(`path`, { d: `M2.4 19.2c0-1.4 1-2.3 2.4-2.1l8.4 1.6c1.2.3 1.3 1.4.4 2l-4.2 1.8c-3 .9-7 .6-7-3.3z`, fill: `currentColor`, stroke: `none` }) +
+    tag(`path`, { d: `M21.6 19.2c0-1.4-1-2.3-2.4-2.1l-8.4 1.6c-1.2.3-1.3 1.4-.4 2l4.2 1.8c3 .9 7 .6 7-3.3z`, fill: `currentColor`, stroke: `none`, opacity: 0.85 }) +
+    `</g>`,
   "sketchnote-fill-none": FRAME,
   "sketchnote-fill-solid": tag(`rect`, { x: 18, y: 18, width: 64, height: 64, rx: 6, fill: `currentColor`, stroke: `currentColor`, "stroke-width": 7 }),
   "sketchnote-fill-hachure": FRAME + tag(`path`, { d: `M30 66L66 30M30 46L46 30M54 70L70 54`, ...line, "stroke-width": 6 }),
