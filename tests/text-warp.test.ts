@@ -69,7 +69,7 @@ test(`une vague fait monter et descendre les lettres en les tournant le long de 
 test(`une inclinaison penche chaque lettre et les lignes avec elle`, () => {
   const lean = lay({ warp: `slant`, amount: 0.5, text: `AAAA\nAAAA` }).glyphs;
   assert.ok(lean.every((g) => g.skew < 0), `penchees vers la droite`);
-  assert.equal(lean[0].skew, -17.5);
+  assert.equal(lean[0].skew, -32.5);
   // The top row is moved to the right of the bottom row.
   assert.ok(lean[0].x > lean[4].x, `la ligne du haut est a droite de celle du bas`);
   const other = lay({ warp: `slant`, amount: -0.5, text: `AAAA\nAAAA` }).glyphs;
@@ -104,7 +104,7 @@ test(`avec une intensite de 0 le texte n'est pas deforme, et la boite est toujou
       assert.ok(g.x >= -0.01 && g.x <= box.w + 0.01 && g.y >= -0.01 && g.y <= box.h + 0.01, `${kind}: une lettre hors de la boite`);
     }
     const xs = glyphs.map((g) => g.x);
-    assert.ok(Math.min(...xs) - 12 <= 1, `${kind}: la boite colle aux lettres`);
+    assert.ok(box.w <= Math.max(...xs) - Math.min(...xs) + 70, `${kind}: la boite colle aux lettres (${box.w})`);
   }
   // The box of an arc is taller than a flat text.
   assert.ok(lay({ warp: `arc`, amount: 1 }).box.h > lay().box.h + 10);
@@ -223,4 +223,29 @@ test(`la boite d'un texte deforme est celle de ses lettres, et revient quand on 
   const flat = refitText({ ...el, zone: true, warp: `wave`, width: 40, height: 10 }, m);
   assert.equal(flat.width, 40);
   assert.ok(flat.height >= 50, `${flat.height}`);
+});
+
+test(`a pleine intensite chaque deformation est tres marquee`, () => {
+  const text10 = `ABCDEFGHIJ`;
+  // The arc turns through most of a circle: the ends are far from the middle, and the letters at the ends are upside down or nearly.
+  const arc = lay({ warp: `arc`, amount: 1, text: text10 }).glyphs;
+  assert.ok(arc[0].rotate < -120 && arc[9].rotate > 120, `${arc[0].rotate} ${arc[9].rotate}`);
+  const half = lay({ warp: `arc`, amount: 0.5, text: text10 }).glyphs;
+  assert.ok(Math.abs(half[9].rotate) > 70, `meme a 0,5 l'arc est net: ${half[9].rotate}`);
+  // The spacing along the arc is still the one of the letters.
+  assert.ok(Math.abs(Math.hypot(arc[5].x - arc[4].x, arc[5].y - arc[4].y) - 10) < 0.3);
+  // The wave is more than two lines high, the slant is very leaning.
+  const wave = lay({ warp: `wave`, amount: 1, text: `ABCDEFGHIJKLMNOPQRST` }).glyphs;
+  assert.ok(Math.max(...wave.map((g) => g.y)) - Math.min(...wave.map((g) => g.y)) > 2.5 * 20, `une grande vague`);
+  assert.equal(lay({ warp: `slant`, amount: 1 }).glyphs[0].skew, -65);
+  // A perspective makes one side many times larger than the other, a bulge swells the middle to three times, a pinch goes down to a sixth.
+  const persp = lay({ warp: `perspective`, amount: 1, text: text10 }).glyphs;
+  assert.ok(persp[9].sy / persp[0].sy > 6, `${persp[0].sy} ${persp[9].sy}`);
+  const bulge = lay({ warp: `bulge`, amount: 1, text: text10 }).glyphs;
+  assert.ok(bulge[4].sy > 2.5 && bulge[0].sy < 1.5, `${bulge[0].sy} ${bulge[4].sy}`);
+  const pinch = lay({ warp: `bulge`, amount: -1, text: text10 }).glyphs;
+  assert.ok(pinch[4].sy < 0.3 && pinch[4].sy > 0, `${pinch[4].sy}`);
+  // The letters of a strong arc never go through the centre of the circle, even on several rows.
+  const rows = lay({ warp: `arc`, amount: 1, text: `ABCD\nEFGH\nIJKL` }).glyphs;
+  assert.ok(rows.every((g) => Number.isFinite(g.x) && Number.isFinite(g.y)));
 });

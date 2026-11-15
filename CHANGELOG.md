@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.23.1
+
+English
+
+The distortions of the text are much stronger at full strength. Arc: it now turns through most of a circle (320 degrees) over the length of the text at full strength, instead of about 110 degrees, with the spacing of the letters along the arc unchanged; at the usual strength it is a deep arc. Wave: the letters go up and down by about three times more. Slant: up to 65 degrees instead of 35. Perspective: one side up to twelve times larger than the other, instead of four. Bulge: the letters swell to three times their height in the middle (and a third wider), instead of 1.8 times, and a pinch goes down to a sixth of the height. The rows of a strong arc never go through the centre of the circle. A text that already has a distortion keeps its strength, so it looks stronger; the slider is the way to bring it back. Files open without change.
+
+Français
+
+Les distorsions du texte sont beaucoup plus fortes à pleine intensité. Arc : il fait maintenant presque un cercle (320 degrés) sur la longueur du texte à pleine intensité, au lieu d'environ 110 degrés, sans changer l'espacement des lettres le long de l'arc ; à l'intensité habituelle c'est un arc bien marqué. Vague : les lettres montent et descendent environ trois fois plus. Inclinaison : jusqu'à 65 degrés au lieu de 35. Perspective : un côté jusqu'à douze fois plus grand que l'autre, au lieu de quatre. Bombé : les lettres gonflent jusqu'à trois fois leur hauteur au milieu (et un tiers plus larges), au lieu de 1,8 fois, et un pincement descend jusqu'au sixième de la hauteur. Les lignes d'un arc fort ne passent jamais par le centre du cercle. Un texte qui a déjà une déformation garde son intensité, il paraît donc plus fort ; la réglette permet de le ramener. Les fichiers s'ouvrent sans changement.
+
 ## 0.23.0
 
 English
