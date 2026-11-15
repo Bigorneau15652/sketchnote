@@ -105,7 +105,7 @@ export class ExportModal extends Modal {
       await this.save();
     });
     this.action(bar, `clipboard-copy`, t(`Copier dans le presse-papiers`), () => this.copy(), this.format === `pdf`);
-    this.action(bar, `link`, t(`Enregistrer et insérer le lien dans la note ouverte`), () => this.link());
+    this.action(bar, `link`, t(`Enregistrer et copier le lien`), () => this.link());
     this.action(bar, `printer`, t(`Imprimer`), () => this.print());
     this.status = this.body.createDiv({ cls: `sketchnote-export-status` });
     this.refreshPreview();
@@ -218,11 +218,12 @@ export class ExportModal extends Modal {
     this.status.setText(t(`Copié dans le presse-papiers`));
   }
 
-  // Saves the file (once) and puts the link that shows it in the note that was last open.
+  // Saves the file (once) and copies the link that shows it in a note, to paste where it is wanted.
   private async link(): Promise<void> {
     const path = this.saved && this.saved.key === this.key() ? this.saved.path : await this.save();
     if (!path) return;
-    const note = this.host.services.insertLink(path);
-    this.status.setText(note ? t(`Lien inséré dans la note {0}`, note) : t(`Aucune note n'est ouverte dans un éditeur : le fichier est enregistré, ouvrez une note puis recommencez.`));
+    const link = `![[${path}]]`;
+    await navigator.clipboard.writeText(link);
+    this.status.setText(t(`Lien copié : {0}`, link));
   }
 }

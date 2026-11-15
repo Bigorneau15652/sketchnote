@@ -324,7 +324,6 @@ const PAIRS: [string, string][] = [
   [`Aperçu de l'export`, `Preview of the export`],
   [`Enregistrer dans le coffre`, `Save in the vault`],
   [`Copier dans le presse-papiers`, `Copy to the clipboard`],
-  [`Enregistrer et insérer le lien dans la note ouverte`, `Save and put the link in the open note`],
   [`Export en cours…`, `Exporting…`],
   [`L'export a échoué : l'image est peut-être trop grande. Essayez une taille plus petite.`, `The export failed: the picture may be too big. Try a smaller size.`],
   [`Image vectorielle, qui reste nette à toute taille`, `Vector picture, which stays sharp at any size`],
@@ -335,8 +334,6 @@ const PAIRS: [string, string][] = [
   [`Enregistré : {0}`, `Saved: {0}`],
   [`Export enregistré : {0}`, `Export saved: {0}`],
   [`Copié dans le presse-papiers`, `Copied to the clipboard`],
-  [`Lien inséré dans la note {0}`, `Link put in the note {0}`],
-  [`Aucune note n'est ouverte dans un éditeur : le fichier est enregistré, ouvrez une note puis recommencez.`, `No note is open in an editor: the file is saved, open a note and try again.`],
   [`Dossier des exports`, `Exports folder`],
   [`Dossier du coffre où sont enregistrés les exports (PNG, SVG et PDF) faits avec le bouton Exporter de la barre du bas d'une page ou d'un dessin. Le dossier est créé s'il n'existe pas.`, `Folder of the vault where the exports (PNG, SVG and PDF) made with the Export button of the bottom bar of a page or a drawing are saved. The folder is created if it does not exist.`],
   [`Page`, `Page`],
@@ -405,6 +402,8 @@ const PAIRS: [string, string][] = [
   [`Les boutons du menu montrent un mot à côté de leur pictogramme (le menu prend plus de place). Le nom de chaque bouton s'affiche toujours au survol. Les boutons de la colonne de droite n'ont que leur pictogramme.`, `The buttons of the menu show a word next to their pictogram (the menu takes more room). The name of each button always shows when the pointer is on it. The buttons of the column on the right only have their pictogram.`],
   [`Boutons à droite du dessin`, `Buttons on the right of the drawing`],
   [`Cochez les boutons à afficher, glissez la poignée d'une ligne pour changer l'ordre et ajoutez des séparations entre les groupes. Le même réglage est dans la fenêtre du premier bouton de la colonne.`, `Check the buttons to show, drag the handle of a row to change the order and add separations between the groups. The same setting is in the window of the first button of the column.`],
+  [`Enregistrer et copier le lien`, `Save and copy the link`],
+  [`Lien copié : {0}`, `Link copied: {0}`],
 ];
 
 export const EN: Record<string, string> = Object.fromEntries(PAIRS);

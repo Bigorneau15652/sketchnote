@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.30.3
+
+English
+
+Link of an export. The button of the Export window that saved the file and put its link in the note that was last open is replaced by a button, Save and copy the link: it saves the file in the Exports folder (once, even if the button is pressed again) and copies the link ![[path]] to the clipboard, to paste in any note. Nothing is written into a note by the plugin any more.
+
+Français
+
+Lien d'un export. Le bouton de la fenêtre Exporter qui enregistrait le fichier et mettait son lien dans la note ouverte en dernier est remplacé par un bouton, Enregistrer et copier le lien : il enregistre le fichier dans le dossier des exports (une seule fois, même si l'on appuie encore) et copie le lien ![[chemin]] dans le presse-papiers, pour le coller dans n'importe quelle note. Le plugin n'écrit plus rien dans une note.
+
 ## 0.30.2
 
 English
