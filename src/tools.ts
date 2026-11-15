@@ -7,8 +7,8 @@ import type { ToolStyle } from "./style";
 import { effectFields, lineStyleField } from "./effects";
 import { LINE_HEIGHT, refitText } from "./text-layout";
 
-export type CreationTool = `rect` | `diamond` | `ellipse` | `triangle` | `line` | `arrow` | `pen` | `point`;
-export const CREATION_TOOLS: CreationTool[] = [`rect`, `diamond`, `ellipse`, `triangle`, `line`, `arrow`, `pen`, `point`];
+export type CreationTool = `rect` | `diamond` | `ellipse` | `triangle` | `bubble` | `festoon` | `line` | `arrow` | `pen` | `point`;
+export const CREATION_TOOLS: CreationTool[] = [`rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `line`, `arrow`, `pen`, `point`];
 
 export interface Modifiers {
   shift: boolean;
@@ -80,6 +80,14 @@ export function elementFromDrag(tool: CreationTool, start: Point, end: Point, mo
     const b = dragBox(start, end, mods);
     if (b.w < 2 || b.h < 2) return null;
     const el: RectElement | DiamondElement = { id, type: tool, x: r2(b.x), y: r2(b.y), width: r2(b.w), height: r2(b.h), ...look(style, seed), ...fillOf(style), ...borderOf(style, tool === `rect`) } as RectElement | DiamondElement;
+    return el;
+  }
+  if (tool === `bubble` || tool === `festoon`) {
+    // A comic bubble or a festoon: a rectangle with the form chosen in the menu of the tool (a bubble has the usual tail until it is moved).
+    const b = dragBox(start, end, mods);
+    if (b.w < 2 || b.h < 2) return null;
+    const form = tool === `bubble` ? style.bubbleForm : style.festoonForm;
+    const el: RectElement = { id, type: `rect`, x: r2(b.x), y: r2(b.y), width: r2(b.w), height: r2(b.h), ...look(style, seed), ...fillOf(style), ...borderOf(style, false), form };
     return el;
   }
   if (tool === `triangle`) {

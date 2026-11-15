@@ -5,6 +5,7 @@ import type { ArrowElement, DiamondElement, EllipseElement, LineElement, Point, 
 import { hexToRgb } from "./hsl";
 import { Box } from "./geometry";
 import { borderReach } from "./extent";
+import { formRoom } from "./shape-forms";
 import { LINE_HEIGHT, textLines, wrapLines } from "./text-layout";
 
 export type LabeledShape = RectElement | EllipseElement | DiamondElement | TriangleElement;
@@ -23,7 +24,12 @@ export function labelBox(el: LabeledShape): Box {
   // The border can have several lines, some of them inside, and the hand drawn look wobbles: the text keeps away from all of them.
   const extra = Math.max(0, borderReach(el) - el.strokeWidth / 2) + (el.roughness ?? 0) * 2;
   let box: Box;
-  if (el.type === `rect`) {
+  if (el.type === `rect` && el.form !== undefined) {
+    // A bubble or a festoon: the room that its form leaves for the text.
+    const room = formRoom(el.form);
+    const pad = el.strokeWidth + extra;
+    box = { x: el.x + room.x * el.width + pad, y: el.y + room.y * el.height + pad, w: room.w * el.width - 2 * pad, h: room.h * el.height - 2 * pad };
+  } else if (el.type === `rect`) {
     const pad = 6 + el.strokeWidth + extra;
     box = { x: el.x + pad, y: el.y + pad, w: el.width - 2 * pad, h: el.height - 2 * pad };
   } else if (el.type === `ellipse`) {

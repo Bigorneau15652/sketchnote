@@ -1,7 +1,8 @@
 // Draws the editor overlay: selection frames, handles, the selection rectangle and the magnetism guide lines.
 // Everything is drawn with the DOM into the group `ui` of the page and styled by CSS classes; none of it is part of the drawing.
 import type { SketchElement } from "./elements";
-import { blockBox, Box, boxCorners, boxOf, centerOf, hasRotateHandle, ROTATE_OFFSET, rotateHandlePos, rotatePoint, sidePoint, visibleCorners, visibleSides } from "./geometry";
+import { blockBox, Box, boxCorners, boxOf, centerOf, hasRotateHandle, ROTATE_OFFSET, rotateHandlePos, rotatePoint, sidePoint, tailPagePoint, visibleCorners, visibleSides } from "./geometry";
+import { isBubbleForm } from "./shape-forms";
 import { svgEl } from "./svg";
 import { visibleMidpoints } from "./linear";
 
@@ -85,6 +86,11 @@ export function drawUi(ui: Element, st: UiState): void {
       const rot = rotateHandlePos(box, angle, z);
       svgEl(`line`, { class: `sketchnote-sel-outline`, x1: top[0], y1: top[1], x2: rot[0], y2: rot[1] }, ui);
       svgEl(`circle`, { class: `sketchnote-handle sketchnote-rotate-handle`, cx: rot[0], cy: rot[1], r: 6 / z }, ui);
+    }
+    // The tip of the tail of a bubble: a round handle that points the tail at the speaker.
+    if (el.type === `rect` && isBubbleForm(el.form)) {
+      const tip = tailPagePoint(el);
+      svgEl(`circle`, { class: `sketchnote-handle sketchnote-tail-handle`, cx: tip[0], cy: tip[1], r: 7 / z }, ui);
     }
     const s = 10 / z;
     for (const i of visibleCorners(el)) svgEl(`rect`, { class: `sketchnote-handle`, x: corners[i][0] - s / 2, y: corners[i][1] - s / 2, width: s, height: s }, ui);

@@ -2,7 +2,7 @@
 // undo and redo, keyboard shortcuts, and the bottom bar. A subclass says what the document is, how its surface is drawn and which tools it offers.
 import { setIcon, TextFileView, WorkspaceLeaf } from "obsidian";
 import { newId, SketchElement } from "./elements";
-import { blockBox, Box, Side, boxesIntersect, boxOf, centerOf, elementBounds, hitBoxHandle, hitHandle, hitTop, insideShape, unionBox } from "./geometry";
+import { blockBox, Box, Side, boxesIntersect, boxOf, centerOf, elementBounds, hitBoxHandle, hitHandle, hitTop, insideShape, tailFromPage, tailPagePoint, unionBox } from "./geometry";
 import { canUngroup, expandToGroups, groupAction, groupElements, topGroupId, ungroupElements } from "./groups";
 import { flipElements } from "./flip";
 import { anyLocked, freeIds, isLocked, lockAction, lockElements } from "./lock";
@@ -24,6 +24,7 @@ import { ToolStyle } from "./style";
 import { addPenPoint, CREATION_TOOLS, CreationTool, elementFromDrag, linearElement, penElement, pointElement } from "./tools";
 import { normalizeAngle, resizeElement, resizeSide, rotateAbout, rotateBy, scaleAbout, translate } from "./transform";
 import { MAX_FREEDRAW_POINTS } from "./elements";
+import { isBubbleForm } from "./shape-forms";
 import { clampZoom, fitZoom, pinchZoom, sliderToZoom, stepZoom, zoomToSlider } from "./viewport";
 
 export type Tool = `select` | `hand` | `text` | CreationTool;
@@ -37,6 +38,7 @@ type Gesture =
   | { kind: `resizeSide`; pointerId: number; orig: SketchElement; side: Side; moved: boolean }
   | { kind: `rotate`; pointerId: number; orig: SketchElement; center: Point; startAngle: number; moved: boolean }
   // A point of a line or an arrow dragged anywhere (`point`), or the middle handle of a segment, which creates a new point as soon as it is dragged (`midpoint`).
+  | { kind: `tail`; pointerId: number; orig: SketchElement; moved: boolean }
   | { kind: `point`; pointerId: number; orig: SketchElement; index: number; startClient: Point; moved: boolean }
   | { kind: `midpoint`; pointerId: number; orig: SketchElement; segment: number; startClient: Point; moved: boolean }
   // Several elements resized or turned as one block: the originals are kept, the anchor is the corner opposite to the handle, the centre is the middle of the block.
@@ -843,6 +845,8 @@ export abstract class CanvasView<D> extends TextFileView {
       this.pendingText = { pointerId: e.pointerId, at: p, current: p };
       return;
     }
+    // The tip of the tail of the selected bubble can be dragged while a tool is active (the tool of the bubble stays active after one is drawn).
+    if (this.tool !== `select` && this.selected.size === 1 && !anyLocked(this.elementsOf(this.doc), this.selected) && this.startTailGesture(e, p)) return;
     if (this.tool !== `select` && CREATION_TOOLS.includes(this.tool as CreationTool) && this.creationTools().includes(this.tool as CreationTool)) {
       this.startCreation(e, p);
       return;
@@ -939,9 +943,20 @@ export abstract class CanvasView<D> extends TextFileView {
     this.updateBar();
   }
 
+  // Starts the dragging of the tip of the tail of a bubble that is selected alone, when the pointer is on it: it points the tail at the speaker. Returns true when it started.
+  private startTailGesture(e: PointerEvent, p: Point): boolean {
+    const el = this.selectedElements()[0];
+    if (!el || el.type !== `rect` || !isBubbleForm(el.form)) return false;
+    const tip = tailPagePoint(el);
+    if (Math.hypot(p[0] - tip[0], p[1] - tip[1]) > (e.pointerType === `touch` ? 18 : 10) / this.zoom) return false;
+    this.gesture = { kind: `tail`, pointerId: e.pointerId, orig: el, moved: false };
+    return true;
+  }
+
   // Starts the dragging of a point or of a middle handle when the pointer is on one, on the line or arrow that is selected alone. Returns true when it started.
   private startPointGesture(e: PointerEvent, p: Point, touch: boolean): boolean {
     const el = this.selectedElements()[0];
+    if (this.startTailGesture(e, p)) return true;
     if (!el || (el.type !== `line` && el.type !== `arrow`)) return false;
     const radius = (touch ? 18 : 10) / this.zoom;
     const startClient: Point = [e.clientX, e.clientY];
@@ -1197,6 +1212,9 @@ export abstract class CanvasView<D> extends TextFileView {
         delta = Math.round((current + delta) / 15) * 15 - current;
       }
       this.replaceElement(rotateBy(g.orig, normalizeAngle(delta)));
+    } else if (g.kind === `tail`) {
+      g.moved = true;
+      if (g.orig.type === `rect`) this.replaceElement({ ...g.orig, tail: tailFromPage(g.orig, p) });
     } else if (g.kind === `point` || g.kind === `midpoint`) {
       this.dragPoint(g, p, e);
     } else if (g.kind === `blockResize`) {
@@ -1298,7 +1316,7 @@ export abstract class CanvasView<D> extends TextFileView {
       this.finishCreation(g, base);
       return;
     }
-    if ((g.kind === `move` || g.kind === `resize` || g.kind === `resizeSide` || g.kind === `rotate` || g.kind === `blockResize` || g.kind === `blockRotate` || g.kind === `point` || g.kind === `midpoint`) && g.moved && base) {
+    if ((g.kind === `move` || g.kind === `resize` || g.kind === `resizeSide` || g.kind === `rotate` || g.kind === `blockResize` || g.kind === `blockRotate` || g.kind === `tail` || g.kind === `point` || g.kind === `midpoint`) && g.moved && base) {
       this.history.push(base);
       this.onElementsChanged();
       this.requestSave();

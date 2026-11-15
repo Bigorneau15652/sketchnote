@@ -2,6 +2,7 @@
 import { drawnPoints } from "./curves";
 import { hasPoints, isClosedLine, isShape, isStroked } from "./elements";
 import { isClosedStroke } from "./tidy";
+import { DEFAULT_TAIL, isBubbleForm, MAX_TAIL, Tail } from "./shape-forms";
 import type { Point, SketchElement } from "./elements";
 
 export interface Box {
@@ -61,6 +62,36 @@ export function boxCorners(box: Box, angle: number): [Point, Point, Point, Point
 
 // Returns the smallest upright box that holds the whole element, rotation included.
 export function elementBounds(el: SketchElement): Box {
+  const bounds = boundsWithoutTail(el);
+  // The tail of a bubble goes out of its box.
+  if (el.type === `rect` && isBubbleForm(el.form)) {
+    const tip = tailPagePoint(el);
+    const x = Math.min(bounds.x, tip[0]);
+    const y = Math.min(bounds.y, tip[1]);
+    return { x, y, w: Math.max(bounds.x + bounds.w, tip[0]) - x, h: Math.max(bounds.y + bounds.h, tip[1]) - y };
+  }
+  return bounds;
+}
+
+// Returns the point of the tail of a bubble on the page: its place in the box, mirrored when the element is, then turned with it.
+export function tailPagePoint(el: Extract<SketchElement, { type: `rect` }>): Point {
+  const t = el.tail ?? DEFAULT_TAIL;
+  const c: Point = [el.x + el.width / 2, el.y + el.height / 2];
+  const local: Point = [c[0] + (el.flipX === true ? -t[0] : t[0]) * el.width, c[1] + (el.flipY === true ? -t[1] : t[1]) * el.height];
+  return rotatePoint(local, c, el.angle ?? 0);
+}
+
+// Returns the tail that puts the tip of the tail of a bubble at a point of the page (the opposite of tailPagePoint).
+export function tailFromPage(el: Extract<SketchElement, { type: `rect` }>, p: Point): Tail {
+  const c: Point = [el.x + el.width / 2, el.y + el.height / 2];
+  const q = rotatePoint(p, c, -(el.angle ?? 0));
+  const clamp = (v: number): number => Math.round(Math.max(-MAX_TAIL, Math.min(MAX_TAIL, v)) * 1000) / 1000;
+  const tx = (q[0] - c[0]) / Math.max(1, el.width);
+  const ty = (q[1] - c[1]) / Math.max(1, el.height);
+  return [clamp(el.flipX === true ? -tx : tx), clamp(el.flipY === true ? -ty : ty)];
+}
+
+function boundsWithoutTail(el: SketchElement): Box {
   if (hasPoints(el) && el.type !== `freedraw`) {
     // A rounded line bulges outside of its control points: the bounds are the ones of the drawn curve.
     const pts = drawnPoints(el);

@@ -43,6 +43,7 @@ import { CreationTool, textElement, zoneElement, zoneFontSize } from "./tools";
 import { isLabeledShape, labelBox, labelColor, LabeledShape, pathMiddle } from "./labels";
 import { hitTop } from "./geometry";
 import { newId } from "./elements";
+import { BUBBLE_FORMS, FESTOON_FORMS, FestoonForm, ShapeForm } from "./shape-forms";
 import { SketchnoteView, VIEW_TYPE as PAGE_VIEW_TYPE } from "./view";
 
 export const DRAW_VIEW_TYPE = `sketchdraw-view`;
@@ -359,11 +360,11 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   }
 
   protected creationTools(): CreationTool[] {
-    return [`rect`, `diamond`, `ellipse`, `triangle`, `arrow`, `line`, `pen`, `point`];
+    return [`rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `arrow`, `line`, `pen`, `point`];
   }
 
   protected toolKeys(): Record<string, Tool> {
-    return { v: `select`, h: `hand`, r: `rect`, d: `diamond`, o: `ellipse`, g: `triangle`, a: `arrow`, l: `line`, p: `pen`, t: `text`, [`.`]: `point` };
+    return { v: `select`, h: `hand`, r: `rect`, d: `diamond`, o: `ellipse`, g: `triangle`, b: `bubble`, f: `festoon`, a: `arrow`, l: `line`, p: `pen`, t: `text`, [`.`]: `point` };
   }
 
   // The Text tool: a click on a text edits it, a click elsewhere starts a text there, and a drag draws a text zone (a box that the text wraps to).
@@ -850,6 +851,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.dropdowns.length = 0;
     this.panelButtons.length = 0;
     this.sections.length = 0;
+
     this.toolButtons.clear();
     this.checks.length = 0;
     this.folds.length = 0;
@@ -921,6 +923,16 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   private buildProps(props: HTMLElement): void {
     this.panelButtons.length = 0;
     this.sections.length = 0;
+
+    // The form of a comic bubble (four pictograms) and of a festoon (a menu of eleven): the first group of the menu of their tool.
+    const bubbleSec = this.section(props, `bubbleform`);
+    this.sectionIcon(bubbleSec, bubbleFormIcon(`oval`), t(`Forme de la bulle`));
+    const bubbles = bubbleSec.createDiv({ cls: `sketchdraw-row` });
+    for (const form of BUBBLE_FORMS) this.panelButton(bubbles, bubbleFormIcon(form), formName(form), (st) => st.bubbleForm === form, () => this.change({ bubbleForm: form }));
+    const festoonSec = this.section(props, `festoonform`);
+    this.sectionIcon(festoonSec, bubbleFormIcon(`ribbon`), t(`Forme du feston`));
+    const festoons = festoonSec.createDiv({ cls: `sketchdraw-row` });
+    this.dropdown<FestoonForm>(festoons, t(`Forme du feston`), [...FESTOON_FORMS], bubbleFormIcon, formName, (st) => st.festoonForm, (v) => ({ festoonForm: v }), true);
 
     // One round swatch for the border and one for the fill: each one opens the window of the colours.
     const colour = this.section(props, `colour`);
@@ -1316,7 +1328,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   // Tells whether a section of the panel can be used before anything is drawn: the settings of a text, and the settings of the pen (its brush and its regularity, and with the pen
   // tool its colour and its thickness too), which are kept for the next strokes.
   private usableBeforeDrawing(name: PanelSection): boolean {
-    if (name === `text` || name === `regularity` || name === `brush` || name === `display`) return true;
+    if (name === `text` || name === `regularity` || name === `brush` || name === `display` || name === `bubbleform` || name === `festoonform`) return true;
     return this.tool === `pen` && (name === `colour` || name === `width`);
   }
 
@@ -1433,6 +1445,8 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
         if (clean.stroke !== undefined) this.penLook.stroke = clean.stroke;
         if (clean.strokeWidth !== undefined) this.penLook.strokeWidth = clean.strokeWidth;
       }
+      if (clean.bubbleForm !== undefined) keep.bubbleForm = clean.bubbleForm;
+      if (clean.festoonForm !== undefined) keep.festoonForm = clean.festoonForm;
       if (clean.regularity !== undefined) keep.regularity = clean.regularity;
       if (clean.brush !== undefined) keep.brush = clean.brush;
       for (const key of [`flow`, `hardness`, `spacing`, `form`, `brushAngle`, `grain`, `dynamics`] as const) if (clean[key] !== undefined) Object.assign(keep, { [key]: clean[key] });
@@ -1496,6 +1510,33 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     if (this.shadowSwatch) this.shadowSwatch.style.background = toHex6(s.shadowColor);
     if (this.fontSelect) this.fontSelect.value = s.font;
   }
+}
+
+// The name of the form of a bubble or of a festoon, shown as a tooltip and in the menu.
+function formName(form: ShapeForm): string {
+  const names: Record<ShapeForm, string> = {
+    oval: t(`Bulle de dialogue ovale`),
+    rounded: t(`Bulle de dialogue rectangulaire`),
+    thought: t(`Nuage de pensée`),
+    shout: t(`Bulle de cri`),
+    ribbon: t(`Banderole`),
+    notched: t(`Bandeau à bouts en V`),
+    wave: t(`Bandeau ondulé`),
+    scallop: t(`Feston à bords arrondis`),
+    plaque: t(`Plaque à coins coupés`),
+    tag: t(`Étiquette`),
+    pennant: t(`Fanion`),
+    pointer: t(`Bandeau flèche`),
+    hexagon: t(`Hexagone`),
+    flag: t(`Drapeau à queue d'aronde`),
+    seal: t(`Sceau`),
+  };
+  return names[form];
+}
+
+// Returns the name of the pictogram of a form (registered by custom-icons.ts).
+function bubbleFormIcon(form: ShapeForm): string {
+  return `sketchnote-form-${form}`;
 }
 
 // The name of an arrow head, shown as a tooltip.

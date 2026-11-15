@@ -1,6 +1,7 @@
 // The few pictograms that Obsidian does not have: fill, width and style of the lines. They are built from constants written in this file (never from user data) and
 // registered once with addIcon, on a 100 by 100 grid, in the colour of the text.
 import { addIcon } from "obsidian";
+import { BUBBLE_FORMS, FESTOON_FORMS, formPath } from "./shape-forms";
 
 const Q = String.fromCharCode(34);
 
@@ -82,6 +83,11 @@ const ICONS: Record<string, string> = {
 // Registers the pictograms of the plugin. Each head of an arrow also exists mirrored (sketchnote-head-start-...), to show the head at the start of an arrow.
 export function registerIcons(): void {
   for (const [name, svg] of Object.entries(ICONS)) addIcon(name, svg);
+  // The pictogram of each form of a bubble or of a festoon is the form itself, drawn from the same data as the shape on the page.
+  for (const form of [...BUBBLE_FORMS, ...FESTOON_FORMS]) {
+    const d = formPath(form, 12, 14, 76, 50, undefined, 0);
+    addIcon(`sketchnote-form-${form}`, tag(`path`, { d, fill: `none`, stroke: `currentColor`, "stroke-width": 7, "stroke-linejoin": `round` }));
+  }
   for (const [name, svg] of Object.entries(ICONS)) {
     if (name.startsWith(`sketchnote-head-`)) addIcon(name.replace(`sketchnote-head-`, `sketchnote-head-start-`), `<g transform=${Q}translate(100 0) scale(-1 1)${Q}>${svg}</g>`);
   }
