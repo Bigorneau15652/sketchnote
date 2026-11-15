@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.25.1
+
+English
+
+Panel. In the Icon section, the button Turn into strokes (with its large pencil picture) is replaced by a box to check with the same name: checking it opens the same warning, and the box is cleared again when the change is cancelled. The title Effects, with its small square that served no purpose, is removed from the panel: the opacity, the shadow and the reflection follow the previous section directly.
+
+Français
+
+Panneau. Dans la section Icône, le bouton Transformer en traits (avec son grand crayon) est remplacé par une case à cocher du même nom : la cocher ouvre le même avertissement, et la case se décoche si la transformation est annulée. Le titre Effets, avec son petit carré qui ne servait à rien, est retiré du panneau : l'opacité, l'ombre et le reflet suivent directement la section précédente.
+
 ## 0.25.0
 
 English

@@ -450,13 +450,17 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   }
 
   // Turns the selected icons into ordinary strokes, after a warning, as one change that can be undone: the icon becomes lines, ellipses and rectangles in a group.
-  private strokesFromIcons(): void {
+  private strokesFromIcons(onCancel: () => void = () => undefined): void {
     const icons = this.selectedElements().filter((e): e is IconElement => e.type === `icon` && !isLocked(e));
-    if (icons.length === 0) return;
+    if (icons.length === 0) {
+      onCancel();
+      return;
+    }
     const data = icons.map((e) => ({ el: e, data: iconData(e) }));
     const missing = data.filter((d) => d.data === null).length;
     if (missing === data.length) {
       new Notice(t(`Cette icône est inconnue : elle ne peut pas être transformée en traits.`));
+      onCancel();
       return;
     }
     const count = data.reduce((n, d) => n + (d.data ? strokeCount(d.data) : 0), 0);
@@ -478,7 +482,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
         this.selected = new Set(chosen);
         this.commitElements(next);
       },
-      () => undefined,
+      onCancel,
     ).open();
   }
 
@@ -647,12 +651,16 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     const iconSec = this.section(props, `icon`);
     this.sectionIcon(iconSec, `shapes`, t(`Icône`));
     this.iconName = iconSec.createDiv({ cls: `sketchdraw-slider-label` });
-    const strokes = iconSec.createEl(`button`, { cls: `sketchdraw-chip sketchdraw-menu has-name` });
-    setIcon(strokes, `pencil-line`);
-    strokes.createSpan({ cls: `sketchdraw-menu-name`, text: t(`Transformer en traits`) });
+    // A box to check rather than a button: checking it opens the warning, and the box is cleared again when the user cancels (and when the icon is gone, so is the box).
+    const strokes = iconSec.createEl(`label`, { cls: `sketchdraw-check` });
+    const strokesBox = strokes.createEl(`input`, { type: `checkbox` });
+    strokes.createSpan({ text: t(`Transformer en traits`) });
     strokes.setAttribute(`aria-label`, t(`Transformer en traits`));
     strokes.setAttribute(`title`, t(`Transformer l'icône en traits ordinaires, que l'on modifie un par un`));
-    strokes.addEventListener(`click`, () => this.strokesFromIcons());
+    strokesBox.addEventListener(`change`, () => {
+      if (strokesBox.checked) this.strokesFromIcons(() => (strokesBox.checked = false));
+    });
+    this.checks.push({ input: strokesBox, read: () => false });
 
     // The distortion of a text and its vertical writing: one menu, a slider for the strength (only with a distortion) and a box to check.
     const warpSec = this.section(props, `warp`);
@@ -664,7 +672,6 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
 
     // The effects of every element: the opacity, then the shadow and the reflection, which are checked to be used and then unfold their settings.
     const effectSec = this.section(props, `effects`);
-    this.sectionIcon(effectSec, `sketchnote-shadow-soft`, t(`Effets`));
     this.slider(effectSec, t(`Opacité de l'élément`), t(`Opacité de l'élément`), 5, 100, 5, (s) => Math.round(s.opacity * 100), (v) => ({ opacity: v / 100 }));
     this.checkbox(effectSec, t(`Ombre`), (s) => s.shadow, (on) => ({ shadow: on }));
     const shadowOn = (s: ToolStyle): boolean => s.shadow;
