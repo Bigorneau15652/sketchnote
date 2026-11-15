@@ -85,6 +85,12 @@ test(`les reglages invalides reprennent la valeur par defaut`, () => {
   assert.deepEqual(readSettings({ drawingsFolder: `Mes dessins` }), { ...DEFAULT_SETTINGS, drawingsFolder: `Mes dessins` });
   assert.deepEqual(readSettings({ fontsFolder: `Mes polices` }), { ...DEFAULT_SETTINGS, fontsFolder: `Mes polices` });
   assert.deepEqual(readSettings({ fontsFolder: `../x` }), DEFAULT_SETTINGS);
+  // The folder of the icons of the user is read the same way, and has its own default.
+  assert.deepEqual(readSettings({ iconsFolder: `Mes dessins SVG` }), { ...DEFAULT_SETTINGS, iconsFolder: `Mes dessins SVG` });
+  assert.deepEqual(readSettings({ iconsFolder: `/Mes icônes/` }), { ...DEFAULT_SETTINGS, iconsFolder: `Mes icônes` });
+  assert.deepEqual(readSettings({ iconsFolder: `../x` }), DEFAULT_SETTINGS);
+  assert.deepEqual(readSettings({ iconsFolder: 5 }), DEFAULT_SETTINGS);
+  assert.equal(DEFAULT_SETTINGS.iconsFolder, `Sketchnote icônes`);
 });
 
 test(`le nom d'un dessin est unique, sans caracteres interdits`, () => {

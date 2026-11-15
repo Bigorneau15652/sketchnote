@@ -1,9 +1,10 @@
 // Turns an element into the path data that draws it: clean lines or a hand drawn look (roughjs), and freehand lines (perfect-freehand).
 // Pure module (no DOM): it returns plain data, so the result is tested without a browser and the view writes it into the page as attributes.
+import { iconData } from "./icon-registry";
 import getStroke from "perfect-freehand";
 import { RoughGenerator } from "roughjs/bin/generator";
 import { drawnPoints } from "./curves";
-import { ArrowElement, Border, DiamondElement, EllipseElement, FreedrawElement, headOf, LineElement, LineStyle, Point, RectElement, StrokedElement, TriangleElement } from "./elements";
+import { ArrowElement, Border, DiamondElement, EllipseElement, FreedrawElement, headOf, IconElement, LineElement, LineStyle, Point, RectElement, StrokedElement, TriangleElement } from "./elements";
 import { arrowHeadShapes, HeadShape } from "./linear";
 import { brushMake as makeBrush, paramsFromFields, paramsOf } from "./brushes";
 import { isClosedStroke, tidyStroke } from "./tidy";
@@ -274,9 +275,54 @@ function brushPieces(el: FreedrawElement, pts: Point[]): { pieces: PathPiece[]; 
   return { pieces: SAFE_PATH.test(d) && d !== `` ? [{ d, stroke: `none`, strokeWidth: 0, fill: el.stroke, opacity: el.flow ?? 1 }] : [], holes: `` };
 }
 
+// Computes the pieces of an icon: every shape of its drawing in the hand drawn look, in the coordinates of the view box, and the transform that puts the view box in the box of the
+// element. The width of the lines and the wobble are divided by the scale, so that they have the width and the size that the element says on the page. A shape that the file had
+// filled is filled with the colour of the line; the other closed shapes take the fill of the element, when it has one.
+function iconPaths(el: IconElement, opts: Record<string, unknown>): ElementPaths {
+  const data = iconData(el);
+  const turned = turn(el.angle, el.x + el.width / 2, el.y + el.height / 2);
+  if (!data) {
+    // An icon that is not known: a dotted square, in the box.
+    const pieces = piecesOf(generator.rectangle(el.x, el.y, el.width, el.height, { ...opts, fill: undefined, disableMultiStroke: true }), 1, `dashed`);
+    return { pieces, transform: turned };
+  }
+  const [vx, vy, vw, vh] = data.vb;
+  const sx = el.width / vw;
+  const sy = el.height / vh;
+  const k = Math.max(0.001, (sx + sy) / 2);
+  const base: Record<string, unknown> = { ...opts, strokeWidth: el.strokeWidth / k, maxRandomnessOffset: 2 / k, hachureGap: Math.max(6, el.strokeWidth * 3.5) / k, fillWeight: Math.max(1, el.strokeWidth / 2) / k };
+  const seed = (opts.seed as number) ?? 1;
+  const pieces: PathPiece[] = [];
+  data.shapes.forEach((shape, i) => {
+    const shapeOpts: Record<string, unknown> = { ...base, seed: seed + i };
+    if (shape.fill) {
+      shapeOpts.fill = el.stroke;
+      shapeOpts.fillStyle = `solid`;
+    } else if (el.fill !== undefined && shape.closed) {
+      shapeOpts.fill = el.fill;
+      shapeOpts.fillStyle = el.fillStyle === `grid` ? `cross-hatch` : el.fillStyle ?? `solid`;
+    } else {
+      delete shapeOpts.fill;
+      delete shapeOpts.fillStyle;
+    }
+    // A shape with no line (a filled shape of a file) has only its fill.
+    if (!shape.stroke) shapeOpts.stroke = `none`;
+    let made: PathPiece[] = [];
+    try {
+      made = piecesOf(generator.path(shape.d, shapeOpts), el.fillOpacity, `solid`);
+    } catch {
+      made = [];
+    }
+    pieces.push(...(shape.stroke ? made : made.filter((p) => p.outline !== true)));
+  });
+  const place = `translate(${r2(el.x)} ${r2(el.y)}) scale(${Math.round(sx * 10000) / 10000} ${Math.round(sy * 10000) / 10000}) translate(${-vx} ${-vy})`;
+  return { pieces, transform: turned ? `${turned} ${place}` : place };
+}
+
 // Computes the paths of an element.
 function compute(el: StrokedElement): ElementPaths {
   const opts = roughOptions(el);
+  if (el.type === `icon`) return iconPaths(el, opts);
   if (el.type === `rect`) return { pieces: shapePieces(el, opts), transform: turn(el.angle, el.x + el.width / 2, el.y + el.height / 2) };
   if (el.type === `ellipse`) return { pieces: shapePieces(el, opts), transform: turn(el.angle, el.cx, el.cy) };
   if (el.type === `diamond` || el.type === `triangle`) return { pieces: shapePieces(el, opts), transform: turn(el.angle, el.x + el.width / 2, el.y + el.height / 2) };

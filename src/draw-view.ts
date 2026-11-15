@@ -1,14 +1,20 @@
 // The view that opens a .sketchdraw file: a drawing kept in its own note. A toolbar on the right holds the tools and the properties of the lines and fills;
 // the engine (zoom, selection, undo...) is in CanvasView.
-import { Menu, setIcon, WorkspaceLeaf } from "obsidian";
+import { Menu, Notice, setIcon, WorkspaceLeaf } from "obsidian";
 import { CanvasView, Tool } from "./canvas-view";
 import { ColorChoice, ColorModal } from "./color-modal";
+import { ConfirmModal } from "./confirm-modal";
+import { IconModal, warningText } from "./icon-modal";
+import { iconData } from "./icon-registry";
+import { iconToElements, strokeCount } from "./icon-strokes";
+import type { IconData } from "./icon-svg";
+import type { IconEntry } from "./icon-themes";
 import { defaultFillPalette, FillSwatch, swatchBackground, swatchMatches } from "./swatches";
 import { toHex6 } from "./page-background";
 import { CANVAS_HEIGHT, CANVAS_WIDTH, contentBox, createEmptyDrawing, guideBox, parseSketchdraw, serializeSketchdraw, SketchdrawDoc } from "./drawing-file";
 import { drawElements, PLAIN } from "./element-render";
 import { BORDER_KINDS, BorderKind, CORNER_RADII, SHADOW_MAX_BLUR, SHADOW_MAX_DISTANCE } from "./effects";
-import { ArrowElement, MAX_ROUGHNESS, Head, HEADS, LineElement, Point, SketchElement, TextElement } from "./elements";
+import { ArrowElement, IconElement, MAX_ROUGHNESS, Head, HEADS, LineElement, Point, SketchElement, TextElement } from "./elements";
 import { fontStack } from "./fonts";
 import { openTextEditor } from "./text-editor";
 import { refitText, wrapLines } from "./text-layout";
@@ -402,6 +408,80 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.contentEl.focus({ preventScroll: true });
   }
 
+  // The line of the panel that names the icon that is selected.
+  private iconName: HTMLElement | null = null;
+
+  // Opens the window of the icons: Lucide, and the SVG drawings that the user keeps in the folder of the icons (which is created the first time).
+  private async openIcons(): Promise<void> {
+    try {
+      await this.api.drawings.ensureFolder(this.api.icons.folder());
+      await this.api.icons.refresh();
+    } catch {
+      // The folder of the user is not available: Lucide alone is offered.
+    }
+    new IconModal(this.app, this.api.icons, (entry, data) => this.insertIcon(entry, data)).open();
+  }
+
+  // Puts an icon in the middle of what is shown, as one change that can be undone. An icon of Lucide is kept by its name; a drawing of the user carries its shapes. It is made
+  // with the standard look (a black line, no fill, no effect) like every new element, and selected so that the panel acts on it.
+  private insertIcon(entry: IconEntry, data: IconData): void {
+    if (!this.style) return;
+    const elements = this.doc.elements;
+    const [, , vw, vh] = data.vb;
+    const width = 96;
+    const height = Math.max(24, Math.min(160, Math.round((width * vh) / vw)));
+    // The middle of the part of the surface that is seen, in page units.
+    let cx = 200;
+    let cy = 200;
+    if (this.scroller && this.svg) {
+      const sr = this.scroller.getBoundingClientRect();
+      const r = this.svg.getBoundingClientRect();
+      cx = (Math.max(sr.left, r.left) + Math.min(sr.right, r.right)) / 2 - r.left;
+      cy = (Math.max(sr.top, r.top) + Math.min(sr.bottom, r.bottom)) / 2 - r.top;
+      cx /= this.zoom;
+      cy /= this.zoom;
+    }
+    const base = { id: newId(elements), type: `icon` as const, x: Math.round(cx - width / 2), y: Math.round(cy - height / 2), width, height, stroke: this.style.stroke, strokeWidth: this.style.strokeWidth, roughness: this.style.roughness, seed: Math.floor(Math.random() * 1000000) + 1 };
+    const made: SketchElement = entry.source === `lucide` ? { ...base, icon: entry.name } : { ...base, name: entry.label, vb: data.vb, shapes: data.shapes.map((s) => ({ d: s.d, fill: s.fill, stroke: s.stroke, closed: s.closed })) };
+    this.selected = new Set([made.id]);
+    this.tool = `select`;
+    this.commitElements([...elements, made]);
+    if (data.warnings.length > 0) new Notice(warningText(data.warnings));
+  }
+
+  // Turns the selected icons into ordinary strokes, after a warning, as one change that can be undone: the icon becomes lines, ellipses and rectangles in a group.
+  private strokesFromIcons(): void {
+    const icons = this.selectedElements().filter((e): e is IconElement => e.type === `icon` && !isLocked(e));
+    if (icons.length === 0) return;
+    const data = icons.map((e) => ({ el: e, data: iconData(e) }));
+    const missing = data.filter((d) => d.data === null).length;
+    if (missing === data.length) {
+      new Notice(t(`Cette icône est inconnue : elle ne peut pas être transformée en traits.`));
+      return;
+    }
+    const count = data.reduce((n, d) => n + (d.data ? strokeCount(d.data) : 0), 0);
+    new ConfirmModal(
+      this.app,
+      t(`Transformer en traits`),
+      t(`{0} deviendra {1} traits ordinaires, groupés, que vous pourrez modifier un par un. Elle ne pourra plus être remplacée par une autre icône ni retrouver sa forme d'origine, sauf en annulant tout de suite (Ctrl+Z). Continuer ?`, icons.length === 1 ? t(`L'icône`) : t(`Les {0} icônes`, String(icons.length)), String(count)),
+      () => {
+        let next: SketchElement[] = [...this.doc.elements];
+        const chosen: string[] = [];
+        for (const { el, data: d } of data) {
+          if (!d) continue;
+          const index = next.findIndex((e) => e.id === el.id);
+          if (index < 0) continue;
+          const made = iconToElements(el, d, next);
+          next = [...next.slice(0, index), ...made.elements, ...next.slice(index + 1)];
+          chosen.push(...made.elements.map((e) => e.id));
+        }
+        this.selected = new Set(chosen);
+        this.commitElements(next);
+      },
+      () => undefined,
+    ).open();
+  }
+
   // A drawing cannot hold a frame of a drawing.
   protected acceptsElement(el: SketchElement): boolean {
     return el.type !== `drawing`;
@@ -450,6 +530,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.toolButton(tools, `pen`, `pencil`, t(`Stylo libre`));
     this.toolButton(tools, `point`, `dot`, t(`Point`));
     this.toolButton(tools, `text`, `type`, t(`Texte`));
+    this.button(tools, `shapes`, t(`Insérer une icône de la bibliothèque`), () => void this.openIcons());
     // The pin keeps the tool that is active after each stroke (it is not the lock of the elements, which is a button of the bar of the selection).
     const lock = this.button(tools, `pin-off`, t(`Garder l'outil actif après chaque tracé`), () => {
       this.toolLocked = !this.toolLocked;
@@ -561,6 +642,17 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.panelButton(aligns, `align-left`, t(`Aligné à gauche`), (s) => s.align === `left`, () => this.change({ align: `left` }));
     this.panelButton(aligns, `align-center`, t(`Centré`), (s) => s.align === `center`, () => this.change({ align: `center` }));
     this.panelButton(aligns, `align-right`, t(`Aligné à droite`), (s) => s.align === `right`, () => this.change({ align: `right` }));
+
+    // An icon: its name, and the button that turns it into ordinary strokes (with a warning: it cannot be replaced by another icon afterwards).
+    const iconSec = this.section(props, `icon`);
+    this.sectionIcon(iconSec, `shapes`, t(`Icône`));
+    this.iconName = iconSec.createDiv({ cls: `sketchdraw-slider-label` });
+    const strokes = iconSec.createEl(`button`, { cls: `sketchdraw-chip sketchdraw-menu has-name` });
+    setIcon(strokes, `pencil-line`);
+    strokes.createSpan({ cls: `sketchdraw-menu-name`, text: t(`Transformer en traits`) });
+    strokes.setAttribute(`aria-label`, t(`Transformer en traits`));
+    strokes.setAttribute(`title`, t(`Transformer l'icône en traits ordinaires, que l'on modifie un par un`));
+    strokes.addEventListener(`click`, () => this.strokesFromIcons());
 
     // The distortion of a text and its vertical writing: one menu, a slider for the strength (only with a distortion) and a box to check.
     const warpSec = this.section(props, `warp`);
@@ -953,6 +1045,10 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       d.el.setAttribute(`title`, d.name(s));
     }
     for (const f of this.syncers) f(s);
+    if (this.iconName) {
+      const icon = this.selectedElements().find((e): e is IconElement => e.type === `icon`);
+      this.iconName.setText(icon ? (icon.icon ? `Lucide : ${icon.icon}` : icon.name ?? ``) : ``);
+    }
     for (const sw of this.strokeSwatches) sw.toggleClass(`is-active`, this.doc.palette[Number(sw.dataset.index)] !== undefined && toHex6(this.doc.palette[Number(sw.dataset.index)]) === toHex6(s.stroke));
     const fills = this.fillSwatchList();
     for (const sw of this.fillSwatches) sw.toggleClass(`is-active`, swatchMatches(fills[Number(sw.dataset.index)] ?? null, s.fill, s.fillStyle));

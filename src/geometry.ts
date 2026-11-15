@@ -37,7 +37,7 @@ export function centerOf(box: Box): Point {
 
 // Returns the box of an element before rotation and its rotation. A line or an arrow has no rotation of its own: its box is the one of its points.
 export function boxOf(el: SketchElement): { box: Box; angle: number } {
-  if (el.type === `rect` || el.type === `diamond` || el.type === `triangle` || el.type === `drawing` || el.type === `text`) return { box: { x: el.x, y: el.y, w: el.width, h: el.height }, angle: el.angle ?? 0 };
+  if (el.type === `rect` || el.type === `diamond` || el.type === `triangle` || el.type === `drawing` || el.type === `text` || el.type === `icon`) return { box: { x: el.x, y: el.y, w: el.width, h: el.height }, angle: el.angle ?? 0 };
   if (el.type === `ellipse`) return { box: { x: el.cx - el.rx, y: el.cy - el.ry, w: 2 * el.rx, h: 2 * el.ry }, angle: el.angle ?? 0 };
   let minX = Infinity;
   let minY = Infinity;
@@ -142,10 +142,11 @@ export function hitElement(el: SketchElement, p: Point, tolerance: number): bool
   const lx = q[0] - c[0];
   const ly = q[1] - c[1];
   const filled = isShape(el) && el.fill !== undefined;
-  if (el.type === `rect` || el.type === `drawing` || el.type === `text`) {
+  if (el.type === `rect` || el.type === `drawing` || el.type === `text` || el.type === `icon`) {
     const dx = Math.abs(lx) - box.w / 2;
     const dy = Math.abs(ly) - box.h / 2;
-    if (el.type === `drawing` || el.type === `text`) return dx <= tolerance && dy <= tolerance;
+    // A frame, a text and an icon are touched anywhere inside their box.
+    if (el.type === `drawing` || el.type === `text` || el.type === `icon`) return dx <= tolerance && dy <= tolerance;
     if (filled && dx <= 0 && dy <= 0) return true;
     const dist = dx <= 0 && dy <= 0 ? Math.min(-dx, -dy) : Math.hypot(Math.max(dx, 0), Math.max(dy, 0));
     return dist <= reach;
@@ -212,7 +213,7 @@ export function visibleCorners(el: SketchElement): (0 | 1 | 2 | 3)[] {
 // Returns the sides that carry a handle in their middle: the rectangle, the ellipse, the diamond and the text zone, which are stretched or squashed with them. A text that is
 // only as large as its lines, a picture frame, a line, an arrow and a pen stroke have none.
 export function visibleSides(el: SketchElement): Side[] {
-  if (el.type === `rect` || el.type === `ellipse` || el.type === `diamond` || el.type === `triangle` || (el.type === `text` && el.zone === true)) return [0, 1, 2, 3];
+  if (el.type === `rect` || el.type === `ellipse` || el.type === `diamond` || el.type === `triangle` || el.type === `icon` || (el.type === `text` && el.zone === true)) return [0, 1, 2, 3];
   return [];
 }
 

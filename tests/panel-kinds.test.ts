@@ -5,7 +5,7 @@ import { panelKinds, PanelSection, sectionShown } from "../src/panel-kinds";
 
 const make = (type: string): SketchElement => ({ id: type, type, stroke: `#000000`, strokeWidth: 3, points: [[0, 0], [1, 1]], x: 0, y: 0, width: 1, height: 1, cx: 0, cy: 0, rx: 1, ry: 1, text: `a`, font: `caveat`, size: 20, path: null }) as unknown as SketchElement;
 
-const ALL: PanelSection[] = [`colour`, `fill`, `brush`, `width`, `dash`, `look`, `regularity`, `border`, `corners`, `edges`, `heads`, `text`, `warp`, `effects`];
+const ALL: PanelSection[] = [`colour`, `fill`, `brush`, `width`, `dash`, `look`, `regularity`, `border`, `corners`, `edges`, `heads`, `text`, `warp`, `icon`, `effects`];
 const shown = (tool: string, types: string[]): PanelSection[] => ALL.filter((s) => sectionShown(s, panelKinds(tool, types.map(make))));
 
 test(`un trait ou une fleche n'ont pas de remplissage ni de bordure`, () => {
