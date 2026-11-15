@@ -116,9 +116,12 @@ export function drawFunctions(): DrawFunction[] {
       id: `point`,
       icon: `dot`,
       name: () => t(`Point`),
-      help: () => [t(`Pose un point d'un clic. Le menu règle sa couleur et sa taille.`)],
+      help: () => [
+        t(`Pose une petite forme d'un clic : un disque, une croix, une étoile, un cœur, une note de musique, un soleil et bien d'autres. Le menu choisit la forme et sa taille.`),
+        t(`La forme se déplace, se redimensionne, se tourne et se colore ensuite comme une icône.`),
+      ],
       tools: [`point`],
-      sections: [`colour`, `width`, `look`],
+      sections: [`stamp`, `colour`, `width`, `look`],
     },
     {
       id: `eraser`,

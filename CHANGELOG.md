@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.35.0
+
+English
+
+Shapes for the Point tool. A click with the Point tool no longer puts only a dot: the menu of the tool offers 22 shapes (disc, circle, cross, plus, star, four-pointed star, filled diamond, filled square, filled triangle, heart, sharp, flat, note of music, check mark, lightning, right arrow, chevron, sun, cloud, drop, crescent moon and shooting star), each shown with its own pictogram, and a slider for the size (from 6 to 150, 20 by default). The shape and its size are kept for the next clicks, and the tool stays active until Escape. The shape that is put is an icon of the drawing with its own shapes: it takes the colour, the width and the hand drawn look of the menu, and it can be moved, resized, turned, mirrored, coloured and given a fill like any icon. The line is never thicker than an eighth of the shape, so that a small shape stays readable. Older drawings are not changed: the dots that they hold stay as they are, and the files stay readable by the previous versions.
+
+Français
+
+Des formes pour l'outil Point. Un clic avec l'outil Point ne pose plus seulement un point : le menu de l'outil propose 22 formes (disque, cercle, croix, plus, étoile, étoile à quatre branches, losange plein, carré plein, triangle plein, cœur, dièse, bémol, note de musique, coche, éclair, flèche droite, chevron, soleil, nuage, goutte, croissant de lune et étoile filante), chacune montrée avec son pictogramme, et une réglette de taille (de 6 à 150, 20 par défaut). La forme et sa taille sont gardées pour les clics suivants, et l'outil reste actif jusqu'à Échap. La forme posée est une icône du dessin avec ses propres tracés : elle prend la couleur, l'épaisseur et l'aspect à main levée du menu, et elle se déplace, se redimensionne, se tourne, se retourne, se colore et reçoit un remplissage comme n'importe quelle icône. Le trait n'est jamais plus épais que le huitième de la forme, pour qu'une petite forme reste lisible. Les anciens dessins ne changent pas : les points qu'ils contiennent restent tels quels, et les fichiers restent lisibles par les versions précédentes.
+
 ## 0.34.0
 
 English

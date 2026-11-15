@@ -2,6 +2,7 @@
 // registered once with addIcon, on a 100 by 100 grid, in the colour of the text.
 import { addIcon } from "obsidian";
 import { BUBBLE_FORMS, FESTOON_FORMS, formPath } from "./shape-forms";
+import { STAMP_IDS, stampShapes } from "./stamps";
 
 const Q = String.fromCharCode(34);
 
@@ -87,6 +88,11 @@ const ICONS: Record<string, string> = {
 // Registers the pictograms of the plugin. Each head of an arrow also exists mirrored (sketchnote-head-start-...), to show the head at the start of an arrow.
 export function registerIcons(): void {
   for (const [name, svg] of Object.entries(ICONS)) addIcon(name, svg);
+  // The pictogram of each shape of the Point tool: its own shapes, filled or drawn with a line.
+  for (const id of STAMP_IDS) {
+    const inner = stampShapes(id).map((sh) => (sh.fill ? tag(`path`, { d: sh.d, fill: `currentColor`, stroke: `none` }) : tag(`path`, { d: sh.d, fill: `none`, stroke: `currentColor`, "stroke-width": 8, "stroke-linecap": `round`, "stroke-linejoin": `round` }))).join(``);
+    addIcon(`sketchnote-stamp-${id}`, inner);
+  }
   // The pictogram of each form of a bubble or of a festoon is the form itself, drawn from the same data as the shape on the page.
   for (const form of [...BUBBLE_FORMS, ...FESTOON_FORMS]) {
     const d = formPath(form, 12, 14, 76, 50, undefined, 0);

@@ -44,6 +44,7 @@ import { isLabeledShape, labelBox, labelColor, LabeledShape, pathMiddle } from "
 import { hitTop } from "./geometry";
 import { newId } from "./elements";
 import { MIN_ERASE_SIZE } from "./erase-data";
+import { MIN_STAMP_SIZE, STAMP_IDS, stampName, StampId } from "./stamps";
 import { BUBBLE_FORMS, FESTOON_FORMS, FestoonForm, ShapeForm } from "./shape-forms";
 import { SketchnoteView, VIEW_TYPE as PAGE_VIEW_TYPE } from "./view";
 
@@ -925,6 +926,13 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.panelButtons.length = 0;
     this.sections.length = 0;
 
+    // The Point tool: the shape that a click puts (a menu of the shapes, each with its pictogram) and its size.
+    const stampSec = this.section(props, `stamp`);
+    this.sectionIcon(stampSec, `sketchnote-stamp-star`, t(`Forme du point`));
+    const stamps = stampSec.createDiv({ cls: `sketchdraw-row` });
+    this.dropdown<StampId>(stamps, t(`Forme du point`), [...STAMP_IDS], (v) => `sketchnote-stamp-${v}`, stampName, (st) => st.stamp, (v) => ({ stamp: v }), true);
+    this.slider(stampSec, t(`Taille`), t(`Taille de la forme`), MIN_STAMP_SIZE, 120, 1, (st) => st.stampSize, (v) => ({ stampSize: v }));
+
     // The eraser: the tip (soft, round or square), its size and how much it erases. The settings stay for the next passes.
     const eraserSec = this.section(props, `eraser`);
     this.sectionIcon(eraserSec, `eraser`, t(`Gomme`));
@@ -1339,7 +1347,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   // Tells whether a section of the panel can be used before anything is drawn: the settings of a text, and the settings of the pen (its brush and its regularity, and with the pen
   // tool its colour and its thickness too), which are kept for the next strokes.
   private usableBeforeDrawing(name: PanelSection): boolean {
-    if (name === `text` || name === `regularity` || name === `brush` || name === `display` || name === `bubbleform` || name === `festoonform` || name === `eraser`) return true;
+    if (name === `text` || name === `regularity` || name === `brush` || name === `display` || name === `bubbleform` || name === `festoonform` || name === `eraser` || name === `stamp`) return true;
     return this.tool === `pen` && (name === `colour` || name === `width`);
   }
 
@@ -1437,7 +1445,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     for (const el of this.selectedElements()) {
       const s = styleOf(el);
       // The settings of the eraser belong to the tool, not to the element that is selected.
-      if (s) return { ...s, eraseShape: base.eraseShape, eraseSize: base.eraseSize, eraseDensity: base.eraseDensity };
+      if (s) return { ...s, eraseShape: base.eraseShape, eraseSize: base.eraseSize, eraseDensity: base.eraseDensity, stamp: base.stamp, stampSize: base.stampSize };
     }
     return this.tool === `pen` ? { ...base, ...this.penLook } : base;
   }
@@ -1458,6 +1466,8 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
         if (clean.stroke !== undefined) this.penLook.stroke = clean.stroke;
         if (clean.strokeWidth !== undefined) this.penLook.strokeWidth = clean.strokeWidth;
       }
+      if (clean.stamp !== undefined) keep.stamp = clean.stamp;
+      if (clean.stampSize !== undefined) keep.stampSize = clean.stampSize;
       if (clean.eraseShape !== undefined) keep.eraseShape = clean.eraseShape;
       if (clean.eraseSize !== undefined) keep.eraseSize = clean.eraseSize;
       if (clean.eraseDensity !== undefined) keep.eraseDensity = clean.eraseDensity;
