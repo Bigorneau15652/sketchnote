@@ -13,7 +13,7 @@ import { History } from "./history";
 import { t } from "./i18n";
 import { RenderedPage } from "./page-render";
 import { drawUi } from "./selection-render";
-import { cloneElements, moveElements, reorder, removeElements } from "./selection-ops";
+import { cloneElements, moveElements, reorder, reorderStep, removeElements } from "./selection-ops";
 import { snapBox } from "./snap";
 import { ToolStyle } from "./style";
 import { addPenPoint, CREATION_TOOLS, CreationTool, elementFromDrag, linearElement, penElement, pointElement } from "./tools";
@@ -283,8 +283,10 @@ export abstract class CanvasView<D> extends TextFileView {
     this.button(actions, `copy`, t(`Dupliquer`), () => void this.duplicateSelection());
     this.button(actions, `flip-horizontal`, t(`Retourner horizontalement`), () => this.flipSelection(`x`));
     this.button(actions, `flip-vertical`, t(`Retourner verticalement`), () => this.flipSelection(`y`));
-    this.button(actions, `bring-to-front`, t(`Mettre devant`), () => this.reorderSelection(`front`));
-    this.button(actions, `send-to-back`, t(`Mettre derrière`), () => this.reorderSelection(`back`));
+    this.button(actions, `bring-to-front`, t(`Mettre au premier plan`), () => this.reorderSelection(`front`));
+    this.button(actions, `arrow-up`, t(`Monter d'un niveau`), () => this.reorderSelection(`up`));
+    this.button(actions, `arrow-down`, t(`Descendre d'un niveau`), () => this.reorderSelection(`down`));
+    this.button(actions, `send-to-back`, t(`Mettre à l'arrière plan`), () => this.reorderSelection(`back`));
     this.button(actions, `trash-2`, t(`Supprimer`), () => this.deleteSelection());
     this.selectionActions = actions;
     this.updateBar();
@@ -596,11 +598,11 @@ export abstract class CanvasView<D> extends TextFileView {
     return true;
   }
 
-  // Brings the selection to the front or sends it to the back.
-  protected reorderSelection(where: `front` | `back`): void {
+  // Brings the selection to the front or sends it to the back, or moves it one level up or down.
+  protected reorderSelection(where: `front` | `back` | `up` | `down`): void {
     if (this.selected.size === 0) return;
     const elements = this.elementsOf(this.doc);
-    const next = reorder(elements, this.selected, where);
+    const next = where === `up` || where === `down` ? reorderStep(elements, this.selected, where) : reorder(elements, this.selected, where);
     if (next.every((e, i) => e === elements[i])) return;
     this.commitElements(next);
   }

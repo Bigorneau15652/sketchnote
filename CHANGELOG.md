@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.25.0
+
+English
+
+Levels of the objects. The selection bar now has four buttons for the order in which the objects are drawn: Bring to front, Bring forward, Send backward and Send to back. Bring forward and Send backward move the selection one level: it passes the nearest object that overlaps it (an object far away would change nothing that can be seen), and nothing changes when no object overlaps it in that direction. Several objects selected move together and keep their order. A locked object does not change level. The two buttons that already existed are renamed Bring to front and Send to back, and the shortcuts Ctrl+] and Ctrl+[ are unchanged. Files of the previous versions open without change.
+
+Français
+
+Niveaux des objets. La barre de sélection a maintenant quatre boutons pour l'ordre dans lequel les objets sont dessinés : Mettre au premier plan, Monter d'un niveau, Descendre d'un niveau et Mettre à l'arrière plan. Monter et Descendre d'un niveau déplacent la sélection d'un cran : elle passe l'objet le plus proche qui la recouvre (un objet éloigné ne changerait rien de visible), et rien ne change quand aucun objet ne la recouvre dans cette direction. Plusieurs objets sélectionnés se déplacent ensemble et gardent leur ordre. Un objet verrouillé ne change pas de niveau. Les deux boutons qui existaient déjà sont renommés Mettre au premier plan et Mettre à l'arrière plan, et les raccourcis Ctrl+] et Ctrl+[ sont inchangés. Les fichiers des versions précédentes s'ouvrent sans changement.
+
 ## 0.24.0
 
 English

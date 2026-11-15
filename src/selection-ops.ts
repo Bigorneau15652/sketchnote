@@ -1,5 +1,6 @@
 // Pure operations on a selection of elements: delete, copy, duplicate, change the order and nudge.
 import { newId, SketchElement } from "./elements";
+import { boxesIntersect, elementBounds, unionBox } from "./geometry";
 import { isLocked } from "./lock";
 import { translate } from "./transform";
 
@@ -44,6 +45,46 @@ export function reorder(elements: SketchElement[], ids: Set<string>, where: `fro
   const chosen = elements.filter((e) => ids.has(e.id) && !isLocked(e));
   const others = elements.filter((e) => !ids.has(e.id) || isLocked(e));
   return where === `front` ? [...others, ...chosen] : [...chosen, ...others];
+}
+
+// Moves the selected elements one level up or down: they pass the nearest element that overlaps them (an element far away would change nothing that can be seen). The
+// selected elements that are not locked move together and keep their order. When nothing overlaps them in that direction, the list does not change.
+export function reorderStep(elements: SketchElement[], ids: Set<string>, where: `up` | `down`): SketchElement[] {
+  const indexes: number[] = [];
+  elements.forEach((e, i) => {
+    if (ids.has(e.id) && !isLocked(e)) indexes.push(i);
+  });
+  if (indexes.length === 0) return elements;
+  const chosen = indexes.map((i) => elements[i]);
+  const area = unionBox(chosen.map((e) => elementBounds(e)));
+  if (!area) return elements;
+  const overlaps = (e: SketchElement): boolean => boxesIntersect(elementBounds(e), area);
+  const isChosen = (e: SketchElement): boolean => ids.has(e.id) && !isLocked(e);
+  let target = -1;
+  if (where === `up`) {
+    for (let j = indexes[indexes.length - 1] + 1; j < elements.length; j++) {
+      if (!isChosen(elements[j]) && overlaps(elements[j])) {
+        target = j;
+        break;
+      }
+    }
+  } else {
+    for (let j = indexes[0] - 1; j >= 0; j--) {
+      if (!isChosen(elements[j]) && overlaps(elements[j])) {
+        target = j;
+        break;
+      }
+    }
+  }
+  if (target < 0) return elements;
+  const out: SketchElement[] = [];
+  elements.forEach((e, i) => {
+    if (isChosen(e)) return;
+    if (i === target && where === `down`) out.push(...chosen);
+    out.push(e);
+    if (i === target && where === `up`) out.push(...chosen);
+  });
+  return out;
 }
 
 // Returns the list with the selected elements moved by a distance.
