@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.30.1
+
+English
+
+Turning a pen stroke and tools that stay chosen. The rotation handle of a pen stroke that was tidied (a clean ellipse, rectangle or line made from a rough drawing with the regularity of the pen) deformed it like a corner handle: the turned points were tidied again and the shape came back upright. The tidied shape is now fixed before it is turned (its regularity is then 0), so it keeps the shape that is seen, alone or in a block of several elements. The tools of a drawing now stay chosen after each shape, like the pen: a rectangle, a diamond, an ellipse, a triangle, a line, an arrow or a point can be drawn again and again until the key Escape is pressed or another tool is chosen (with the buttons or with the shortcuts). The pin that kept the tool, which has become useless, is removed. The Text tool still ends with the Select tool, so that a text can be moved right after it is written.
+
+Français
+
+Rotation d'un tracé au stylo et outils qui restent choisis. La poignée de rotation d'un tracé au stylo mis au net (une ellipse, un rectangle ou un trait propres faits à partir d'un dessin approximatif avec la régularité du stylo) le déformait comme une poignée d'angle : les points tournés étaient remis au net et la forme redevenait droite. La forme mise au net est maintenant fixée avant d'être tournée (sa régularité vaut alors 0), si bien qu'elle garde la forme que l'on voit, seule ou dans un bloc de plusieurs éléments. Les outils d'un dessin restent maintenant choisis après chaque forme, comme le stylo : un rectangle, un losange, une ellipse, un triangle, un trait, une flèche ou un point se dessinent encore et encore jusqu'à ce que l'on appuie sur la touche Échap ou que l'on choisisse un autre outil (avec les boutons ou avec les raccourcis). La punaise qui gardait l'outil, devenue inutile, est retirée. L'outil Texte se termine toujours avec l'outil Sélectionner, pour pouvoir déplacer un texte tout de suite après l'avoir écrit.
+
 ## 0.30.0
 
 English

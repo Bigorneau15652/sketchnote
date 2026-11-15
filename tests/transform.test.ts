@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SketchElement } from "../src/elements";
+import { Point, SketchElement } from "../src/elements";
 import { boxCorners, boxOf } from "../src/geometry";
-import { MIN_SIZE, normalizeAngle, resizeElement, rotateBy, translate } from "../src/transform";
+import { MIN_SIZE, normalizeAngle, resizeElement, rotateAbout, rotateBy, translate } from "../src/transform";
 
 const base = { stroke: `#000000`, strokeWidth: 2 };
 const line = (points: [number, number][]): SketchElement => ({ id: `l`, type: `line`, points, ...base });
@@ -223,4 +223,36 @@ test(`seuls certains elements ont des poignees de cote`, () => {
   assert.deepEqual(hitBoxHandle(b, 0, [50, 0], 1, 8, [0, 1, 2, 3], true, [0, 1, 2, 3]), { kind: `side`, side: 0 });
   assert.deepEqual(hitBoxHandle(b, 0, [3, 3], 1, 8, [0, 1, 2, 3], true, [0, 1, 2, 3]), { kind: `resize`, corner: 0 });
   assert.equal(hitBoxHandle(b, 0, [50, 0], 1, 8), null);
+});
+
+test(`tourner un trait tidy garde la forme que l'on voit : une ellipse nette tournee de 90 degres reste une ellipse, couchee`, () => {
+  // A rough wide ellipse (200 x 100) drawn by hand, with a regularity that makes it a clean ellipse.
+  const points: Point[] = [];
+  for (let i = 0; i <= 60; i++) {
+    const a = (i / 60) * Math.PI * 2;
+    points.push([300 + 100 * Math.cos(a) + (i % 3) - 1, 200 + 50 * Math.sin(a) + (i % 2) - 0.5]);
+  }
+  const el = { id: `p`, type: `freedraw`, points, stroke: `#000000`, strokeWidth: 3, regularity: 5, seed: 1 } as SketchElement;
+  const turned = rotateBy(el, 90);
+  assert.equal(turned.type, `freedraw`);
+  if (turned.type !== `freedraw`) return;
+  assert.equal(turned.regularity, undefined, `la forme nette est fixee : plus de regularite a appliquer`);
+  const xs = turned.points.map((p) => p[0]);
+  const ys = turned.points.map((p) => p[1]);
+  const w = Math.max(...xs) - Math.min(...xs);
+  const h = Math.max(...ys) - Math.min(...ys);
+  assert.ok(Math.abs(w - 100) < 8 && Math.abs(h - 200) < 8, `couchee : ${w.toFixed(1)} x ${h.toFixed(1)}`);
+  // Turned by 45 degrees, it is not deformed back to an upright shape: the points keep their distance to the centre (an ellipse turned has the same extreme radii).
+  const t45 = rotateBy(el, 45);
+  if (t45.type !== `freedraw`) return;
+  const cx = (Math.max(...t45.points.map((p) => p[0])) + Math.min(...t45.points.map((p) => p[0]))) / 2;
+  const cy = (Math.max(...t45.points.map((p) => p[1])) + Math.min(...t45.points.map((p) => p[1]))) / 2;
+  const radii = t45.points.map((p) => Math.hypot(p[0] - cx, p[1] - cy));
+  assert.ok(Math.max(...radii) > 90 && Math.min(...radii) < 60, `${Math.max(...radii).toFixed(1)} / ${Math.min(...radii).toFixed(1)}`);
+  // A stroke without regularity is only turned.
+  const plain = rotateBy({ ...el, regularity: undefined } as SketchElement, 90);
+  assert.ok(plain.type === `freedraw` && plain.points.length === points.length);
+  // In a block the same holds.
+  const block = rotateAbout(el, [300, 200], 90);
+  assert.ok(block.type === `freedraw` && block.regularity === undefined);
 });

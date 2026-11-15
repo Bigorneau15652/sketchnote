@@ -138,7 +138,6 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   private strokePastille: HTMLElement | null = null;
   private fillPastille: HTMLElement | null = null;
   private readonly panelButtons: { el: HTMLElement; test: (s: ToolStyle) => boolean }[] = [];
-  private lockButton: HTMLElement | null = null;
   // The text being written (hidden while the text area is over it) and the function that ends the writing.
   private editingText: string | null = null;
   // The shape whose text is being written (its text is hidden while the text area is over it).
@@ -150,6 +149,8 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   constructor(leaf: WorkspaceLeaf, api: PluginApi) {
     super(leaf, createEmptyDrawing());
     this.api = api;
+    // A tool stays chosen after each shape, as the pen does, until Escape or another tool.
+    this.toolLocked = true;
     this.style = defaultStyle(`#000000`);
   }
 
@@ -432,7 +433,8 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       const made = dragged ? refitText(zoneElement(dragged, clean, style, newId(this.doc.elements)), measure) : textElement(at, clean, style, newId(this.doc.elements), measure);
       this.commitElements([...this.doc.elements, made]);
       this.selected = new Set([made.id]);
-      if (!this.toolLocked) this.tool = `select`;
+      // A text ends with the Select tool, so that it can be moved right away (the shapes and the pen stay chosen).
+      this.tool = `select`;
     } else this.renderContent();
     this.renderUi();
     this.updateBar();
@@ -747,7 +749,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   private lastTool: Tool = `select`;
   private unsubscribeSettings: (() => void) | null = null;
   // The groups of tools of the menu: one for each function that has tools, and the pin that keeps the tool.
-  private readonly toolGroups: { el: HTMLElement; fn: DrawFunctionId | null }[] = [];
+  private readonly toolGroups: { el: HTMLElement; fn: DrawFunctionId }[] = [];
 
   // Tells whether the buttons of the menu show a word next to their pictogram (a setting).
   private labelsOn(): boolean {
@@ -855,15 +857,6 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
         if (this.builtWithWords) button.createSpan({ cls: `sketchdraw-chip-word`, text: shortWord(label) });
       }
     }
-    const pinGroup = tools.createDiv({ cls: `sketchdraw-section sketchdraw-toolgroup` });
-    this.toolGroups.push({ el: pinGroup, fn: null });
-    const lock = this.button(pinGroup, `pin-off`, t(`Garder l'outil actif après chaque tracé`), () => {
-      this.toolLocked = !this.toolLocked;
-      setIcon(lock, this.toolLocked ? `pin` : `pin-off`);
-      lock.toggleClass(`is-active`, this.toolLocked);
-    });
-    lock.addClass(`sketchdraw-chip`);
-    this.lockButton = lock;
     const props = context.createDiv({ cls: `sketchdraw-props` });
     this.buildProps(props);
     this.lastPanel = ``;
@@ -1265,7 +1258,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     }
     // The tools of the active function, and the pin when it has tools.
     for (const group of this.toolGroups) {
-      const on = group.fn === null ? (fn?.tools.length ?? 0) > 0 : group.fn === this.activeFn;
+      const on = group.fn === this.activeFn;
       group.el.toggleClass(`sketchdraw-hidden`, !on);
       if (on) any = true;
     }
@@ -1407,7 +1400,6 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
 
   // Called when the selection or the tool changes: the panel shows the style that applies.
   protected onSelectionChanged(): void {
-    this.lockButton?.toggleClass(`is-active`, this.toolLocked);
     // A tool chosen another way (the keyboard, a shape that was just drawn) makes its function the active one.
     if (this.tool !== this.lastTool) {
       this.lastTool = this.tool;
