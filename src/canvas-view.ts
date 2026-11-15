@@ -83,7 +83,7 @@ export abstract class CanvasView<D> extends TextFileView {
   protected ui: SVGElement | null = null;
   private zoomLabel: HTMLElement | null = null;
   private zoomSlider: HTMLInputElement | null = null;
-  private readonly toolButtons = new Map<Tool, HTMLElement[]>();
+  protected readonly toolButtons = new Map<Tool, HTMLElement[]>();
   private undoButton: HTMLButtonElement | null = null;
   private redoButton: HTMLButtonElement | null = null;
   private selectionActions: HTMLElement | null = null;
@@ -286,10 +286,26 @@ export abstract class CanvasView<D> extends TextFileView {
     this.zoomSlider = slider;
     this.button(bar, `zoom-in`, t(`Zoom avant`), () => this.setZoom(stepZoom(this.zoom, 1)));
     this.button(bar, `maximize`, t(`Ajuster à la fenêtre`), () => this.fitView());
-    this.button(bar, `download`, t(`Exporter`), () => this.openExport());
+    if (this.exportInBar()) this.button(bar, `download`, t(`Exporter`), () => this.openExport());
     this.zoomLabel = bar.createSpan({ cls: `sketchnote-zoom-text` });
 
-    const actions = bar.createDiv({ cls: `sketchnote-selection-actions` });
+    if (this.selectionActionsInBar()) this.buildSelectionActions(bar);
+    this.updateBar();
+  }
+
+  // Tells whether the actions on the selection are in the bottom bar (the page) or built elsewhere by the view (the drawing puts them in its menu).
+  protected selectionActionsInBar(): boolean {
+    return true;
+  }
+
+  // Tells whether the bottom bar has the Export button (the drawing has it among the buttons on its right).
+  protected exportInBar(): boolean {
+    return true;
+  }
+
+  // Builds the buttons that act on the selection: group, lock, duplicate, mirror, levels and delete.
+  protected buildSelectionActions(parent: HTMLElement): HTMLElement {
+    const actions = parent.createDiv({ cls: `sketchnote-selection-actions` });
     this.groupButton = this.button(actions, `group`, t(`Grouper`), () => this.toggleGroup());
     this.lockSelectionButton = this.button(actions, `lock`, t(`Verrouiller`), () => this.toggleLock());
     this.button(actions, `copy`, t(`Dupliquer`), () => void this.duplicateSelection());
@@ -301,7 +317,7 @@ export abstract class CanvasView<D> extends TextFileView {
     this.button(actions, `send-to-back`, t(`Mettre à l'arrière plan`), () => this.reorderSelection(`back`));
     this.button(actions, `trash-2`, t(`Supprimer`), () => this.deleteSelection());
     this.selectionActions = actions;
-    this.updateBar();
+    return actions;
   }
 
   // Updates the buttons of the bar: active tool, undo and redo availability, and the actions on the selection.
@@ -467,7 +483,7 @@ export abstract class CanvasView<D> extends TextFileView {
 
   // Draws everything again: the surface, the elements and the editor overlay. Used when the surface itself changes.
   // Opens the window of the export: the part (everything or the selection), the format, the size and the background, with a preview and the buttons that save, copy and link.
-  protected openExport(): void {
+  openExport(): void {
     const selected = this.selectedElements().length > 0;
     new ExportModal(
       this.app,
