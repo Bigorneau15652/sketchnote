@@ -1112,3 +1112,13 @@ textarea.sketchnote-text-editor.is-label {
   width: 32px;
   height: 32px;
 }
+
+/* Zen mode: the menus of Obsidian are hidden, in the main window and in the floating window of the page. The title bar stays (it holds the buttons of the window). */
+body.sketchnote-zen .workspace-ribbon,
+body.sketchnote-zen .status-bar,
+body.sketchnote-zen .workspace-tab-header-container,
+body.sketchnote-zen .workspace-split.mod-left-split,
+body.sketchnote-zen .workspace-split.mod-right-split,
+body.sketchnote-zen .view-header {
+  display: none !important;
+}
