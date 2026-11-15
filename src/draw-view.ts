@@ -16,7 +16,7 @@ import { Box, unionBox as unionBoxes } from "./geometry";
 import { brightness } from "./page-background";
 import { t } from "./i18n";
 import { panelKinds, PanelSection, sectionShown } from "./panel-kinds";
-import { BRUSH_DEFS, BRUSH_KINDS, BrushKind, BrushParam, brushPieces, paramsOf, previewPoints } from "./brushes";
+import { BRUSH_DEFS, BRUSH_KINDS, BrushKind, BrushParam, brushMake, paramsOf, previewPoints } from "./brushes";
 import { penCursor } from "./cursors";
 import { allLocked, isLocked } from "./lock";
 import { MAX_REGULARITY } from "./tidy";
@@ -32,6 +32,9 @@ import { VIEW_TYPE as PAGE_VIEW_TYPE } from "./view";
 
 export const DRAW_VIEW_TYPE = `sketchdraw-view`;
 
+// A number that makes the identifiers of the filters of the pictograms different.
+let previewCount = 0;
+
 // Returns the name of a brush in the language of the user.
 function brushName(brush: BrushKind): string {
   const names: Record<BrushKind, string> = {
@@ -45,6 +48,13 @@ function brushName(brush: BrushKind): string {
     lino: t(`Pointe de linogravure`),
     airbrush: t(`Aérographe`),
     aerosol: t(`Aérosol`),
+    watercolor: t(`Aquarelle`),
+    gouache: t(`Gouache`),
+    oil: t(`Huile`),
+    drybrush: t(`Brosse sèche`),
+    chalk: t(`Craie`),
+    pastel: t(`Pastel`),
+    charcoal: t(`Fusain`),
   };
   return names[brush];
 }
@@ -84,9 +94,9 @@ function brushSliderShort(param: BrushParam): string {
 function brushSliderLabel(param: BrushParam): string {
   switch (param) {
     case `flow`:
-      return t(`Flux : la peinture déposée à chaque touche, qui se renforce quand les touches se recouvrent (l'opacité des effets, elle, éclaircit tout le tracé)`);
+      return t(`Flux : la quantité de peinture sur le pinceau (à 100 % le trait est plein, en dessous du blanc apparaît, de plus en plus vers la fin du trait)`);
     case `hardness`:
-      return t(`Dureté : d'un bord flou à un bord net`);
+      return t(`Dureté : le contour du trait, net quand elle est forte, flou au départ, à l'arrivée et sur les bords quand elle est faible`);
     case `spacing`:
       return t(`Espacement : la distance entre deux touches du pinceau`);
     case `form`:
@@ -644,8 +654,28 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
         svgEl(`path`, { d: `M${pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(` L`)}`, fill: `none`, stroke: `currentColor`, "stroke-width": 3.2, "stroke-linecap": `round`, "stroke-linejoin": `round` }, svg);
         return;
       }
-      for (const piece of brushPieces({ brush, points: previewPoints(), width: 3, color: `currentColor`, seed: 7, params, dynamic: true })) {
-        svgEl(`path`, { d: piece.d, stroke: piece.stroke, "stroke-width": piece.strokeWidth, fill: piece.fill, opacity: piece.opacity, "stroke-linecap": `round` }, svg);
+      const made = brushMake({ brush, points: previewPoints(), width: BRUSH_DEFS[brush].previewWidth, color: `currentColor`, seed: 7, params, dynamic: true });
+      // The gaps of a brush with little paint on it, as in the drawing.
+      let masked: Element = svg;
+      if (made.holes !== ``) {
+        previewCount++;
+        const mid = `skpm${previewCount}`;
+        const mask = svgEl(`mask`, { id: mid, maskUnits: `userSpaceOnUse`, x: -10, y: -10, width: 120, height: 60 }, svgEl(`defs`, {}, svg));
+        svgEl(`rect`, { x: -10, y: -10, width: 120, height: 60, fill: `#ffffff` }, mask);
+        svgEl(`path`, { d: made.holes, fill: `#000000`, stroke: `none` }, mask);
+        masked = svgEl(`g`, { mask: `url(#${mid})` }, svg);
+      }
+      for (const piece of made.pieces) {
+        let into: Element = masked;
+        if (piece.blur) {
+          // A brush with a soft edge is drawn with its blur in the picture too.
+          previewCount++;
+          const id = `skpv${previewCount}`;
+          const filter = svgEl(`filter`, { id, filterUnits: `userSpaceOnUse`, x: -10, y: -10, width: 120, height: 60 }, svgEl(`defs`, {}, svg));
+          svgEl(`feGaussianBlur`, { stdDeviation: piece.blur }, filter);
+          into = svgEl(`g`, { filter: `url(#${id})` }, masked);
+        }
+        svgEl(`path`, { d: piece.d, stroke: piece.stroke, "stroke-width": piece.strokeWidth, fill: piece.fill, opacity: piece.opacity, "stroke-linecap": `round` }, into);
       }
     };
     for (const brush of BRUSH_KINDS) {

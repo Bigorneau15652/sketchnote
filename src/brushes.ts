@@ -3,12 +3,15 @@
 import type { Point } from "./elements";
 
 // The brushes. The round one is the default and is not stored in a file.
-export const BRUSH_KINDS = [`round`, `soft`, `pencil`, `felt`, `square`, `ink`, `nib`, `lino`, `airbrush`, `aerosol`] as const;
+export const BRUSH_KINDS = [`round`, `soft`, `pencil`, `felt`, `square`, `ink`, `nib`, `lino`, `airbrush`, `aerosol`, `watercolor`, `gouache`, `oil`, `drybrush`, `chalk`, `pastel`, `charcoal`] as const;
 export type BrushKind = (typeof BRUSH_KINDS)[number];
 
-// The settings of a brush. The flow is the paint that every touch of the brush leaves (a touch that overlaps another one adds to it, which is not the same as the opacity of the
-// whole stroke); the hardness goes from a soft edge to a sharp one; the spacing is the distance between two touches (as a part of the size); the form goes from a flat tip to a round
-// one; the rotation is the angle of the tip in degrees; the grain goes from smooth to rough; the dynamics make the stroke thinner when the pointer goes fast.
+// The settings of a brush, and what each one does (the three that look alike are told apart here):
+// - the flow is the paint that every touch of the brush leaves. Touches that overlap add up, so a light flow gives a light stroke that gets denser where the brush goes over
+//   itself or crosses itself. The opacity of the effects, on the contrary, makes the whole stroke more transparent at once and nothing builds up;
+// - the hardness only changes the edge of the stroke, from a sharp one to a soft one that fades out, and never how dark the middle is;
+// - the spacing is the distance between two touches (as a part of the size); the form goes from a flat tip to a round one; the rotation is the angle of the tip in degrees;
+// - the grain goes from smooth to rough (a rough edge, dots, bristles that skip); the dynamics make the stroke thinner when the pointer goes fast.
 export const BRUSH_PARAMS = [`flow`, `hardness`, `spacing`, `form`, `rotation`, `grain`, `dynamics`] as const;
 export type BrushParam = (typeof BRUSH_PARAMS)[number];
 export type BrushParams = Record<BrushParam, number>;
@@ -24,38 +27,77 @@ export const PARAM_RANGES: Record<BrushParam, [number, number]> = {
   dynamics: [0, 1],
 };
 
-// What a brush draws with: a legacy pen, tips that are ellipses or rectangles, a cloud of dots near the stroke, or a spray of scattered dots.
-export type BrushShape = `legacy` | `ellipse` | `rect` | `dots` | `spray`;
+// What a brush draws with: the legacy pen, tips (stamps) put along the stroke, or a spray of scattered dots.
+export type BrushShape = `legacy` | `stamps` | `spray`;
+
+// Dots scattered along the stroke (the lead of a pencil, the grain of chalk, the granulation of a watercolour): how many at full grain, how large, how far from the stroke as a part of
+// the radius of the tip, and how opaque.
+export interface Speckle {
+  density: number;
+  size: number;
+  sizeGrain: number;
+  scale: number;
+  opacity: number;
+}
+
+// Bristles: thin lines along the stroke, spread across its width. At most `count` of them, each with an opacity between the two values of `alpha`, and `gaps` for the amount of
+// gaps at full grain (bristles that skip, more and more towards the end of the stroke, as a brush that runs out of paint).
+export interface Bristles {
+  count: number;
+  alpha: [number, number];
+  gaps: number;
+}
 
 export interface BrushDef {
   shape: BrushShape;
+  // The tip of the stamps.
+  tip: `ellipse` | `rect`;
   // The width of a tip as a number of times the thickness of the stroke.
   size: number;
   // The stroke is pointed at its two ends.
   taper: boolean;
+  // Whether tips are put along the stroke (a brush of bristles or dots can do without).
+  stamps: boolean;
+  // How irregular the edge of a tip is at full grain (0 for a smooth tip).
+  rough: number;
+  speckle?: Speckle;
+  bristles?: Bristles;
   // The settings that the panel shows for this brush.
   params: BrushParam[];
   // The value of every setting when the stroke does not store it.
   defaults: BrushParams;
+  // The thickness of the stroke that the pictogram of the brush is drawn with.
+  previewWidth: number;
+  // How opaque the paint of the brush is (1 when absent): an airbrush or a watercolour is translucent by nature.
+  body?: number;
 }
 
 const BASE: BrushParams = { flow: 1, hardness: 1, spacing: 0.15, form: 1, rotation: 45, grain: 0, dynamics: 0 };
 
+const STAMP = { shape: `stamps` as const, tip: `ellipse` as const, taper: false, stamps: true, rough: 0, previewWidth: 3 };
+
 export const BRUSH_DEFS: Record<BrushKind, BrushDef> = {
-  round: { shape: `legacy`, size: 1.6, taper: false, params: [], defaults: BASE },
-  soft: { shape: `ellipse`, size: 2.4, taper: false, params: [`flow`, `hardness`, `spacing`], defaults: { ...BASE, flow: 0.8, hardness: 0.3, spacing: 0.12 } },
-  pencil: { shape: `dots`, size: 1.8, taper: false, params: [`flow`, `grain`], defaults: { ...BASE, flow: 0.7, grain: 0.5 } },
-  felt: { shape: `ellipse`, size: 2, taper: false, params: [`flow`, `spacing`], defaults: { ...BASE, flow: 0.5, spacing: 0.15 } },
-  square: { shape: `rect`, size: 1.8, taper: false, params: [`flow`, `form`, `rotation`], defaults: { ...BASE, flow: 0.6, spacing: 0.12, rotation: 0 } },
-  ink: { shape: `ellipse`, size: 2.4, taper: true, params: [`dynamics`, `spacing`], defaults: { ...BASE, spacing: 0.08, dynamics: 0.7 } },
-  nib: { shape: `ellipse`, size: 3, taper: false, params: [`flow`, `form`, `rotation`], defaults: { ...BASE, spacing: 0.06, form: 0.15, rotation: 45 } },
-  lino: { shape: `ellipse`, size: 2.8, taper: true, params: [`grain`, `dynamics`], defaults: { ...BASE, spacing: 0.08, grain: 0.5, dynamics: 0.8 } },
-  airbrush: { shape: `ellipse`, size: 5, taper: false, params: [`flow`, `hardness`], defaults: { ...BASE, flow: 0.3, hardness: 0.05, spacing: 0.08 } },
-  aerosol: { shape: `spray`, size: 2.2, taper: false, params: [`flow`], defaults: { ...BASE, grain: 0.5 } },
+  round: { ...STAMP, shape: `legacy`, size: 1.6, stamps: false, params: [], defaults: BASE },
+  soft: { ...STAMP, size: 2.4, params: [`flow`, `hardness`, `spacing`], defaults: { ...BASE, hardness: 0.3, spacing: 0.12 } },
+  pencil: { ...STAMP, size: 1.8, stamps: false, speckle: { density: 8, size: 0.1, sizeGrain: 0.14, scale: 1, opacity: 0.9 }, params: [`flow`, `grain`], defaults: { ...BASE, flow: 0.8, grain: 0.5 } },
+  felt: { ...STAMP, size: 2, params: [`flow`, `spacing`], defaults: { ...BASE, spacing: 0.15 } },
+  square: { ...STAMP, tip: `rect`, size: 1.8, params: [`flow`, `form`, `rotation`], defaults: { ...BASE, spacing: 0.12, rotation: 0 } },
+  ink: { ...STAMP, size: 2.4, taper: true, params: [`dynamics`, `spacing`], defaults: { ...BASE, spacing: 0.08, dynamics: 0.7 } },
+  nib: { ...STAMP, size: 3, params: [`flow`, `form`, `rotation`], defaults: { ...BASE, spacing: 0.06, form: 0.15, rotation: 45 } },
+  lino: { ...STAMP, size: 2.8, taper: true, rough: 0.9, params: [`grain`, `dynamics`], defaults: { ...BASE, spacing: 0.08, grain: 0.5, dynamics: 0.8 } },
+  airbrush: { ...STAMP, size: 5, previewWidth: 4, body: 0.5, params: [`flow`, `hardness`], defaults: { ...BASE, hardness: 0.05, spacing: 0.08 } },
+  aerosol: { ...STAMP, shape: `spray`, size: 2.2, stamps: false, params: [`flow`], defaults: { ...BASE, grain: 0.5 } },
+  // The brushes of painting.
+  watercolor: { ...STAMP, size: 3.2, previewWidth: 5, body: 0.55, speckle: { density: 3, size: 0.1, sizeGrain: 0.1, scale: 0.9, opacity: 0.45 }, params: [`flow`, `hardness`, `grain`, `spacing`], defaults: { ...BASE, hardness: 0.35, spacing: 0.1, grain: 0.4 } },
+  gouache: { ...STAMP, size: 2.6, previewWidth: 4, rough: 0.25, body: 0.85, bristles: { count: 10, alpha: [0.75, 1], gaps: 0.2 }, params: [`flow`, `grain`, `dynamics`], defaults: { ...BASE, spacing: 0.1, grain: 0.3 } },
+  oil: { ...STAMP, size: 2.4, previewWidth: 4, body: 0.8, bristles: { count: 18, alpha: [0.65, 1], gaps: 0.25 }, params: [`flow`, `grain`, `dynamics`], defaults: { ...BASE, spacing: 0.1, grain: 0.2, dynamics: 0.3 } },
+  drybrush: { ...STAMP, size: 2.6, previewWidth: 4, stamps: false, bristles: { count: 24, alpha: [0.55, 1], gaps: 1 }, params: [`flow`, `grain`, `dynamics`], defaults: { ...BASE, flow: 0.85, grain: 0.6, dynamics: 0.2 } },
+  // The brushes of dry supports.
+  chalk: { ...STAMP, size: 2.2, previewWidth: 4, rough: 0.5, speckle: { density: 6, size: 0.1, sizeGrain: 0.1, scale: 1.05, opacity: 0.8 }, params: [`flow`, `grain`, `spacing`], defaults: { ...BASE, flow: 0.9, hardness: 0.8, spacing: 0.12, grain: 0.6 } },
+  pastel: { ...STAMP, size: 2.6, previewWidth: 4, body: 0.9, speckle: { density: 5, size: 0.1, sizeGrain: 0.1, scale: 1, opacity: 0.6 }, params: [`flow`, `hardness`, `grain`], defaults: { ...BASE, hardness: 0.5, spacing: 0.1, grain: 0.4 } },
+  charcoal: { ...STAMP, size: 3, previewWidth: 5, rough: 0.6, speckle: { density: 8, size: 0.13, sizeGrain: 0.1, scale: 1.1, opacity: 0.85 }, params: [`flow`, `hardness`, `grain`, `dynamics`], defaults: { ...BASE, flow: 0.85, hardness: 0.4, spacing: 0.1, grain: 0.7, dynamics: 0.4 } },
 };
 
-// The number of layers that the touches are shared between: touches of different layers add up where they overlap, so the flow builds up (up to this many touches).
-const LAYERS = 5;
 // The most polygons that a stroke makes, and the most dots that a spray makes, so that a long stroke stays light to draw.
 const MAX_POLYGONS = 2200;
 const MAX_DOTS = 6000;
@@ -254,6 +296,8 @@ export interface BrushPiece {
   strokeWidth: number;
   fill: string;
   opacity: number;
+  // A blur of the piece (a standard deviation, in page units): the soft edge of a brush that is not hard.
+  blur?: number;
 }
 
 export interface BrushInput {
@@ -269,44 +313,189 @@ export interface BrushInput {
   dynamic: boolean;
 }
 
-// Returns the pieces that a brush other than the round one leaves along a stroke. A stroke of one point (a click) makes one touch.
-export function brushPieces(input: BrushInput): BrushPiece[] {
-  const def = BRUSH_DEFS[input.brush];
-  const { points, width, color, params } = input;
-  if (points.length === 0 || def.shape === `legacy`) return [];
-  const diameter = width * def.size;
-  if (def.shape === `spray` || def.shape === `dots`) {
-    const dots = def.shape === `dots`;
-    const spray = sprayPath(points, dots ? diameter / 2 : diameter, params.flow, input.seed, dots ? 8 : 5);
-    const base = dots ? Math.max(0.7, width * (0.1 + 0.14 * params.grain)) : Math.max(0.9, width * 0.2);
-    const piece = (d: string, w: number): BrushPiece[] => (d === `` ? [] : [{ d, stroke: color, strokeWidth: w, fill: `none`, opacity: dots ? 0.9 : 0.85 }]);
-    return [...piece(spray.small, base), ...piece(spray.large, base * (dots ? 1.8 : 2))];
-  }
-  const rnd = random(input.seed);
-  // The soft brushes put several smaller tips on top of each other, so that the middle is denser than the edge.
-  const rings = 1 + Math.round((1 - params.hardness) * 3);
-  const values = input.dynamic ? speedFactors(points, diameter, params.dynamics) : points.map(() => 1);
-  const step = Math.max(0.7, params.spacing * diameter);
+// What a brush makes: its pieces, and the data of the gaps where there is no paint left on the brush (empty for a stroke without gaps).
+export interface BrushResult {
+  pieces: BrushPiece[];
+  holes: string;
+}
+
+// Returns the length of a polyline.
+function lengthOf(points: Point[]): number {
   let length = 0;
   for (let i = 0; i + 1 < points.length; i++) length += Math.hypot(points[i + 1][0] - points[i][0], points[i + 1][1] - points[i][1]);
-  const spread = along(points.length === 1 ? [points[0], points[0]] : points, points.length === 1 ? [values[0], values[0]] : values, Math.max(step, (length * rings) / MAX_POLYGONS));
-  const layers: string[][] = Array.from({ length: LAYERS }, () => []);
+  return length;
+}
+
+// Returns the gaps of a stroke made with a brush that has little paint on it. The flow is the quantity of paint on the brush: at 1 the stroke is whole; below, streaks and spots of
+// the paper show through, and there are more of them as the brush runs out of paint towards the end of the stroke. The gaps are thin ellipses that follow the stroke.
+export function paintHoles(points: Point[], width: number, flow: number, seed: number): string {
+  if (points.length < 2 || flow >= 1) return ``;
+  const rnd = random(seed * 7 + 13);
+  const half = Math.max(1, width) / 2;
+  const total = lengthOf(points);
+  if (total < 1) return ``;
+  const step = Math.max(width * 0.5, 2, total / 700);
+  const pts = spaced(points, step);
+  const out: string[] = [];
+  for (let i = 0; i < pts.length; i++) {
+    const prev = pts[Math.max(0, i - 1)];
+    const next = pts[Math.min(pts.length - 1, i + 1)];
+    const angle = Math.atan2(next[1] - prev[1], next[0] - prev[0]);
+    const progress = pts.length > 1 ? i / (pts.length - 1) : 0;
+    // The part of the stroke that has no paint: from a little at the start to much more at the end.
+    const missing = Math.min(0.92, (1 - flow) * (0.28 + 0.75 * progress));
+    // Most of the gaps are thin streaks that follow the stroke, as the marks of bristles, and some are small round spots; their edge is irregular.
+    const spot = rnd() < 0.3;
+    const mean = spot ? half * 0.18 : half * 1.2;
+    const ell = spot ? half * (0.08 + rnd() * 0.22) : half * (0.4 + rnd() * 1.6);
+    const thick = spot ? ell : half * (0.05 + rnd() * 0.17);
+    const expected = (missing * step * 2 * half * 0.85) / (Math.PI * (spot ? ell * thick : mean * half * 0.14) + 0.01);
+    let count = Math.floor(expected);
+    if (rnd() < expected - count) count++;
+    for (let k = 0; k < count; k++) {
+      // The gaps of one place are spread along the stroke as well as across it, so that they do not line up.
+      const across = (rnd() * 2 - 1) * half * 1.05;
+      const along = (rnd() - 0.5) * step * 1.6;
+      const cx = pts[i][0] - Math.sin(angle) * across + Math.cos(angle) * along;
+      const cy = pts[i][1] + Math.cos(angle) * across + Math.sin(angle) * along;
+      out.push(polygon(tip(`ellipse`, cx, cy, ell, thick, angle, 0.7, rnd)));
+    }
+  }
+  return out.join(` `);
+}
+
+// Returns the sharpness of the edge of a brush as the blur that softens it: none for a hard brush, and up to almost half of the radius of the tip for the softest.
+function edgeBlur(hardness: number, radius: number): number | undefined {
+  const sigma = (1 - hardness) * radius * 0.45;
+  return sigma >= 0.15 ? r2(sigma) : undefined;
+}
+
+// Returns the pieces of the tips of a brush: a row of tips put along the stroke, all in one shape (the paint does not build up where they overlap).
+function stampPieces(input: BrushInput, def: BrushDef): BrushPiece[] {
+  const { points, width, color, params } = input;
+  const diameter = width * def.size;
+  const rnd = random(input.seed);
+  const values = input.dynamic ? speedFactors(points, diameter, params.dynamics) : points.map(() => 1);
+  const length = lengthOf(points);
+  const step = Math.max(0.7, params.spacing * diameter, length / MAX_POLYGONS);
+  const spread = along(points.length === 1 ? [points[0], points[0]] : points, points.length === 1 ? [values[0], values[0]] : values, step);
   const rotation = (params.rotation * Math.PI) / 180;
-  const rough = def.shape === `ellipse` ? params.grain * (input.brush === `lino` ? 0.9 : 0) : 0;
+  const rough = def.rough * params.grain;
+  const polys: string[] = [];
   spread.pts.forEach((p, i) => {
     // A pointed stroke thins out over the last stretch before each end.
     const ends = def.taper ? Math.min(1, 0.3 + (0.7 * Math.min(spread.pos[i], spread.total - spread.pos[i])) / (diameter * 2)) : 1;
     const rx = (diameter / 2) * spread.vals[i] * ends;
     if (rx < 0.2) return;
-    for (let j = 0; j < rings; j++) {
-      const scale = 1 - (j / rings) * 0.9;
-      layers[(i + j) % LAYERS].push(polygon(tip(def.shape === `rect` ? `rect` : `ellipse`, p[0], p[1], rx * scale, rx * scale * params.form, rotation, rough, rnd)));
-    }
+    polys.push(polygon(tip(def.tip, p[0], p[1], rx, rx * params.form, rotation, rough, rnd)));
   });
-  // Every layer has the paint of one touch; where touches of several layers overlap, the paint adds up.
-  // The paint of a touch grows faster than the flow itself (its square), so that the flow can be told apart from full paint over the whole range of the slider.
-  const alpha = params.flow * params.flow * (0.3 + 0.7 * params.hardness);
-  return layers.filter((l) => l.length > 0).map((l): BrushPiece => ({ d: l.join(` `), stroke: `none`, strokeWidth: 0, fill: color, opacity: Math.min(1, alpha) }));
+  if (polys.length === 0) return [];
+  return [{ d: polys.join(` `), stroke: `none`, strokeWidth: 0, fill: color, opacity: def.body ?? 1, ...(def.params.includes(`hardness`) ? { blur: edgeBlur(params.hardness, diameter / 2) } : {}) }];
+}
+
+// Returns the dots scattered along a stroke (see Speckle).
+function specklePieces(input: BrushInput, def: BrushDef, speckle: Speckle): BrushPiece[] {
+  const { points, width, color, params } = input;
+  const radius = ((width * def.size) / 2) * speckle.scale;
+  // The grain gives how many dots and how large; without a grain setting, the usual grain of the brush.
+  const grain = def.params.includes(`grain`) ? params.grain : def.defaults.grain;
+  // A brush that has only dots (a pencil) makes fewer of them with less paint on it; the others have gaps instead (see paintHoles).
+  const load = def.stamps ? 1 : params.flow;
+  const density = Math.max(1, Math.round(speckle.density * (0.3 + 0.7 * grain) * load));
+  const spray = sprayPath(points, radius, 1, input.seed + 5, density);
+  const base = Math.max(0.7, width * (speckle.size + speckle.sizeGrain * grain));
+  const piece = (d: string, w: number): BrushPiece[] => (d === `` ? [] : [{ d, stroke: color, strokeWidth: w, fill: `none`, opacity: speckle.opacity }]);
+  return [...piece(spray.small, base), ...piece(spray.large, base * 1.8)];
+}
+
+// Returns the bristles of a brush: thin lines along the stroke, spread across its width, some of them skipping (see Bristles).
+function bristlePieces(input: BrushInput, def: BrushDef, bristles: Bristles): BrushPiece[] {
+  const { points, width, color, params } = input;
+  const full = width * def.size;
+  const count = Math.max(5, Math.min(bristles.count, Math.round(full / 1.6)));
+  const rnd = random(input.seed + 11);
+  const values = input.dynamic ? speedFactors(points, full, params.dynamics) : points.map(() => 1);
+  const step = Math.min(6, Math.max(1.5, full * 0.12));
+  const spread = along(points.length === 1 ? [points[0], points[0]] : points, points.length === 1 ? [values[0], values[0]] : values, step);
+  const n = spread.pts.length;
+  if (n < 2) return [];
+  // The side of every sample of the stroke.
+  const side: Point[] = spread.pts.map((_, i) => {
+    const prev = spread.pts[Math.max(0, i - 1)];
+    const next = spread.pts[Math.min(n - 1, i + 1)];
+    const len = Math.hypot(next[0] - prev[0], next[1] - prev[1]) || 1;
+    return [-(next[1] - prev[1]) / len, (next[0] - prev[0]) / len];
+  });
+  const lines = [``, ``, ``];
+  const grain = def.params.includes(`grain`) ? params.grain : def.defaults.grain;
+  const gapAmount = Math.min(0.9, bristles.gaps * grain);
+  const bw = Math.max(0.8, (full / count) * 1.35);
+  for (let k = 0; k < count; k++) {
+    const u = ((k + 0.5) / count) * 2 - 1 + (rnd() - 0.5) * (2 / count) * 0.6;
+    const phase = rnd() * 6.28;
+    const wave = 18 + rnd() * 30;
+    const alpha = bristles.alpha[0] + rnd() * (bristles.alpha[1] - bristles.alpha[0]);
+    const cls = alpha < bristles.alpha[0] + (bristles.alpha[1] - bristles.alpha[0]) / 3 ? 0 : alpha < bristles.alpha[0] + ((bristles.alpha[1] - bristles.alpha[0]) * 2) / 3 ? 1 : 2;
+    // Ink and gaps follow one another along the bristle.
+    let ink = true;
+    let left = (0.8 + rnd() * 1.6) * full * 3;
+    let run: string[] = [];
+    const flush = (): void => {
+      if (run.length >= 2) lines[cls] += `${lines[cls] === `` ? `` : ` `}M${run.join(` L`)}`;
+      else if (run.length === 1) lines[cls] += `${lines[cls] === `` ? `` : ` `}M${run[0]} L${run[0]}`;
+      run = [];
+    };
+    for (let i = 0; i < n; i++) {
+      const progress = spread.total > 0 ? spread.pos[i] / spread.total : 0;
+      if (i > 0) left -= spread.pos[i] - spread.pos[i - 1];
+      if (left <= 0) {
+        flush();
+        ink = !ink;
+        const inkLen = (0.8 + rnd() * 1.6) * full * 3;
+        // The gaps get longer towards the end of the stroke, as a brush that runs out of paint.
+        const gapShare = Math.min(0.92, gapAmount * (0.15 + 0.85 * Math.pow(progress, 1.2)));
+        left = ink ? inkLen : (inkLen * gapShare) / Math.max(0.05, 1 - gapShare);
+        if (!ink && gapShare < 0.04) {
+          ink = true;
+          left = inkLen;
+        }
+      }
+      if (ink) {
+        const off = (u * (full / 2) + Math.sin(spread.pos[i] / wave + phase) * full * 0.03) * spread.vals[i];
+        run.push(`${r1(spread.pts[i][0] + side[i][0] * off)},${r1(spread.pts[i][1] + side[i][1] * off)}`);
+      }
+    }
+    flush();
+  }
+  const out: BrushPiece[] = [];
+  lines.forEach((d, cls) => {
+    if (d !== ``) out.push({ d, stroke: color, strokeWidth: bw, fill: `none`, opacity: Math.min(1, bristles.alpha[0] + ((bristles.alpha[1] - bristles.alpha[0]) * (cls + 0.5)) / 3) });
+  });
+  return out;
+}
+
+// Returns what a brush other than the round one leaves along a stroke. A stroke of one point (a click) makes one touch.
+export function brushMake(input: BrushInput): BrushResult {
+  const def = BRUSH_DEFS[input.brush];
+  const { points, width, color, params } = input;
+  if (points.length === 0 || def.shape === `legacy`) return { pieces: [], holes: `` };
+  if (def.shape === `spray`) {
+    const spray = sprayPath(points, width * def.size, params.flow, input.seed, 5);
+    const piece = (d: string, w: number): BrushPiece[] => (d === `` ? [] : [{ d, stroke: color, strokeWidth: w, fill: `none`, opacity: 0.85 }]);
+    return { pieces: [...piece(spray.small, Math.max(0.9, width * 0.2)), ...piece(spray.large, Math.max(1.6, width * 0.4))], holes: `` };
+  }
+  const pieces: BrushPiece[] = [];
+  if (def.stamps) pieces.push(...stampPieces(input, def));
+  if (def.speckle) pieces.push(...specklePieces(input, def, def.speckle));
+  if (def.bristles) pieces.push(...bristlePieces(input, def, def.bristles));
+  // The flow of a pencil is how many dots it makes; for the others it is the quantity of paint on the brush.
+  const holes = def.speckle && !def.stamps ? `` : paintHoles(points, width * def.size, params.flow, input.seed);
+  return { pieces, holes };
+}
+
+// Returns the pieces of a brush (without its gaps), for the pictograms.
+export function brushPieces(input: BrushInput): BrushPiece[] {
+  return brushMake(input).pieces;
 }
 
 // The wave that every brush draws in its pictogram, on a grid of 100 by 40.
