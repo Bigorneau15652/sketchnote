@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.29.0
+
+English
+
+Display of a drawing. A new Display button (an eye) in the toolbar of a drawing opens a small window with two choices. This drawing alone is the usual behaviour. With the other drawings shows the drawings of the other zones of the page behind the one that is being edited, each one at its place around it (the guide of the drawing is its zone, so the zones of the page are carried onto the guide with the same proportions), with a slider, Fading of the other drawings, from no fading to a drawing that stays at a tenth of its strength (60 percent at first). The other drawings are on another layer: they cannot be selected, moved or changed from this drawing, they are never saved in it and they are not part of its exports, and only the elements of this drawing react to the pointer. The choice is kept while the application runs and is shared by the drawings that are open. The button is off, and says why, for a drawing that was not opened from a zone of a page that holds other drawings. Files of the previous versions open without change.
+
+Français
+
+Affichage d'un dessin. Un nouveau bouton Affichage (un œil) dans la barre d'outils d'un dessin ouvre une petite fenêtre à deux choix. Ce dessin seul est le comportement habituel. Avec les autres dessins montre derrière le dessin que l'on modifie les dessins des autres zones de la page, chacun à sa place autour de lui (le guide du dessin est sa zone : les zones de la page sont portées sur le guide avec les mêmes proportions), avec une réglette, Estompage des autres dessins, de aucun estompage jusqu'à un dessin qui garde un dixième de sa force (60 pour cent au départ). Les autres dessins sont sur un autre calque : on ne peut ni les sélectionner, ni les déplacer, ni les modifier depuis ce dessin, ils ne sont jamais enregistrés dedans et ne font pas partie de ses exports, et seuls les éléments de ce dessin réagissent au pointeur. Le choix est gardé tant que l'application tourne et partagé par les dessins ouverts. Le bouton est inactif, et dit pourquoi, pour un dessin qui n'a pas été ouvert depuis une zone d'une page qui contient d'autres dessins. Les fichiers des versions précédentes s'ouvrent sans changement.
+
 ## 0.28.0
 
 English

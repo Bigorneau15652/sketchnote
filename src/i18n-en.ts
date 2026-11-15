@@ -359,6 +359,11 @@ const PAIRS: [string, string][] = [
   [`paysage`, `landscape`],
   [`À taille réelle, l'image demanderait trop de feuilles : elle est ajustée à une feuille.`, `At real size the picture would take too many sheets: it is fitted to one sheet.`],
   [`Envoyé à l'impression : {0}`, `Sent to the printer: {0}`],
+  [`Ce dessin seul`, `This drawing alone`],
+  [`Avec les autres dessins`, `With the other drawings`],
+  [`Les autres dessins ne sont disponibles que pour un dessin ouvert depuis une zone d'une page qui en contient d'autres.`, `The other drawings are only available for a drawing opened from a zone of a page that holds others.`],
+  [`Estompage des autres dessins`, `Fading of the other drawings`],
+  [`Affichage`, `Display`],
 ];
 
 export const EN: Record<string, string> = Object.fromEntries(PAIRS);

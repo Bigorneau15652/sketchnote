@@ -4,6 +4,7 @@ import { Menu, Notice, setIcon, WorkspaceLeaf } from "obsidian";
 import { CanvasView, Tool } from "./canvas-view";
 import { ColorChoice, ColorModal } from "./color-modal";
 import { ConfirmModal } from "./confirm-modal";
+import { backdropOpacity, BACKDROP_MAX_FADE, BackdropSettings, cleanBackdrop, DEFAULT_BACKDROP, pageToDrawing } from "./backdrop";
 import { ImageModal } from "./image-modal";
 import { imageUrl } from "./image-registry";
 import { importImages } from "./image-import";
@@ -15,9 +16,9 @@ import type { IconEntry } from "./icon-themes";
 import { defaultFillPalette, FillSwatch, swatchBackground, swatchMatches } from "./swatches";
 import { toHex6 } from "./page-background";
 import { CANVAS_HEIGHT, CANVAS_WIDTH, contentBox, createEmptyDrawing, guideBox, parseSketchdraw, serializeSketchdraw, SketchdrawDoc } from "./drawing-file";
-import { drawElements, PLAIN } from "./element-render";
+import { drawElement, drawElements, PLAIN } from "./element-render";
 import { BORDER_KINDS, BorderKind, CORNER_RADII, SHADOW_MAX_BLUR, SHADOW_MAX_DISTANCE } from "./effects";
-import { ArrowElement, IconElement, ImageElement, MAX_ROUGHNESS, Head, HEADS, LineElement, Point, SketchElement, TextElement } from "./elements";
+import { ArrowElement, DrawingElement, IconElement, ImageElement, MAX_ROUGHNESS, Head, HEADS, LineElement, Point, SketchElement, TextElement } from "./elements";
 import { fontStack } from "./fonts";
 import { openTextEditor } from "./text-editor";
 import { refitText, wrapLines } from "./text-layout";
@@ -40,7 +41,7 @@ import { CreationTool, textElement, zoneElement, zoneFontSize } from "./tools";
 import { isLabeledShape, labelBox, labelColor, LabeledShape, pathMiddle } from "./labels";
 import { hitTop } from "./geometry";
 import { newId } from "./elements";
-import { VIEW_TYPE as PAGE_VIEW_TYPE } from "./view";
+import { SketchnoteView, VIEW_TYPE as PAGE_VIEW_TYPE } from "./view";
 
 export const DRAW_VIEW_TYPE = `sketchdraw-view`;
 
@@ -152,6 +153,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
 
   // Ends a text being written and stops following the list of fonts when the view closes.
   async onClose(): Promise<void> {
+    this.closeDisplay();
     this.finishEditor?.();
     this.unsubscribeFonts?.();
     this.unsubscribeFonts = null;
@@ -231,7 +233,117 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
   }
 
   protected drawContent(group: SVGElement): void {
+    this.drawBackdrop(group);
     drawElements(this.visibleElements(), group, { ...PLAIN, ink: this.doc.ink });
+  }
+
+  // The display of the drawings, kept while the application runs and shared by the drawings that are open.
+  private static display: BackdropSettings = { ...DEFAULT_BACKDROP };
+
+  // Returns what shows the other drawings of the page behind this one: the frames of the page, and the transform that carries the page into this drawing. Null when this drawing was not
+  // opened from a page, or when the page has no other drawing, or when the drawing has no guide (it was not made from a zone).
+  private backdropPlan(): { frames: DrawingElement[]; transform: string; background: string; ink: string } | null {
+    const path = this.file ? this.file.path : null;
+    const origin = path ? this.api.origins.get(path) : undefined;
+    const view = origin ? origin.view : null;
+    if (!path || !(view instanceof SketchnoteView) || !this.doc.guide) return null;
+    const source = view.backdropSource();
+    const own = source ? source.frames.find((f) => f.path === path) : undefined;
+    if (!source || !own) return null;
+    const transform = pageToDrawing({ x: own.x, y: own.y, w: own.width, h: own.height }, guideBox(this.doc.guide));
+    const frames = source.frames.filter((f) => f.path !== path);
+    return transform && frames.length > 0 ? { frames, transform, background: source.background, ink: source.ink } : null;
+  }
+
+  // Draws the other drawings of the page under the elements of this one, faded and out of reach (they belong to other zones, which are not being edited).
+  private drawBackdrop(group: SVGElement): void {
+    if (!SketchdrawView.display.others) return;
+    const plan = this.backdropPlan();
+    if (!plan) return;
+    const layer = svgEl(`g`, { class: `sketchdraw-backdrop`, transform: plan.transform, opacity: backdropOpacity(SketchdrawView.display.fade), "pointer-events": `none` }, group);
+    for (const frame of plan.frames) {
+      try {
+        drawElement(frame, layer, { lookup: (p) => this.api.drawings.lookup(p), showZones: false, background: plan.background, ink: plan.ink });
+      } catch {
+        // A drawing that cannot be drawn is left out: the others stay.
+      }
+    }
+  }
+
+  // The window of the display: this drawing alone, or with the other drawings of the page faded behind it.
+  private displayPanel: HTMLElement | null = null;
+
+  private toggleDisplay(anchor: HTMLElement): void {
+    if (this.displayPanel) {
+      this.closeDisplay();
+      return;
+    }
+    const panel = this.contentEl.createDiv({ cls: `sketchdraw-display` });
+    this.displayPanel = panel;
+    const host = this.contentEl.getBoundingClientRect();
+    const at = anchor.getBoundingClientRect();
+    panel.style.top = `${Math.max(4, at.top - host.top)}px`;
+    panel.style.right = `${Math.max(4, host.right - at.left + 6)}px`;
+    const available = this.backdropPlan() !== null;
+    const draw = (): void => {
+      panel.empty();
+      const shown = SketchdrawView.display;
+      const row = panel.createDiv({ cls: `sketchnote-icons-themes` });
+      const own = row.createEl(`button`, { cls: `sketchnote-icons-theme`, text: t(`Ce dessin seul`) });
+      const others = row.createEl(`button`, { cls: `sketchnote-icons-theme`, text: t(`Avec les autres dessins`) });
+      (shown.others && available ? others : own).addClass(`is-active`);
+      own.addEventListener(`click`, () => {
+        SketchdrawView.display = cleanBackdrop({ ...shown, others: false });
+        this.renderContent();
+        draw();
+      });
+      others.disabled = !available;
+      others.addEventListener(`click`, () => {
+        SketchdrawView.display = cleanBackdrop({ ...shown, others: true });
+        this.renderContent();
+        draw();
+      });
+      if (!available) {
+        panel.createDiv({ cls: `sketchnote-icons-info`, text: t(`Les autres dessins ne sont disponibles que pour un dessin ouvert depuis une zone d'une page qui en contient d'autres.`) });
+        return;
+      }
+      if (!shown.others) return;
+      panel.createDiv({ cls: `sketchdraw-slider-label`, text: t(`Estompage des autres dessins`) });
+      const slider = panel.createEl(`input`, { cls: `sketchdraw-display-slider`, type: `range` });
+      slider.min = `0`;
+      slider.max = String(BACKDROP_MAX_FADE);
+      slider.step = `5`;
+      slider.value = String(shown.fade);
+      slider.setAttribute(`aria-label`, t(`Estompage des autres dessins`));
+      slider.addEventListener(`input`, () => {
+        SketchdrawView.display = cleanBackdrop({ ...SketchdrawView.display, fade: Number(slider.value) });
+        this.renderContent();
+      });
+    };
+    draw();
+    // A click elsewhere or Escape closes the window.
+    const away = (e: Event): void => {
+      if (e.target instanceof Node && (panel.contains(e.target) || anchor.contains(e.target))) return;
+      this.closeDisplay();
+    };
+    const key = (e: KeyboardEvent): void => {
+      if (e.key === `Escape`) this.closeDisplay();
+    };
+    this.contentEl.ownerDocument.addEventListener(`pointerdown`, away, true);
+    this.contentEl.ownerDocument.addEventListener(`keydown`, key, true);
+    this.closeDisplayHooks = () => {
+      this.contentEl.ownerDocument.removeEventListener(`pointerdown`, away, true);
+      this.contentEl.ownerDocument.removeEventListener(`keydown`, key, true);
+    };
+  }
+
+  private closeDisplayHooks: (() => void) | null = null;
+
+  private closeDisplay(): void {
+    this.displayPanel?.remove();
+    this.displayPanel = null;
+    this.closeDisplayHooks?.();
+    this.closeDisplayHooks = null;
   }
 
   // The elements to draw: all of them, without the text that is being written, and the shape being written in without its text.
@@ -663,6 +775,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.toolButton(tools, `text`, `type`, t(`Texte`));
     this.button(tools, `shapes`, t(`Insérer une icône de la bibliothèque`), () => void this.openIcons());
     this.button(tools, `image-plus`, t(`Insérer une image`), () => void this.openImages());
+    const eye = this.button(tools, `eye`, t(`Affichage`), () => this.toggleDisplay(eye));
     // Pictures are also dropped on the drawing from the computer or pasted from the clipboard.
     this.registerDomEvent(this.contentEl, `dragover`, (e: DragEvent) => {
       if (e.dataTransfer && Array.from(e.dataTransfer.types).includes(`Files`)) e.preventDefault();
