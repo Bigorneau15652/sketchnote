@@ -123,7 +123,6 @@ const PAIRS: [string, string][] = [
   [`Coins légèrement arrondis`, `Slightly rounded corners`],
   [`Coins arrondis`, `Rounded corners`],
   [`Coins très arrondis`, `Very rounded corners`],
-  [`Effets`, `Effects`],
   [`Ombre`, `Shadow`],
   [`Reflet`, `Reflection`],
   [`Opacité de l'élément`, `Opacity of the element`],
