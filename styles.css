@@ -1,5 +1,6 @@
 /* Sketchnote plugin styles. All classes start with sketchnote- */
 .sketchnote-host {
+  position: relative;
   display: flex;
   flex-direction: column;
   padding: 0;
@@ -838,4 +839,25 @@ textarea.sketchnote-text-editor.is-label {
   color: var(--text-muted, #666666);
   font-size: var(--font-ui-smaller, 12px);
   overflow-wrap: anywhere;
+}
+
+/* The window of the display of a drawing: opens beside the button, over the drawing. */
+.sketchdraw-display {
+  position: absolute;
+  z-index: 20;
+  box-sizing: border-box;
+  width: 300px;
+  max-width: calc(100% - 16px);
+  padding: 10px;
+  border: 1px solid var(--background-modifier-border, #cccccc);
+  border-radius: 8px;
+  background: var(--background-primary, #ffffff);
+  color: var(--text-normal, #222222);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.sketchdraw-display-slider {
+  display: block;
+  width: 100%;
+  margin: 4px 0 0;
 }

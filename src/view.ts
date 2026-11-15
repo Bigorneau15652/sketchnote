@@ -247,6 +247,12 @@ export class SketchnoteView extends CanvasView<SketchnoteDoc> {
     }
   }
 
+  // What an open drawing needs to show the other drawings of the page behind it: the frames that hold a drawing, and the colours that those drawings are drawn with.
+  backdropSource(): { frames: DrawingElement[]; background: string; ink: string } | null {
+    const frames = this.doc.elements.filter((e): e is DrawingElement => e.type === `drawing` && e.path !== null);
+    return frames.length === 0 ? null : { frames, background: this.doc.page.background, ink: this.doc.page.ink };
+  }
+
   // Opens a drawing note in a new tab, and remembers this tab so that the Back button of the drawing returns here.
   private async openNote(file: TFile): Promise<void> {
     this.api.origins.set(file.path, this.leaf);
