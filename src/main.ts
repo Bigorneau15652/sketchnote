@@ -5,6 +5,7 @@ import { DRAW_VIEW_TYPE, SketchdrawView } from "./draw-view";
 import { DrawingStore } from "./drawings";
 import { registerIcons } from "./custom-icons";
 import { FontStore } from "./font-store";
+import { IconStore } from "./icon-store";
 import { createEmptyDoc, serializeSketchnote } from "./file-format";
 import { setLanguage, t } from "./i18n";
 import { PluginApi } from "./plugin-api";
@@ -16,6 +17,7 @@ export default class SketchnotePlugin extends Plugin {
   settingsData: SketchnoteSettings = { ...DEFAULT_SETTINGS };
   drawings!: DrawingStore;
   fonts!: FontStore;
+  icons!: IconStore;
   private readonly origins = new Map<string, WorkspaceLeaf>();
 
   // Starts the plugin: settings, language, views, file extensions, commands, settings page and vault events.
@@ -25,7 +27,9 @@ export default class SketchnotePlugin extends Plugin {
     registerIcons();
     this.drawings = new DrawingStore(this.app, () => this.settingsData.drawingsFolder);
     this.fonts = new FontStore(this.app, () => this.settingsData.fontsFolder);
-    const api: PluginApi = { drawings: this.drawings, fonts: this.fonts, settings: () => this.settingsData, origins: this.origins };
+    this.icons = new IconStore(this.app, () => this.settingsData.iconsFolder);
+    this.icons.start();
+    const api: PluginApi = { drawings: this.drawings, fonts: this.fonts, icons: this.icons, settings: () => this.settingsData, origins: this.origins };
     this.registerView(VIEW_TYPE, (leaf) => new SketchnoteView(leaf, api));
     this.registerView(DRAW_VIEW_TYPE, (leaf) => new SketchdrawView(leaf, api));
     this.registerExtensions([`sketchnote`], VIEW_TYPE);

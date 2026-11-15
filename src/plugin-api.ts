@@ -2,12 +2,15 @@
 import type { WorkspaceLeaf } from "obsidian";
 import type { DrawingStore } from "./drawings";
 import type { FontStore } from "./font-store";
+import type { IconSource } from "./icon-store";
 import type { SketchnoteSettings } from "./settings";
 
 export interface PluginApi {
   drawings: DrawingStore;
   // The fonts of the texts.
   fonts: FontStore;
+  // The icons that can be inserted: Lucide, and the SVG drawings of the user.
+  icons: IconSource;
   settings(): SketchnoteSettings;
   // For each drawing note that was opened from a page, the tab of that page, so that the Back button of the drawing can return to it.
   origins: Map<string, WorkspaceLeaf>;

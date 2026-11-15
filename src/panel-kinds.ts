@@ -3,7 +3,7 @@
 import type { SketchElement } from "./elements";
 import { isClosedStroke } from "./tidy";
 
-export type PanelSection = `colour` | `fill` | `width` | `dash` | `look` | `border` | `corners` | `edges` | `taper` | `regularity` | `brush` | `warp` | `heads` | `text` | `effects`;
+export type PanelSection = `colour` | `fill` | `width` | `dash` | `look` | `border` | `corners` | `edges` | `taper` | `regularity` | `brush` | `warp` | `icon` | `heads` | `text` | `effects`;
 
 // Returns the kinds of element the panel is about: the types of the selected elements, or the kind that the active tool is going to make when nothing is selected. A line
 // about to be drawn is `new-line`: its heads are not offered (a line becomes an arrow once a head is chosen, after it is drawn). The tools that do not make an element
@@ -27,6 +27,7 @@ function kindsOf(elements: SketchElement[]): Set<string> {
       if (e.type === `freedraw`) return [isClosedStroke(e.points, e.strokeWidth) ? `freedraw-closed` : `freedraw`];
       // A text that is an element of its own (not a text written in a shape) can be distorted and written vertically.
       if (e.type === `text`) return [`text`, `free-text`];
+      if (e.type === `icon`) return [`icon`];
       const labelled = (e.type === `rect` || e.type === `ellipse` || e.type === `diamond` || e.type === `triangle` || e.type === `line` || e.type === `arrow`) && e.label;
       return labelled ? [e.type, `text`] : [e.type];
     }),
@@ -35,7 +36,7 @@ function kindsOf(elements: SketchElement[]): Set<string> {
 
 const SHAPES = [`rect`, `diamond`, `ellipse`, `triangle`];
 const PENS = [`freedraw`, `freedraw-closed`];
-const STROKED = [...SHAPES, `line`, `arrow`, ...PENS, `new-line`, `new-point`];
+const STROKED = [...SHAPES, `line`, `arrow`, `icon`, ...PENS, `new-line`, `new-point`];
 
 // Tells whether a section of the panel is shown for some kinds of element. With no kind at all (nothing selected, no drawing tool) the panel shows the general choices
 // that the next elements will take: colour, width and style.
@@ -45,7 +46,7 @@ export function sectionShown(section: PanelSection, kinds: Set<string>): boolean
     case `colour`:
       return kinds.size === 0 || [...kinds].some((k) => k !== `drawing`);
     case `fill`:
-      return some([...SHAPES, `freedraw-closed`]);
+      return some([...SHAPES, `freedraw-closed`, `icon`]);
     case `width`:
       return kinds.size === 0 || some(STROKED);
     case `look`:
@@ -71,5 +72,7 @@ export function sectionShown(section: PanelSection, kinds: Set<string>): boolean
       return kinds.has(`text`);
     case `warp`:
       return kinds.has(`free-text`);
+    case `icon`:
+      return kinds.has(`icon`);
   }
 }

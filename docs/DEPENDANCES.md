@@ -12,6 +12,6 @@ Polices ajoutées par l'utilisateur (version 0.9.0) : fichiers .ttf et .otf dép
 
 Distorsions du texte (version 0.23.0) : aucune bibliothèque ajoutée. La bibliothèque opentype.js (MIT), acceptée par Olivier le 14 novembre 2026, n'est pas embarquée : elle ne lit pas le WOFF2 des polices du plugin et le navigateur mesure déjà chaque lettre. Si une déformation à l'intérieur des lettres devient nécessaire, ce choix sera rediscuté avec Olivier.
 
-À venir, avec leur licence au moment voulu : Lucide (ISC) et Tabler icons (MIT).
+Icônes (version 0.24.0) : les icônes Lucide (licence ISC) sont celles que l'application Obsidian contient et met à la disposition des plugins (fonctions getIcon et getIconIds) : le plugin n'en embarque aucune et ne les copie pas dans son code. Leurs formes sont lues à l'utilisation et dessinées par le plugin. Les icônes Tabler (licence MIT) ne sont pas utilisées pour l'instant : elles seraient ajoutées, avec leur licence dans le dossier licences, si Lucide ne suffit pas (accord d'Olivier du 15 novembre 2026).
 
 Avis pour l'audit : npm audit signale esbuild (serveur de développement, non utilisé) et moment (dépendance interne du paquet obsidian, non embarquée dans main.js).

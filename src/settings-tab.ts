@@ -62,6 +62,14 @@ export class SketchnoteSettingTab extends PluginSettingTab {
     await this.plugin.fonts.refresh(true);
   }
 
+  // Keeps a folder as the folder of the icons of the user and creates it when it does not exist.
+  private async keepIconsFolder(folder: string): Promise<void> {
+    this.plugin.settingsData.iconsFolder = folder;
+    await this.plugin.saveData(this.plugin.settingsData);
+    if (await this.plugin.drawings.ensureFolder(folder)) new Notice(t(`Dossier créé : {0}`, folder));
+    await this.plugin.icons.refresh();
+  }
+
   // Draws the settings page.
   display(): void {
     const { containerEl } = this;
@@ -118,5 +126,21 @@ export class SketchnoteSettingTab extends PluginSettingTab {
             } }, () => undefined).open();
           }),
       );
+
+    new Setting(containerEl)
+      .setName(t(`Dossier des icônes`))
+      .setDesc(t(`Dossier du coffre où vous rangez vos propres dessins au format SVG. Ils apparaissent dans la fenêtre des icônes, avec celles de Lucide : un sous-dossier est un thème (par exemple Chantier ou Énergie). Seules les formes sont lues, en une seule couleur : les dégradés, les images et les textes d'un SVG sont ignorés, et la fenêtre dit ce qui n'a pas pu être utilisé. Le dossier est créé s'il n'existe pas.`))
+      .addText((text) => {
+        text.setPlaceholder(DEFAULT_SETTINGS.iconsFolder).setValue(this.plugin.settingsData.iconsFolder);
+        text.inputEl.addEventListener(`change`, () => {
+          const folder = normalizeFolder(text.getValue());
+          text.inputEl.toggleClass(`mod-error`, folder === null);
+          if (folder !== null) void this.keepIconsFolder(folder);
+        });
+        new FolderSuggest(this.app, text.inputEl, (path) => {
+          text.inputEl.removeClass(`mod-error`);
+          void this.keepIconsFolder(path);
+        });
+      });
   }
 }

@@ -4,6 +4,7 @@ import { isSafeColor } from "./color";
 import { BRUSH_PARAMS, BrushFields, BrushKind, fieldsOf, isBrush, isParamValue, sparseParams } from "./brushes";
 import { isClosedStroke, MAX_REGULARITY } from "./tidy";
 import { DEFAULT_WARP_AMOUNT, isWarpKind, MAX_WARP_AMOUNT, WarpKind } from "./text-warp";
+import { isSafePath } from "./svg-path";
 
 export type Point = [number, number];
 // How a fill is drawn: solid, with hatching lines, with dots or with a grid (crossed hatching).
@@ -228,9 +229,38 @@ export function isFontId(value: unknown): value is string {
   return typeof value === `string` && /^[a-z0-9][a-z0-9-]{0,63}$/.test(value);
 }
 
+// A drawing from a library of icons, in its box, drawn in the hand drawn look with the colour and the width of its lines. It is either an icon of Lucide, kept by its name (the shapes
+// come from Obsidian), or a drawing of the user, kept with its shapes (so that the file does not depend on the file of the icon).
+export interface IconElement extends BaseElement, Strokes, Fills {
+  type: `icon`;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  angle?: number;
+  // The name of an icon of Lucide (house, zap...).
+  icon?: string;
+  // For a drawing of the user: its name to show, its view box (where it starts, its width and its height) and its shapes.
+  name?: string;
+  vb?: [number, number, number, number];
+  shapes?: IconShapeData[];
+}
+
+// A shape of an icon that is kept in an element: the data of its path, whether it is filled, whether it has a line and whether it is closed.
+export interface IconShapeData {
+  d: string;
+  fill: boolean;
+  stroke: boolean;
+  closed: boolean;
+}
+
+export const MAX_ICON_SHAPES_STORED = 400;
+// The most that the shapes of one icon may weigh in a file (the length of their data).
+export const MAX_ICON_WEIGHT = 200000;
+
 export type PointsElement = LineElement | ArrowElement | FreedrawElement;
 export type ShapeElement = RectElement | EllipseElement | DiamondElement | TriangleElement;
-export type StrokedElement = PointsElement | ShapeElement;
+export type StrokedElement = PointsElement | ShapeElement | IconElement;
 export type SketchElement = StrokedElement | DrawingElement | TextElement;
 
 export type ElementsResult = { ok: true; elements: SketchElement[] } | { ok: false; index: number } | { ok: false; tooMany: true };
@@ -251,8 +281,8 @@ export function isShape(el: SketchElement): el is ShapeElement {
 }
 
 // Tells whether an element can have a fill: a shape, or a pen stroke that comes back to its start.
-export function canFill(el: SketchElement): el is ShapeElement | FreedrawElement {
-  return isShape(el) || (el.type === `freedraw` && isClosedStroke(el.points, el.strokeWidth));
+export function canFill(el: SketchElement): el is ShapeElement | FreedrawElement | IconElement {
+  return isShape(el) || el.type === `icon` || (el.type === `freedraw` && isClosedStroke(el.points, el.strokeWidth));
 }
 
 // Tells whether a value is a plain object (not null, not an array).
@@ -500,6 +530,31 @@ function readElement(value: unknown): SketchElement | null {
   const angle = readAngle(value.angle);
   if (fill === null || angle === null) return null;
   const turn = angle === 0 ? {} : { angle };
+  if (type === `icon`) {
+    const { x, y, width, height } = value;
+    if (!isCoord(x) || !isCoord(y) || !isSize(width) || !isSize(height)) return null;
+    const lucide = value.icon === undefined ? undefined : typeof value.icon === `string` && /^[a-z0-9][a-z0-9-]{0,80}$/.test(value.icon) ? value.icon : null;
+    if (lucide === null) return null;
+    if (value.name !== undefined && (typeof value.name !== `string` || value.name.length > 120 || /[\u0000-\u001f]/.test(value.name))) return null;
+    let customFields: { vb?: [number, number, number, number]; shapes?: IconShapeData[] } = {};
+    if (value.shapes !== undefined) {
+      const list = value.shapes;
+      if (!Array.isArray(list) || list.length === 0 || list.length > MAX_ICON_SHAPES_STORED) return null;
+      const shapes: IconShapeData[] = [];
+      let weight = 0;
+      for (const item of list) {
+        if (!isRecord(item) || !isSafePath(item.d) || typeof item.fill !== `boolean` || typeof item.stroke !== `boolean` || typeof item.closed !== `boolean`) return null;
+        weight += item.d.length;
+        shapes.push({ d: item.d, fill: item.fill, stroke: item.stroke, closed: item.closed });
+      }
+      const vb = value.vb;
+      if (weight > MAX_ICON_WEIGHT || !Array.isArray(vb) || vb.length !== 4 || !vb.every((n) => typeof n === `number` && Number.isFinite(n) && Math.abs(n) <= 100000) || (vb[2] as number) <= 0 || (vb[3] as number) <= 0) return null;
+      customFields = { vb: [vb[0], vb[1], vb[2], vb[3]] as [number, number, number, number], shapes };
+    } else if (value.vb !== undefined) return null;
+    // An icon needs a drawing: a name of Lucide, or shapes.
+    if (lucide === undefined && customFields.shapes === undefined) return null;
+    return { ...base, ...fill, ...turn, type, x, y, width, height, ...(lucide !== undefined ? { icon: lucide } : {}), ...(typeof value.name === `string` && value.name !== `` ? { name: value.name } : {}), ...customFields };
+  }
   const border = readBorder(value, type === `rect`);
   if (border === null) return null;
   const label = readLabel(value.label);

@@ -19,6 +19,7 @@ export function outlineExtent(el: SketchElement): number {
     case `triangle`:
       return borderReach(el) + wobble + 1;
     case `line`:
+    case `icon`:
       return el.strokeWidth / 2 + wobble + 1;
     case `arrow`:
       return Math.max(el.strokeWidth / 2 + wobble + 1, headSize(el.strokeWidth) / 2);
