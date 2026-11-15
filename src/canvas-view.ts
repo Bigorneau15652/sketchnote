@@ -21,7 +21,8 @@ import type { ExportServices } from "./export-service";
 import { svgEl } from "./svg";
 import { snapBox } from "./snap";
 import { ToolStyle } from "./style";
-import { addPenPoint, CREATION_TOOLS, CreationTool, elementFromDrag, linearElement, penElement, pointElement } from "./tools";
+import { addPenPoint, CREATION_TOOLS, CreationTool, elementFromDrag, linearElement, penElement } from "./tools";
+import { stampElement, stampName } from "./stamps";
 import { normalizeAngle, resizeElement, resizeSide, rotateAbout, rotateBy, scaleAbout, translate } from "./transform";
 import { MAX_FREEDRAW_POINTS } from "./elements";
 import { isBubbleForm } from "./shape-forms";
@@ -892,7 +893,7 @@ export abstract class CanvasView<D> extends TextFileView {
       g.pen = addPenPoint(g.pen, p, 1.5 / this.zoom);
       made = penElement(g.pen, style, id, seed, MAX_FREEDRAW_POINTS);
     } else if (g.tool === `point`) {
-      made = pointElement(p, style, id, seed);
+      made = stampElement(style.stamp, p, style.stampSize, stampName(style.stamp), { stroke: style.stroke, strokeWidth: style.strokeWidth, roughness: style.roughness, seed }, id);
     } else {
       made = elementFromDrag(g.tool, g.start, p, { shift: e.shiftKey, alt: e.altKey }, style, id, seed);
     }
