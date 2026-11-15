@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readElements, SketchElement } from "../src/elements";
 import { canFlip, flipElements } from "../src/flip";
 import { allLocked, anyLocked, freeIds, isLocked, lockAction, lockElements, withLock } from "../src/lock";
-import { cloneElements, moveElements, removeElements, reorder } from "../src/selection-ops";
+import { cloneElements, moveElements, removeElements, reorder, reorderStep } from "../src/selection-ops";
 import { applyStyle, applyStyleToIds } from "../src/style";
 
 const rect = (id: string, x = 0, locked = false): SketchElement => ({ id, type: `rect`, x, y: 0, width: 40, height: 20, stroke: `#000000`, strokeWidth: 3, ...(locked ? { locked: true as const } : {}) });
@@ -100,4 +100,20 @@ test(`le verrou est lu dans le fichier tel qu'il est et les valeurs fausses sont
     { id: `l`, type: `line`, points: [[0, 0], [5, 5]], stroke: `#000000`, strokeWidth: 3, locked: true },
   ]);
   assert.equal(kinds.ok && kinds.elements.every(isLocked), true);
+});
+
+test(`monter ou descendre d'un niveau passe l'element voisin qui le recouvre`, () => {
+  const far = { ...rect(`far`, 500) };
+  const list = [rect(`a`, 0), far, rect(`b`, 0), rect(`c`, 0)];
+  assert.deepEqual(reorderStep(list, ids(`a`), `up`).map((e) => e.id), [`far`, `b`, `a`, `c`], `passe seulement le premier element qui le recouvre`);
+  assert.deepEqual(reorderStep(list, ids(`c`), `down`).map((e) => e.id), [`a`, `far`, `c`, `b`]);
+  assert.deepEqual(reorderStep(list, ids(`c`), `up`), list, `deja au dessus : rien ne change`);
+  assert.deepEqual(reorderStep(list, ids(`a`), `down`), list, `deja au dessous : rien ne change`);
+  assert.deepEqual(reorderStep(list, ids(`a`, `b`), `up`).map((e) => e.id), [`far`, `c`, `a`, `b`], `plusieurs elements montent ensemble`);
+});
+
+test(`un element verrouille ne change pas de niveau`, () => {
+  const list = [rect(`a`, 0, true), rect(`b`, 0)];
+  assert.deepEqual(reorderStep(list, ids(`a`), `up`), list);
+  assert.deepEqual(reorderStep(list, ids(`b`), `down`).map((e) => e.id), [`b`, `a`]);
 });
