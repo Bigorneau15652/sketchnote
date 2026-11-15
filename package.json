@@ -1,6 +1,6 @@
 {
   "name": "sketchnote",
-  "version": "0.26.0",
+  "version": "0.27.0",
   "description": "Obsidian plugin to draw sketchnotes: one page that mixes drawings and handwritten text.",
   "main": "main.js",
   "scripts": {

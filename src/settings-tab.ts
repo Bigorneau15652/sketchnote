@@ -79,6 +79,13 @@ export class SketchnoteSettingTab extends PluginSettingTab {
     if (await this.plugin.drawings.ensureFolder(folder)) new Notice(t(`Dossier créé : {0}`, folder));
   }
 
+  // Keeps a folder as the folder of the exports and creates it when it does not exist.
+  private async keepExportsFolder(folder: string): Promise<void> {
+    this.plugin.settingsData.exportsFolder = folder;
+    await this.plugin.saveData(this.plugin.settingsData);
+    if (await this.plugin.drawings.ensureFolder(folder)) new Notice(t(`Dossier créé : {0}`, folder));
+  }
+
   // Draws the settings page.
   display(): void {
     const { containerEl } = this;
@@ -180,5 +187,21 @@ export class SketchnoteSettingTab extends PluginSettingTab {
             new AddImageModal(this.app, { folder, importFiles: (files) => importImages(this.app, folder(), files) }, () => undefined).open();
           }),
       );
+
+    new Setting(containerEl)
+      .setName(t(`Dossier des exports`))
+      .setDesc(t(`Dossier du coffre où sont enregistrés les exports (PNG, SVG et PDF) faits avec le bouton Exporter de la barre du bas d'une page ou d'un dessin. Le dossier est créé s'il n'existe pas.`))
+      .addText((text) => {
+        text.setPlaceholder(DEFAULT_SETTINGS.exportsFolder).setValue(this.plugin.settingsData.exportsFolder);
+        text.inputEl.addEventListener(`change`, () => {
+          const folder = normalizeFolder(text.getValue());
+          text.inputEl.toggleClass(`mod-error`, folder === null);
+          if (folder !== null) void this.keepExportsFolder(folder);
+        });
+        new FolderSuggest(this.app, text.inputEl, (path) => {
+          text.inputEl.removeClass(`mod-error`);
+          void this.keepExportsFolder(path);
+        });
+      });
   }
 }

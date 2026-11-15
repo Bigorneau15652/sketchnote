@@ -4,6 +4,7 @@ import { App, normalizePath, TFile } from "obsidian";
 import { BUILTIN_FONTS } from "./fonts-builtin";
 import { fontKind, isPlainStyle, readFontNames } from "./font-file";
 import { cssFamily, FontEntry, userFontId } from "./fonts";
+import { FontFaceData, toBase64 } from "./export-plan";
 import { measureLine } from "./measure";
 
 const FONT_EXTENSIONS = [`ttf`, `otf`];
@@ -25,6 +26,8 @@ export class FontStore {
   // Files of the fonts folder that cannot be used (collection, WOFF, damaged file), with the reason.
   problems: string[] = [];
   private faces: FontFace[] = [];
+  // The file of each imported font, to carry it into an exported SVG.
+  private files = new Map<string, TFile>();
   private signature = ``;
   private listeners = new Set<() => void>();
   private running: Promise<void> | null = null;
@@ -120,9 +123,24 @@ export class FontStore {
       else problems.push(`${found.file.path} : unreadable`);
       await pause();
     }
+    this.files = new Map(list.flatMap((e): [string, TFile][] => (best.get(e.id) ? [[e.id, best.get(e.id)!.file]] : [])));
     this.user = list.sort((a, b) => a.name.localeCompare(b.name));
     this.problems = problems;
     for (const l of this.listeners) l();
+  }
+
+  // Returns the data of a font (its CSS family, its media type and its content in base 64) to write it into an exported file, or null when the font is not known.
+  async fontData(id: string): Promise<FontFaceData | null> {
+    const builtin = BUILTIN_FONTS.find((f) => f.id === id);
+    if (builtin) return { family: cssFamily(id), mime: `font/woff2`, base64: builtin.data };
+    const file = this.files.get(id);
+    if (!file) return null;
+    try {
+      const bytes = new Uint8Array(await this.app.vault.readBinary(file));
+      return { family: cssFamily(id), mime: file.extension.toLowerCase() === `otf` ? `font/otf` : `font/ttf`, base64: toBase64(bytes) };
+    } catch {
+      return null;
+    }
   }
 
   // Waits until a font is loaded at a size, so that a measure made right after is right.

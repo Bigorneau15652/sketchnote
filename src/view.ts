@@ -14,6 +14,7 @@ import { t } from "./i18n";
 import { addZone, buildStructure, LayoutSettings, sameLayout, Slot } from "./layout";
 import { PageModal } from "./page-modal";
 import { renderPage, RenderedPage } from "./page-render";
+import type { ExportServices } from "./export-service";
 import { PluginApi } from "./plugin-api";
 import { defaultStyle } from "./style";
 
@@ -90,6 +91,23 @@ export class SketchnoteView extends CanvasView<SketchnoteDoc> {
   // Draws the elements of the page: the drawings shown in the frames of the zones, and the dotted outline of the empty zones unless the eye hid them.
   protected drawContent(group: SVGElement): void {
     drawElements(this.doc.elements, group, { lookup: (path) => this.api.drawings.lookup(path), showZones: this.showZones, background: this.doc.page.background, ink: this.doc.page.ink });
+  }
+
+  protected exportBoxAll(): Box | null {
+    return this.doc.elements.length === 0 ? null : { x: 0, y: 0, w: this.doc.page.width, h: this.doc.page.height };
+  }
+
+  // The drawings shown in the frames are drawn, and the dotted outline of the empty zones is not.
+  protected drawExport(list: SketchElement[], group: SVGElement): void {
+    drawElements(list, group, { lookup: (path) => this.api.drawings.lookup(path), showZones: false, background: this.doc.page.background, ink: this.doc.page.ink });
+  }
+
+  protected exportPartName(): string {
+    return t(`Page`);
+  }
+
+  protected exportServices(): ExportServices {
+    return this.api.exports;
   }
 
   protected extraSnapTargets(): Box[] {
