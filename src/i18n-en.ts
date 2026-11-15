@@ -347,6 +347,18 @@ const PAIRS: [string, string][] = [
   [`Dossier des exports`, `Exports folder`],
   [`Dossier du coffre où sont enregistrés les exports (PNG, SVG et PDF) faits avec le bouton Exporter de la barre du bas d'une page ou d'un dessin. Le dossier est créé s'il n'existe pas.`, `Folder of the vault where the exports (PNG, SVG and PDF) made with the Export button of the bottom bar of a page or a drawing are saved. The folder is created if it does not exist.`],
   [`Page`, `Page`],
+  [`Papier`, `Paper`],
+  [`Échelle`, `Scale`],
+  [`Ajustée à la feuille`, `Fitted to the sheet`],
+  [`Taille réelle`, `Real size`],
+  [`Imprimer`, `Print`],
+  [`Impression : {0} sur {1} {2}`, `Print: {0} on {1} {2}`],
+  [`1 feuille`, `1 sheet`],
+  [`{0} feuilles`, `{0} sheets`],
+  [`portrait`, `portrait`],
+  [`paysage`, `landscape`],
+  [`À taille réelle, l'image demanderait trop de feuilles : elle est ajustée à une feuille.`, `At real size the picture would take too many sheets: it is fitted to one sheet.`],
+  [`Envoyé à l'impression : {0}`, `Sent to the printer: {0}`],
 ];
 
 export const EN: Record<string, string> = Object.fromEntries(PAIRS);
