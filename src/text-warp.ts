@@ -111,21 +111,21 @@ function distort(glyphs: PlacedGlyph[], kind: WarpKind, amount: number, w: numbe
   const midY = h / 2;
   switch (kind) {
     case `arc`: {
-      // The text follows an arc of a circle whose chord is the width of the block. A positive strength is a rainbow (the ends go down), a negative one a smile.
-      const sagitta = Math.max(1, Math.abs(a) * w * 0.4);
-      const radius = (w * w) / 4 / (2 * sagitta) + sagitta / 2;
+      // The text follows an arc of a circle whose length is the width of the block: at full strength it turns through most of a circle (320 degrees). A positive strength is a
+      // rainbow (the ends go down), a negative one a smile.
+      const radius = w / (Math.abs(a) * rad(320));
       return glyphs.map((g) => {
         const phi = (g.x - midX) / radius;
-        // The rows above or below the middle of the block are further from or closer to the centre of the circle.
+        // The rows above or below the middle of the block are further from or closer to the centre of the circle (never through it).
         const offset = a > 0 ? midY - g.y : g.y - midY;
-        const r = radius + offset;
+        const r = Math.max(size * 0.1, radius + offset);
         if (a > 0) return { ...g, x: midX + r * Math.sin(phi), y: midY + radius - r * Math.cos(phi), rotate: r2((phi * 180) / Math.PI) };
         return { ...g, x: midX + r * Math.sin(phi), y: midY - radius + r * Math.cos(phi), rotate: r2((-phi * 180) / Math.PI) };
       });
     }
     case `wave`: {
       // The letters go up and down like a flag, and turn along the wave.
-      const amplitude = a * size * 0.9;
+      const amplitude = a * size * 1.6;
       const cycles = 1.25;
       return glyphs.map((g) => {
         const t = w > 0 ? g.x / w : 0;
@@ -136,15 +136,18 @@ function distort(glyphs: PlacedGlyph[], kind: WarpKind, amount: number, w: numbe
     }
     case `slant`: {
       // The whole text leans, as italics do: every letter is slanted and the rows lean with it.
-      const angle = a * 35;
+      const angle = a * 65;
       const tan = Math.tan(rad(angle));
       return glyphs.map((g) => ({ ...g, x: g.x + (midY - g.y) * tan, skew: r2(-angle) }));
     }
     case `perspective`:
     case `bulge`: {
       // The letters are stretched from the middle of their row, more on one side (perspective) or more in the middle (bulge); the space between them follows.
-      const factor = (t: number): number => (kind === `perspective` ? 1 + a * 0.6 * (2 * t - 1) : 1 + a * 0.8 * (1 - (2 * t - 1) * (2 * t - 1)));
-      const widthFactor = (t: number): number => (kind === `perspective` ? factor(t) : 1 + a * 0.25 * (1 - (2 * t - 1) * (2 * t - 1)));
+      // The stretch goes from 1 + 0.85 (one side) to 1 - 0.85 (the other) for a perspective, and swells up to three times the height in the middle for a bulge (a pinch goes down to
+      // a sixth of it).
+      const bell = (t: number): number => 1 - (2 * t - 1) * (2 * t - 1);
+      const factor = (t: number): number => (kind === `perspective` ? 1 + a * 0.85 * (2 * t - 1) : a > 0 ? 1 + a * 2.2 * bell(t) : 1 + a * 0.85 * bell(t));
+      const widthFactor = (t: number): number => (kind === `perspective` ? factor(t) : a > 0 ? 1 + a * 0.6 * bell(t) : 1 + a * 0.4 * bell(t));
       // Each row is moved along by the stretched widths of its letters.
       const rows = new Map<number, PlacedGlyph[]>();
       for (const g of glyphs) rows.set(g.y, [...(rows.get(g.y) ?? []), g]);
