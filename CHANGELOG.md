@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.33.0
+
+English
+
+Comic bubbles and festoons. Two new tools in the column on the right, each with its own button: Comic bubble and Festoon (keys B and F). Both draw by dragging, and a double click writes a text inside them, with the font, the size and the alignment of the menu. The menu of the Comic bubble tool chooses among four forms: an oval speech bubble, a rectangular speech bubble, a thought cloud (with its small circles) and a shout bubble. When a bubble is selected, a small round handle at the tip of its tail is dragged towards the speaker (it also works while the tool is still active); the tail follows the bubble when it is moved, resized, turned or mirrored. The menu of the Festoon tool chooses among eleven forms: ribbon banner, banner with V ends, wavy banner, scalloped festoon, plaque with cut corners, label, pennant, arrow banner, hexagon, swallowtail flag and seal. The form of a selected bubble or festoon can be changed in the same menu. Bubbles and festoons have the colour, the fill, the border, the line style, the hand drawn look and the effects of the other shapes. They are rectangles with a form in the file (the fields form and tail), so older versions of the plugin do not break on them. The pictogram of every form in the menu is drawn from the same data as the shape itself. The buttons of an order saved before this version get the two new buttons next to the shapes.
+
+Français
+
+Bulles de bande dessinée et festons. Deux nouveaux outils dans la colonne de droite, chacun avec son bouton : Bulle de bande dessinée et Feston (touches B et F). Les deux se tracent en tirant, et un double clic écrit un texte dedans, avec la police, la taille et l'alignement du menu. Le menu de l'outil Bulle de bande dessinée propose quatre formes : bulle de dialogue ovale, bulle de dialogue rectangulaire, nuage de pensée (avec ses petits cercles) et bulle de cri. Quand une bulle est sélectionnée, une petite poignée ronde au bout de sa queue se tire vers le personnage qui parle (cela marche aussi tant que l'outil reste actif) ; la queue suit la bulle quand on la déplace, la redimensionne, la tourne ou la retourne. Le menu de l'outil Feston propose onze formes : banderole, bandeau à bouts en V, bandeau ondulé, feston à bords arrondis, plaque à coins coupés, étiquette, fanion, bandeau flèche, hexagone, drapeau à queue d'aronde et sceau. La forme d'une bulle ou d'un feston sélectionné se change dans le même menu. Les bulles et les festons ont la couleur, le remplissage, la bordure, le type de trait, l'aspect à main levée et les effets des autres formes. Ce sont des rectangles avec une forme dans le fichier (les champs form et tail) : les versions précédentes du plugin ne cassent pas dessus. Le pictogramme de chaque forme dans le menu est dessiné à partir des mêmes données que la forme elle-même. Un ordre de boutons enregistré avant cette version reçoit les deux nouveaux boutons à côté des formes.
+
 ## 0.32.1
 
 English

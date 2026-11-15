@@ -1152,3 +1152,10 @@ body.sketchnote-zen.is-popout-window .view-content {
 body.sketchnote-zen.is-popout-window .sketchnote-scroller {
   padding: 4px;
 }
+
+/* The tip of the tail of a selected comic bubble: a round handle that is dragged towards the speaker. */
+.sketchnote-tail-handle {
+  fill: var(--interactive-accent);
+  stroke: var(--background-primary);
+  stroke-width: 2;
+}

@@ -7,6 +7,7 @@ import { drawnPoints } from "./curves";
 import { ArrowElement, Border, DiamondElement, EllipseElement, FreedrawElement, headOf, IconElement, isClosedLine, LineElement, LineStyle, Point, RectElement, StrokedElement, TriangleElement } from "./elements";
 import { arrowHeadShapes, HeadShape } from "./linear";
 import { brushMake as makeBrush, paramsFromFields, paramsOf } from "./brushes";
+import { formPath } from "./shape-forms";
 import { isClosedStroke, tidyStroke } from "./tidy";
 
 // One path to draw: its data, its line colour and width and its fill colour (`none` for no fill).
@@ -162,6 +163,8 @@ function grownShape(el: RectElement | EllipseElement | DiamondElement | Triangle
   if (el.type === `rect`) {
     const [x, y, w, h] = [el.x - grow, el.y - grow, el.width + 2 * grow, el.height + 2 * grow];
     if (w < 2 || h < 2) return null;
+    // A bubble or a festoon: the path of its form (a bubble keeps its tail where it is).
+    if (el.form !== undefined) return generator.path(formPath(el.form, el.x, el.y, el.width, el.height, el.tail, grow), opts);
     const radius = el.radius === undefined ? 0 : Math.max(0, el.radius + grow);
     return radius > 0 ? generator.path(roundedRectPath(x, y, w, h, radius), opts) : generator.rectangle(x, y, w, h, opts);
   }

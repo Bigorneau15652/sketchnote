@@ -5,6 +5,7 @@ import { BRUSH_PARAMS, BrushFields, BrushKind, fieldsOf, isBrush, isParamValue, 
 import { isClosedStroke, MAX_REGULARITY } from "./tidy";
 import { DEFAULT_WARP_AMOUNT, isWarpKind, MAX_WARP_AMOUNT, WarpKind } from "./text-warp";
 import { isSafePath } from "./svg-path";
+import { isShapeForm, readTail, ShapeForm, Tail } from "./shape-forms";
 
 export type Point = [number, number];
 // How a fill is drawn: solid, with hatching lines, with dots or with a grid (crossed hatching).
@@ -142,6 +143,10 @@ export interface RectElement extends BaseElement, Strokes, Fills {
   radius?: number;
   border?: Border;
   label?: ShapeLabel;
+  // A special form in the box (a comic bubble or a festoon, see shape-forms.ts) instead of the rectangle. A bubble also has its tail, the point that it shows, as a part of the box
+  // from its centre.
+  form?: ShapeForm;
+  tail?: Tail;
 }
 
 export interface EllipseElement extends BaseElement, Strokes, Fills {
@@ -624,7 +629,15 @@ function readElement(value: unknown): SketchElement | null {
   const labelField = label ? { label } : {};
   if (type === `rect` || type === `diamond` || type === `triangle`) {
     const { x, y, width, height } = value;
-    return isCoord(x) && isCoord(y) && isSize(width) && isSize(height) ? { ...base, ...fill, ...turn, ...border, ...labelField, type, x, y, width, height } : null;
+    // A rectangle can have a special form and, for a bubble, a tail.
+    let formFields = {};
+    if (type === `rect` && value.form !== undefined) {
+      if (!isShapeForm(value.form)) return null;
+      const tail = value.tail === undefined ? undefined : readTail(value.tail);
+      if (tail === null) return null;
+      formFields = { form: value.form, ...(tail ? { tail } : {}) };
+    } else if (value.tail !== undefined) return null;
+    return isCoord(x) && isCoord(y) && isSize(width) && isSize(height) ? { ...base, ...fill, ...turn, ...border, ...labelField, ...formFields, type, x, y, width, height } : null;
   }
   if (type === `ellipse`) {
     const { cx, cy, rx, ry } = value;

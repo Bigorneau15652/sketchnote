@@ -4,7 +4,7 @@
 import { t } from "./i18n";
 import type { PanelSection } from "./panel-kinds";
 
-export type DrawFunctionId = `select` | `hand` | `rect` | `diamond` | `ellipse` | `triangle` | `arrow` | `line` | `pen` | `point` | `text` | `icons` | `images` | `display` | `export`;
+export type DrawFunctionId = `select` | `hand` | `rect` | `diamond` | `ellipse` | `triangle` | `bubble` | `festoon` | `arrow` | `line` | `pen` | `point` | `text` | `icons` | `images` | `display` | `export`;
 
 export interface DrawFunction {
   id: DrawFunctionId;
@@ -21,7 +21,7 @@ export interface DrawFunction {
   opens?: `icons` | `images` | `export`;
 }
 
-const CONTENT: PanelSection[] = [`colour`, `fill`, `brush`, `width`, `dash`, `look`, `regularity`, `border`, `corners`, `edges`, `taper`, `heads`, `text`, `warp`, `icon`, `image`, `effects`];
+const CONTENT: PanelSection[] = [`colour`, `fill`, `brush`, `width`, `dash`, `look`, `regularity`, `border`, `corners`, `bubbleform`, `festoonform`, `edges`, `taper`, `heads`, `text`, `warp`, `icon`, `image`, `effects`];
 
 // Returns the functions in their usual order. The names and the explanations are translated when they are asked for. Each tool has its own button.
 export function drawFunctions(): DrawFunction[] {
@@ -57,6 +57,28 @@ export function drawFunctions(): DrawFunction[] {
     shape(`diamond`, `diamond`, () => t(`Losange`), () => t(`Trace un losange en tirant sur le dessin.`)),
     shape(`ellipse`, `circle`, () => t(`Ellipse`), () => t(`Trace une ellipse ou un cercle en tirant sur le dessin.`)),
     shape(`triangle`, `triangle`, () => t(`Triangle`), () => t(`Trace un triangle en tirant sur le dessin.`)),
+    {
+      id: `bubble`,
+      icon: `sketchnote-form-oval`,
+      name: () => t(`Bulle de bande dessinée`),
+      help: () => [
+        t(`Trace une bulle en tirant sur le dessin : bulle de dialogue ovale ou rectangulaire, nuage de pensée ou bulle de cri. Un double clic sur la bulle permet d'écrire dedans.`),
+        t(`Le menu choisit la forme. Quand la bulle est sélectionnée, la petite poignée ronde au bout de sa queue se tire vers le personnage qui parle.`),
+      ],
+      tools: [`bubble`],
+      sections: [`bubbleform`, `colour`, `fill`, `width`, `dash`, `look`, `border`],
+    },
+    {
+      id: `festoon`,
+      icon: `sketchnote-form-ribbon`,
+      name: () => t(`Feston`),
+      help: () => [
+        t(`Trace un feston en tirant sur le dessin : un bandeau, une banderole, un fanion ou une étiquette dans lequel on peut écrire un titre.`),
+        t(`Le menu choisit la forme parmi onze modèles. Un double clic sur le feston permet d'écrire dedans.`),
+      ],
+      tools: [`festoon`],
+      sections: [`festoonform`, `colour`, `fill`, `width`, `dash`, `look`, `border`],
+    },
     {
       id: `arrow`,
       icon: `arrow-right`,
@@ -169,7 +191,9 @@ export const isSeparator = (id: string): boolean => /^sep:\d+$/.test(id);
 
 // The usual order: the tools (each one its own button), then the windows, then what acts on the drawing. The colours, the line and the effects have no button: they are in the menu of
 // the tool, or of the selected element.
-export const DEFAULT_ORDER: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `sep:2`, `arrow`, `line`, `pen`, `point`, `text`, `sep:3`, `icons`, `images`, `sep:4`, `display`, `export`];
+export const DEFAULT_ORDER: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `sep:2`, `arrow`, `line`, `pen`, `point`, `text`, `sep:3`, `icons`, `images`, `sep:4`, `display`, `export`];
+
+const BEFORE_BUBBLES: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `sep:2`, `arrow`, `line`, `pen`, `point`, `text`, `sep:3`, `icons`, `images`, `sep:4`, `display`, `export`];
 
 // Tells whether a value can be an entry of a saved order: a known function or a separation.
 export function isOrderEntry(value: unknown, known: string[]): value is string {
@@ -179,6 +203,8 @@ export function isOrderEntry(value: unknown, known: string[]): value is string {
 // Reads a saved order: the entries that are known, once each, then the functions that are missing (a function added by a later version) after the others. A wrong value gives the usual order.
 export function readOrder(value: unknown, known: string[]): string[] {
   if (!Array.isArray(value)) return [...DEFAULT_ORDER];
+  // The usual order of the versions before the bubbles and the festoons: it takes the new buttons at their place.
+  if (value.join(`,`) === BEFORE_BUBBLES.join(`,`)) return [...DEFAULT_ORDER];
   // An order saved when the tools were grouped (Draw, Shapes, Lines and arrows) has nothing to keep: each tool has its own button now, so the usual order is used.
   if (value.some((id) => id === `draw` || id === `shapes` || id === `lines` || id === `organise`)) return [...DEFAULT_ORDER];
   const out: string[] = [];

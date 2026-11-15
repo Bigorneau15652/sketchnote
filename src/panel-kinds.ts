@@ -1,10 +1,11 @@
 // Which sections of the properties panel concern what the user is working on. The panel follows the selection (or the tool when nothing is selected): a line has no
 // fill, a shape has no heads, a text has a font. No dependency on Obsidian: tested without the application.
 import { isClosedLine } from "./elements";
+import { isBubbleForm } from "./shape-forms";
 import type { SketchElement } from "./elements";
 import { isClosedStroke } from "./tidy";
 
-export type PanelSection = `colour` | `fill` | `width` | `dash` | `look` | `border` | `corners` | `edges` | `taper` | `regularity` | `brush` | `warp` | `icon` | `image` | `heads` | `text` | `effects` | `organise` | `display`;
+export type PanelSection = `colour` | `fill` | `width` | `dash` | `look` | `border` | `corners` | `edges` | `taper` | `regularity` | `brush` | `warp` | `icon` | `image` | `heads` | `text` | `effects` | `organise` | `display` | `bubbleform` | `festoonform`;
 
 // Returns the kinds of element the panel is about: the types of the selected elements, or the kind that the active tool is going to make when nothing is selected. A line
 // about to be drawn is `new-line`: its heads are not offered (a line becomes an arrow once a head is chosen, after it is drawn). The tools that do not make an element
@@ -30,6 +31,8 @@ function kindsOf(elements: SketchElement[]): Set<string> {
       if (e.type === `text`) return [`text`, `free-text`];
       if (e.type === `icon`) return [`icon`];
       if (e.type === `image`) return [`image`];
+      // A bubble or a festoon is a rectangle with a form: it has the settings of a shape, and the choice of its form instead of the corners.
+      if (e.type === `rect` && e.form !== undefined) return e.label ? [isBubbleForm(e.form) ? `bubble` : `festoon`, `text`] : [isBubbleForm(e.form) ? `bubble` : `festoon`];
       const labelled = (e.type === `rect` || e.type === `ellipse` || e.type === `diamond` || e.type === `triangle` || e.type === `line` || e.type === `arrow`) && e.label;
       // A line that comes back to its start is a closed shape: it can have a fill.
       const closed = e.type === `line` && isClosedLine(e.points) ? [`line-closed`] : [];
@@ -38,7 +41,7 @@ function kindsOf(elements: SketchElement[]): Set<string> {
   );
 }
 
-const SHAPES = [`rect`, `diamond`, `ellipse`, `triangle`];
+const SHAPES = [`rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`];
 const PENS = [`freedraw`, `freedraw-closed`];
 const STROKED = [...SHAPES, `line`, `arrow`, `icon`, `image`, ...PENS, `new-line`, `new-point`];
 
@@ -72,6 +75,10 @@ export function sectionShown(section: PanelSection, kinds: Set<string>): boolean
       return some([`line`, `arrow`, `new-line`]);
     case `heads`:
       return some([`line`, `arrow`]);
+    case `bubbleform`:
+      return kinds.has(`bubble`);
+    case `festoonform`:
+      return kinds.has(`festoon`);
     case `text`:
       return kinds.has(`text`);
     case `warp`:
