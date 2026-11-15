@@ -1,5 +1,6 @@
 // Draws the elements of a page or of a drawing into an SVG group. Built with the DOM only: nothing is ever parsed from text.
 // A hand drawn or clean line comes from shape-paths; a frame of a drawing shows the drawing it points to, fitted to its width.
+import { DEFAULT_WARP_AMOUNT, glyphTransform, layoutWarp } from "./text-warp";
 import { ArrowElement, DrawingElement, isStroked, LineElement, SketchElement, TextElement } from "./elements";
 import { outlineExtent } from "./extent";
 import { boxOf, elementBounds } from "./geometry";
@@ -127,6 +128,20 @@ function drawText(el: TextElement, parent: Element): void {
   const x = el.align === `center` ? el.x + el.width / 2 : el.align === `right` ? el.x + el.width : el.x;
   const turn: Record<string, string> = el.angle ? { transform: `rotate(${el.angle} ${el.x + el.width / 2} ${el.y + el.height / 2})` } : {};
   const holder = mirrored(el, svgEl(`g`, turn, parent));
+  // A text with a distortion, or written vertically, is drawn letter by letter (see text-warp.ts); the others are drawn as lines.
+  if (el.warp !== undefined || el.vertical === true) {
+    const layout = layoutWarp(
+      { text: el.text, size: el.size, align: el.align ?? `left`, zone: el.zone === true, width: el.width, height: el.height, vertical: el.vertical === true, warp: el.warp ?? null, amount: el.warpAmount ?? DEFAULT_WARP_AMOUNT },
+      (ch) => measureLine(ch, el.font, el.size),
+    );
+    const letters = svgEl(`g`, { class: `sketchnote-text sketchnote-text-letters`, "font-family": fontStack(el.font), "font-size": el.size, fill: el.stroke, "text-anchor": `middle`, "dominant-baseline": `central`, style: `white-space:pre` }, holder);
+    for (const g of layout.glyphs) {
+      if (g.char.trim() === ``) continue;
+      const letter = svgEl(`text`, { transform: glyphTransform(g, el.x, el.y) }, letters);
+      letter.textContent = g.char;
+    }
+    return;
+  }
   const group = svgEl(`text`, { class: `sketchnote-text`, "font-family": fontStack(el.font), "font-size": el.size, fill: el.stroke, "text-anchor": anchor, "dominant-baseline": `central`, style: `white-space:pre` }, holder);
   // A text zone wraps its lines to its width; any other text keeps its own lines.
   const lines = el.zone === true ? wrapLines(el.text, el.width, (line) => measureLine(line, el.font, el.size)) : textLines(el.text);

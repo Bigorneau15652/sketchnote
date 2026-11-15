@@ -52,6 +52,13 @@ const ICONS: Record<string, string> = {
   "sketchnote-border-double-reverse": tag(`rect`, { x: 8, y: 28, width: 84, height: 44, ...boxed, "stroke-width": 9 }) + tag(`rect`, { x: 25, y: 41, width: 50, height: 18, ...boxed, "stroke-width": 3 }),
   "sketchnote-border-frame": tag(`rect`, { x: 4, y: 22, width: 92, height: 56, ...boxed, "stroke-width": 3 }) + tag(`rect`, { x: 15, y: 32, width: 70, height: 36, ...boxed, "stroke-width": 8 }) + tag(`rect`, { x: 31, y: 45, width: 38, height: 10, ...boxed, "stroke-width": 3 }),
   "sketchnote-border-mat": tag(`rect`, { x: 10, y: 30, width: 80, height: 40, ...boxed, "stroke-width": 15 }) + tag(`rect`, { x: 33, y: 43, width: 34, height: 14, ...boxed, "stroke-width": 3 }),
+  // The distortions of a text: four letters (bars) that follow the shape of the distortion.
+  "sketchnote-warp-none": tag(`path`, { d: `M18 38V62M39 38V62M61 38V62M82 38V62`, ...line, "stroke-width": 8 }),
+  "sketchnote-warp-arc": tag(`path`, { d: `M21.4 70.5L14.6 49.5M40.1 58.9L37.9 37.1M59.9 58.9L62.1 37.1M78.6 70.5L85.4 49.5`, ...line, "stroke-width": 8 }),
+  "sketchnote-warp-wave": tag(`path`, { d: `M18 45V67M39 33V55M61 45V67M82 33V55`, ...line, "stroke-width": 8 }),
+  "sketchnote-warp-slant": tag(`path`, { d: `M20 64L30 38M40 64L50 38M60 64L70 38M80 64L90 38`, ...line, "stroke-width": 8 }),
+  "sketchnote-warp-perspective": tag(`path`, { d: `M18 44V56M39 40V60M61 35V65M82 28V72`, ...line, "stroke-width": 8 }),
+  "sketchnote-warp-bulge": tag(`path`, { d: `M18 42V58M39 34V66M61 34V66M82 42V58`, ...line, "stroke-width": 8 }),
   // A line that is wide at its start and ends in a point.
   "sketchnote-taper": tag(`path`, { d: `M10 34L90 50L10 66Z`, fill: `currentColor`, stroke: `currentColor`, "stroke-linejoin": `round`, "stroke-width": 4 }),
   "sketchnote-shadow-none": tag(`rect`, { x: 22, y: 22, width: 52, height: 52, ...boxed, "stroke-width": 7 }),

@@ -3,7 +3,7 @@
 import type { SketchElement } from "./elements";
 import { isClosedStroke } from "./tidy";
 
-export type PanelSection = `colour` | `fill` | `width` | `dash` | `look` | `border` | `corners` | `edges` | `taper` | `regularity` | `brush` | `heads` | `text` | `effects`;
+export type PanelSection = `colour` | `fill` | `width` | `dash` | `look` | `border` | `corners` | `edges` | `taper` | `regularity` | `brush` | `warp` | `heads` | `text` | `effects`;
 
 // Returns the kinds of element the panel is about: the types of the selected elements, or the kind that the active tool is going to make when nothing is selected. A line
 // about to be drawn is `new-line`: its heads are not offered (a line becomes an arrow once a head is chosen, after it is drawn). The tools that do not make an element
@@ -25,6 +25,8 @@ function kindsOf(elements: SketchElement[]): Set<string> {
   return new Set(
     elements.flatMap((e): string[] => {
       if (e.type === `freedraw`) return [isClosedStroke(e.points, e.strokeWidth) ? `freedraw-closed` : `freedraw`];
+      // A text that is an element of its own (not a text written in a shape) can be distorted and written vertically.
+      if (e.type === `text`) return [`text`, `free-text`];
       const labelled = (e.type === `rect` || e.type === `ellipse` || e.type === `diamond` || e.type === `triangle` || e.type === `line` || e.type === `arrow`) && e.label;
       return labelled ? [e.type, `text`] : [e.type];
     }),
@@ -67,5 +69,7 @@ export function sectionShown(section: PanelSection, kinds: Set<string>): boolean
       return some([`line`, `arrow`]);
     case `text`:
       return kinds.has(`text`);
+    case `warp`:
+      return kinds.has(`free-text`);
   }
 }

@@ -20,6 +20,7 @@ import { BRUSH_DEFS, BRUSH_KINDS, BrushKind, BrushParam, brushMake, paramsOf, pr
 import { penCursor } from "./cursors";
 import { allLocked, isLocked } from "./lock";
 import { MAX_REGULARITY } from "./tidy";
+import { WARP_KINDS, WarpKind } from "./text-warp";
 import { PluginApi } from "./plugin-api";
 import { renderCanvas, RenderedPage } from "./page-render";
 import { svgEl } from "./svg";
@@ -31,6 +32,12 @@ import { newId } from "./elements";
 import { VIEW_TYPE as PAGE_VIEW_TYPE } from "./view";
 
 export const DRAW_VIEW_TYPE = `sketchdraw-view`;
+
+// Returns the name of a distortion of the texts in the language of the user.
+function warpName(kind: WarpKind | `none`): string {
+  const names: Record<WarpKind | `none`, string> = { none: t(`Sans déformation`), arc: t(`Arc`), wave: t(`Vague`), slant: t(`Inclinaison`), perspective: t(`Perspective`), bulge: t(`Bombé`) };
+  return names[kind];
+}
 
 // A number that makes the identifiers of the filters of the pictograms different.
 let previewCount = 0;
@@ -554,6 +561,14 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.panelButton(aligns, `align-left`, t(`Aligné à gauche`), (s) => s.align === `left`, () => this.change({ align: `left` }));
     this.panelButton(aligns, `align-center`, t(`Centré`), (s) => s.align === `center`, () => this.change({ align: `center` }));
     this.panelButton(aligns, `align-right`, t(`Aligné à droite`), (s) => s.align === `right`, () => this.change({ align: `right` }));
+
+    // The distortion of a text and its vertical writing: one menu, a slider for the strength (only with a distortion) and a box to check.
+    const warpSec = this.section(props, `warp`);
+    this.sectionIcon(warpSec, `sketchnote-warp-arc`, t(`Déformation du texte`));
+    const warpRow = warpSec.createDiv({ cls: `sketchdraw-row` });
+    this.dropdown(warpRow, t(`Déformation du texte`), [`none`, ...WARP_KINDS] as (WarpKind | `none`)[], (v) => `sketchnote-warp-${v}`, warpName, (s) => s.warp, (v) => ({ warp: v }), true);
+    this.slider(warpSec, ``, t(`Intensité de la déformation : d'un sens à l'autre, 0 pour aucune`), -100, 100, 5, (s) => Math.round(s.warpAmount * 100), (v) => ({ warpAmount: v / 100 }), (s) => s.warp !== `none`);
+    this.checkbox(warpSec, t(`Texte vertical`), (s) => s.vertical, (on) => ({ vertical: on }));
 
     // The effects of every element: the opacity, then the shadow and the reflection, which are checked to be used and then unfold their settings.
     const effectSec = this.section(props, `effects`);

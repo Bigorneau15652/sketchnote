@@ -5,7 +5,7 @@ import { panelKinds, PanelSection, sectionShown } from "../src/panel-kinds";
 
 const make = (type: string): SketchElement => ({ id: type, type, stroke: `#000000`, strokeWidth: 3, points: [[0, 0], [1, 1]], x: 0, y: 0, width: 1, height: 1, cx: 0, cy: 0, rx: 1, ry: 1, text: `a`, font: `caveat`, size: 20, path: null }) as unknown as SketchElement;
 
-const ALL: PanelSection[] = [`colour`, `fill`, `brush`, `width`, `dash`, `look`, `regularity`, `border`, `corners`, `edges`, `heads`, `text`, `effects`];
+const ALL: PanelSection[] = [`colour`, `fill`, `brush`, `width`, `dash`, `look`, `regularity`, `border`, `corners`, `edges`, `heads`, `text`, `warp`, `effects`];
 const shown = (tool: string, types: string[]): PanelSection[] => ALL.filter((s) => sectionShown(s, panelKinds(tool, types.map(make))));
 
 test(`un trait ou une fleche n'ont pas de remplissage ni de bordure`, () => {
@@ -18,14 +18,14 @@ test(`une forme a un remplissage et une bordure mais ni bords ni pointes, et seu
 });
 
 test(`un texte n'a que sa couleur, ses reglages de texte et les effets, un cadre de dessin rien`, () => {
-  assert.deepEqual(shown(`select`, [`text`]), [`colour`, `text`, `effects`]);
+  assert.deepEqual(shown(`select`, [`text`]), [`colour`, `text`, `warp`, `effects`]);
   assert.deepEqual(shown(`select`, [`drawing`]), []);
   assert.deepEqual(shown(`select`, [`freedraw`]), [`colour`, `brush`, `width`, `regularity`, `effects`]);
 });
 
 test(`une selection de plusieurs sortes montre les sections de chacune`, () => {
   assert.deepEqual(shown(`select`, [`rect`, `arrow`]), [`colour`, `fill`, `width`, `dash`, `look`, `border`, `corners`, `edges`, `heads`, `effects`]);
-  assert.deepEqual(shown(`select`, [`ellipse`, `text`]), [`colour`, `fill`, `width`, `dash`, `look`, `border`, `text`, `effects`]);
+  assert.deepEqual(shown(`select`, [`ellipse`, `text`]), [`colour`, `fill`, `width`, `dash`, `look`, `border`, `text`, `warp`, `effects`]);
 });
 
 test(`sans selection le panneau suit l'outil, et sans outil il montre les choix generaux`, () => {

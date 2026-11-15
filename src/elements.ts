@@ -3,6 +3,7 @@
 import { isSafeColor } from "./color";
 import { BRUSH_PARAMS, BrushFields, BrushKind, fieldsOf, isBrush, isParamValue, sparseParams } from "./brushes";
 import { isClosedStroke, MAX_REGULARITY } from "./tidy";
+import { DEFAULT_WARP_AMOUNT, isWarpKind, MAX_WARP_AMOUNT, WarpKind } from "./text-warp";
 
 export type Point = [number, number];
 // How a fill is drawn: solid, with hatching lines, with dots or with a grid (crossed hatching).
@@ -211,6 +212,11 @@ export interface TextElement extends BaseElement {
   // A text zone: the width and the height are the ones of the zone that the user drew (shown dotted when selected); the text wraps to its width. Absent for a text
   // that is only as large as its lines.
   zone?: boolean;
+  // A distortion of the text (an arc, a wave, a slant, a perspective or a bulge) and its strength from -1 to 1 (0.5 when absent), and the vertical writing (the letters stacked one
+  // under the other, one column for each line). The text stays a text: the letters are placed one by one when it is drawn.
+  warp?: WarpKind;
+  warpAmount?: number;
+  vertical?: boolean;
 }
 
 export const MAX_TEXT_LENGTH = 5000;
@@ -426,7 +432,12 @@ function readElement(value: unknown): SketchElement | null {
     const angle = readAngle(value.angle);
     if (angle === null) return null;
     if (value.zone !== undefined && typeof value.zone !== `boolean`) return null;
-    return { ...head, type, x, y, width, height, text, font, size, stroke: value.stroke, ...(value.zone === true ? { zone: true as const } : {}), ...(value.align === undefined || value.align === `left` ? {} : { align: value.align as TextAlign }), ...(angle === 0 ? {} : { angle }) };
+    if (value.warp !== undefined && !isWarpKind(value.warp)) return null;
+    if (value.warpAmount !== undefined && (typeof value.warpAmount !== `number` || !Number.isFinite(value.warpAmount) || Math.abs(value.warpAmount) > MAX_WARP_AMOUNT)) return null;
+    if (value.vertical !== undefined && typeof value.vertical !== `boolean`) return null;
+    // The strength only means something with a distortion, and the usual one is not kept.
+    const warpFields = value.warp === undefined ? {} : { warp: value.warp as WarpKind, ...(typeof value.warpAmount === `number` && value.warpAmount !== DEFAULT_WARP_AMOUNT ? { warpAmount: value.warpAmount } : {}) };
+    return { ...head, type, x, y, width, height, text, font, size, stroke: value.stroke, ...(value.zone === true ? { zone: true as const } : {}), ...warpFields, ...(value.vertical === true ? { vertical: true as const } : {}), ...(value.align === undefined || value.align === `left` ? {} : { align: value.align as TextAlign }), ...(angle === 0 ? {} : { angle }) };
   }
   const { stroke, strokeWidth } = value;
   if (!isSafeColor(stroke)) return null;
