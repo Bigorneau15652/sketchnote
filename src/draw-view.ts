@@ -892,7 +892,6 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     this.sectionIcon(textSec, `type`, t(`Police`));
     const select = textSec.createEl(`select`, { cls: `dropdown sketchdraw-font` });
     select.setAttribute(`aria-label`, t(`Police`));
-    select.setAttribute(`title`, t(`Police`));
     select.addEventListener(`change`, () => this.change({ font: select.value }));
     this.fontSelect = select;
     this.refreshFontList();
@@ -915,7 +914,6 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     const strokesBox = strokes.createEl(`input`, { type: `checkbox` });
     strokes.createSpan({ text: t(`Transformer en traits`) });
     strokes.setAttribute(`aria-label`, t(`Transformer en traits`));
-    strokes.setAttribute(`title`, t(`Transformer l'icône en traits ordinaires, que l'on modifie un par un`));
     strokesBox.addEventListener(`change`, () => {
       if (strokesBox.checked) this.strokesFromIcons(() => (strokesBox.checked = false));
     });
@@ -1007,8 +1005,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     const row = parent.createDiv({ cls: `sketchdraw-row sketchdraw-shadow-colour` });
     row.createSpan({ cls: `sketchdraw-slider-label`, text: t(`Couleur de l'ombre`) });
     const b = row.createEl(`button`, { cls: `sketchdraw-swatch` });
-    b.setAttribute(`aria-label`, t(`Couleur de l'ombre`));
-    b.setAttribute(`title`, `${t(`Couleur de l'ombre`)} : ${t(`double clic pour changer`)}`);
+    b.setAttribute(`aria-label`, `${t(`Couleur de l'ombre`)} : ${t(`double clic pour changer`)}`);
     b.addEventListener(`dblclick`, () => {
       new ColorModal(this.app, this.currentStyle().shadowColor, (choice: ColorChoice) => {
         if (choice.color !== null) this.change({ shadowColor: choice.color });
@@ -1030,7 +1027,6 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     input.max = String(max);
     input.step = String(step);
     input.setAttribute(`aria-label`, help);
-    input.setAttribute(`title`, help);
     input.addEventListener(`input`, () => this.change(write(Number(input.value))));
     this.sliders.push({ wrap, input, read, visible });
   }
@@ -1161,7 +1157,6 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     setIcon(head, icon);
     head.createSpan({ cls: `sketchdraw-title-text`, text: label });
     head.setAttribute(`aria-label`, label);
-    head.setAttribute(`title`, label);
     return head;
   }
 
@@ -1170,7 +1165,6 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     const b = parent.createEl(`button`, { cls: `sketchdraw-chip` });
     setIcon(b, icon);
     b.setAttribute(`aria-label`, label);
-    b.setAttribute(`title`, label);
     b.addEventListener(`click`, () => {
       onClick();
       // The focus goes back to the drawing, so that the keyboard shortcuts keep working after a click on the panel.
@@ -1189,8 +1183,7 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
     if (!this.swatchRows) return;
     const make = (row: HTMLElement, index: number, label: string, background: string, empty: boolean, pick: () => void, edit: () => void): HTMLElement => {
       const b = row.createEl(`button`, { cls: `sketchdraw-swatch` });
-      b.setAttribute(`aria-label`, label);
-      b.setAttribute(`title`, `${label} : ${t(`double clic pour changer`)}`);
+      b.setAttribute(`aria-label`, `${label} : ${t(`double clic pour changer`)}`);
       b.style.background = background;
       b.dataset.index = String(index);
       b.toggleClass(`is-empty`, empty);
@@ -1333,7 +1326,6 @@ export class SketchdrawView extends CanvasView<SketchdrawDoc> {
       // A menu that shows the name of its choice next to its pictogram, as the menu does when it is open.
       if (d.shown) d.el.createSpan({ cls: `sketchdraw-menu-name`, text: d.shown(s) });
       d.el.setAttribute(`aria-label`, d.name(s));
-      d.el.setAttribute(`title`, d.name(s));
     }
     for (const f of this.syncers) f(s);
     if (this.imageName) {

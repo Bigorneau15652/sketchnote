@@ -137,7 +137,6 @@ export class SketchnoteView extends CanvasView<SketchnoteDoc> {
       setIcon(this.zonesButton, this.showZones ? `eye` : `eye-off`);
       const label = this.showZones ? t(`Masquer les zones`) : t(`Afficher les zones`);
       this.zonesButton.setAttribute(`aria-label`, label);
-      this.zonesButton.setAttribute(`title`, label);
     }
   }
 

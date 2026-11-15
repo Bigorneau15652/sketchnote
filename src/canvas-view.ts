@@ -254,7 +254,6 @@ export abstract class CanvasView<D> extends TextFileView {
     const b = parent.createEl(`button`, { cls: `sketchnote-bar-button` });
     setIcon(b, icon);
     b.setAttribute(`aria-label`, label);
-    b.setAttribute(`title`, label);
     b.addEventListener(`click`, onClick);
     return b;
   }
@@ -331,7 +330,6 @@ export abstract class CanvasView<D> extends TextFileView {
     }
     const label = action === `ungroup` ? t(`Dégrouper`) : t(`Grouper`);
     b.setAttribute(`aria-label`, label);
-    b.setAttribute(`title`, label);
   }
 
   // Shows what the lock button does for the selection: the closed padlock to lock, the open one to unlock when every selected element is locked.
@@ -347,7 +345,6 @@ export abstract class CanvasView<D> extends TextFileView {
     }
     const label = action === `unlock` ? t(`Déverrouiller`) : t(`Verrouiller`);
     b.setAttribute(`aria-label`, label);
-    b.setAttribute(`title`, label);
     b.toggleClass(`is-active`, action === `unlock`);
   }
 

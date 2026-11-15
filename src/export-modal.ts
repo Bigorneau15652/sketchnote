@@ -116,7 +116,6 @@ export class ExportModal extends Modal {
     const b = parent.createEl(`button`, { cls: `sketchnote-export-button` });
     setIcon(b, icon);
     b.setAttribute(`aria-label`, label);
-    b.setAttribute(`title`, disabled ? `${label} (${t(`impossible pour un PDF`)})` : label);
     b.disabled = disabled;
     b.addEventListener(`click`, () => void this.guard(run));
     this.buttons.push(b);

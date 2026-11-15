@@ -59,7 +59,6 @@ export class AddFontModal extends Modal {
     const choose = drop.createEl(`button`, { cls: `mod-cta sketchnote-addfont-choose` });
     setIcon(choose, `upload`);
     choose.setAttribute(`aria-label`, t(`Importer des fichiers`));
-    choose.setAttribute(`title`, t(`Importer des fichiers`));
     const input = drop.createEl(`input`, { type: `file`, attr: { multiple: `true`, accept: `.zip,.ttf,.otf`, hidden: `true` } });
     choose.addEventListener(`click`, () => input.click());
     input.addEventListener(`change`, () => void this.take(Array.from(input.files ?? [])));

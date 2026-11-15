@@ -111,7 +111,6 @@ export class IconModal extends Modal {
     for (const entry of shown) {
       const cell = this.grid.createEl(`button`, { cls: `sketchnote-icons-cell` });
       cell.setAttribute(`aria-label`, entry.label);
-      cell.setAttribute(`title`, entry.label);
       const holder = cell.createDiv({ cls: `sketchnote-icons-holder` });
       if (entry.source === `lucide`) setIcon(holder, `lucide-${entry.name}`);
       else {

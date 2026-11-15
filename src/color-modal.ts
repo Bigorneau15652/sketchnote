@@ -95,7 +95,6 @@ export class ColorModal extends Modal {
       const pipette = row.createEl(`button`, { cls: `sketchnote-color-pipette` });
       setIcon(pipette, `pipette`);
       pipette.setAttribute(`aria-label`, t(`Pipette : prendre une couleur à l'écran`));
-      pipette.setAttribute(`title`, t(`Pipette : prendre une couleur à l'écran`));
       pipette.addEventListener(`click`, () => void this.pickFromScreen(Dropper));
     }
     const preview = row.createDiv({ cls: `sketchnote-color-preview` });
@@ -131,7 +130,6 @@ export class ColorModal extends Modal {
       const b = row.createEl(`button`, { cls: `sketchdraw-chip` });
       setIcon(b, `sketchnote-fill-${style}`);
       b.setAttribute(`aria-label`, names[style]);
-      b.setAttribute(`title`, names[style]);
       b.addEventListener(`click`, () => {
         this.style = style;
         this.none = false;
@@ -142,7 +140,6 @@ export class ColorModal extends Modal {
     const none = row.createEl(`button`, { cls: `sketchdraw-chip sketchnote-color-none` });
     setIcon(none, `ban`);
     none.setAttribute(`aria-label`, t(`Sans couleur`));
-    none.setAttribute(`title`, t(`Sans couleur`));
     none.addEventListener(`click`, () => {
       this.none = true;
       this.refresh();
@@ -299,7 +296,6 @@ export class ColorModal extends Modal {
 export function addColorSwatch(parent: HTMLElement, app: App, value: string, label: string, onPick: (hex: string) => void): { el: HTMLButtonElement; show: (color: string) => void } {
   const el = parent.createEl(`button`, { cls: `sketchnote-color-swatch` });
   el.setAttribute(`aria-label`, label);
-  el.setAttribute(`title`, label);
   let current = toHex6(value);
   const show = (color: string): void => {
     current = toHex6(color);
