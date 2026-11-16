@@ -1,6 +1,7 @@
 // The drawing notes of the vault: creating, copying, loading and keeping up to date the .sketchdraw files, and following their renaming.
 import { App, TFile, TAbstractFile } from "obsidian";
 import { createEmptyDrawing, DrawingGuide, parseSketchdraw, renameReferences, serializeSketchdraw, SketchdrawDoc } from "./drawing-file";
+import { firstFreePath } from "./free-path";
 import { uniqueDrawingPath } from "./settings";
 
 export class DrawingStore {
@@ -81,15 +82,16 @@ export class DrawingStore {
   }
 
   // Returns a free path for a new drawing note named after a sketchnote.
-  private freePath(sketchnoteName: string): string {
+  private async freePath(sketchnoteName: string): Promise<string> {
     const used = new Set(this.app.vault.getFiles().map((f) => f.path));
-    return uniqueDrawingPath(this.folder(), sketchnoteName, used);
+    // The disk is asked as well as the index of the vault, which does not always know every file of the disk.
+    return firstFreePath((taken) => uniqueDrawingPath(this.folder(), sketchnoteName, new Set([...used, ...taken])), (path) => this.app.vault.adapter.exists(path));
   }
 
   // Creates an empty drawing note in the folder of the drawings, with the ink and the palette of the page, and returns its file.
   async createDrawing(sketchnoteName: string, ink: string, palette: string[], guide: DrawingGuide | null, path?: string): Promise<TFile> {
     await this.ensureFolder(this.folder());
-    const target = path ?? this.freePath(sketchnoteName);
+    const target = path ?? (await this.freePath(sketchnoteName));
     const doc = createEmptyDrawing(ink, palette, guide ?? undefined);
     const file = await this.app.vault.create(target, serializeSketchdraw(doc));
     this.cache.set(file.path, doc);
@@ -119,7 +121,7 @@ export class DrawingStore {
     const text = await this.app.vault.read(source);
     if (!parseSketchdraw(text).ok) return null;
     await this.ensureFolder(this.folder());
-    const copy = await this.app.vault.create(this.freePath(sketchnoteName), text);
+    const copy = await this.app.vault.create(await this.freePath(sketchnoteName), text);
     return copy.path;
   }
 
