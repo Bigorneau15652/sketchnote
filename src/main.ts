@@ -4,6 +4,7 @@ import { CanvasView } from "./canvas-view";
 import { DRAW_VIEW_TYPE, SketchdrawView } from "./draw-view";
 import { DrawingStore } from "./drawings";
 import { registerIcons } from "./custom-icons";
+import { firstFreePath } from "./free-path";
 import { FontStore } from "./font-store";
 import { ExportServiceImpl } from "./export-service";
 import { ZenMode } from "./zen";
@@ -139,23 +140,28 @@ export default class SketchnotePlugin extends Plugin {
     });
   }
 
-  // Returns a free path for a new sketchnote, next to the active note or at the root of the vault.
-  private freePath(): string {
+  // Returns a free path for a new sketchnote, next to the active note or at the root of the vault. The disk is asked as well as the index of the vault, which does not always
+  // know every file of the disk.
+  private async freePath(): Promise<string> {
     const active = this.app.workspace.getActiveFile();
     const folder = this.app.fileManager.getNewFileParent(active ? active.path : ``).path;
     const base = t(`Nouveau sketchnote`);
-    for (let n = 0; n < 1000; n++) {
-      const name = n === 0 ? base : `${base} ${n}`;
-      const path = normalizePath(`${folder}/${name}.sketchnote`);
-      if (!this.app.vault.getAbstractFileByPath(path)) return path;
-    }
-    return normalizePath(`${folder}/${base} ${Date.now()}.sketchnote`);
+    return firstFreePath(
+      (taken) => {
+        for (let n = 0; n < 1000; n++) {
+          const path = normalizePath(`${folder}/${n === 0 ? base : `${base} ${n}`}.sketchnote`);
+          if (!taken.has(path) && !this.app.vault.getAbstractFileByPath(path)) return path;
+        }
+        return normalizePath(`${folder}/${base} ${Date.now()}.sketchnote`);
+      },
+      (path) => this.app.vault.adapter.exists(path),
+    );
   }
 
   // Creates an empty sketchnote file and opens it in a new tab.
   private async createSketchnote(): Promise<void> {
     try {
-      const file: TFile = await this.app.vault.create(this.freePath(), serializeSketchnote(createEmptyDoc()));
+      const file: TFile = await this.app.vault.create(await this.freePath(), serializeSketchnote(createEmptyDoc()));
       await this.app.workspace.getLeaf(`tab`).openFile(file);
       new Notice(t(`Sketchnote créé : {0}`, file.path));
     } catch (e) {

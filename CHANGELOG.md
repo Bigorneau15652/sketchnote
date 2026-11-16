@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.35.1
+
+English
+
+Creating a sketchnote or a drawing no longer fails with File already exists. The free name of a new file was looked up in the index of the vault only, which does not always know every file of the disk (for example a file that a synchronisation has just copied into the vault, or a file with an extension that the plugin has just registered, as after a first installation). The disk is now asked as well: a name that is taken there is skipped, and the next free one is used. This concerns the new sketchnote, the new drawings and the copies of drawings.
+
+Français
+
+La création d'un sketchnote ou d'un dessin n'échoue plus avec File already exists. Le nom libre d'un nouveau fichier était cherché seulement dans l'index du coffre, qui ne connaît pas toujours tous les fichiers du disque (par exemple un fichier qu'une synchronisation vient de copier dans le coffre, ou un fichier dont l'extension vient d'être enregistrée par le plugin, comme après une première installation). Le disque est maintenant interrogé aussi : un nom qui y est pris est sauté, et le suivant libre est utilisé. Cela concerne le nouveau sketchnote, les nouveaux dessins et les copies de dessins.
+
 ## 0.35.0
 
 English
