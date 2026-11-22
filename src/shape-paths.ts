@@ -283,6 +283,9 @@ function brushPieces(el: FreedrawElement, pts: Point[]): { pieces: PathPiece[]; 
 // Computes the pieces of an icon: every shape of its drawing in the hand drawn look, in the coordinates of the view box, and the transform that puts the view box in the box of the
 // element. The width of the lines and the wobble are divided by the scale, so that they have the width and the size that the element says on the page. A shape that the file had
 // filled is filled with the colour of the line; the other closed shapes take the fill of the element, when it has one.
+// How much of the imperfection of the element a figure or a character takes.
+export const SOFT_ROUGHNESS = 0.3;
+
 function iconPaths(el: IconElement, opts: Record<string, unknown>): ElementPaths {
   const data = iconData(el);
   const turned = turn(el.angle, el.x + el.width / 2, el.y + el.height / 2);
@@ -296,6 +299,9 @@ function iconPaths(el: IconElement, opts: Record<string, unknown>): ElementPaths
   const sy = el.height / vh;
   const k = Math.max(0.001, (sx + sy) / 2);
   const base: Record<string, unknown> = { ...opts, strokeWidth: el.strokeWidth / k, maxRandomnessOffset: 2 / k, hachureGap: Math.max(6, el.strokeWidth * 3.5) / k, fillWeight: Math.max(1, el.strokeWidth / 2) / k };
+  // The figure and the character are drawn on a small grid with many short lines: the imperfection that suits a shape would tear them apart, so it is softened (the usual setting then
+  // looks like a light imperfection, and the strongest one keeps the figure recognisable).
+  if ((el.figure || el.portrait) && typeof opts.roughness === `number`) base.roughness = opts.roughness * SOFT_ROUGHNESS;
   const seed = (opts.seed as number) ?? 1;
   const pieces: PathPiece[] = [];
   data.shapes.forEach((shape, i) => {
@@ -314,6 +320,8 @@ function iconPaths(el: IconElement, opts: Record<string, unknown>): ElementPaths
       delete shapeOpts.fill;
       delete shapeOpts.fillStyle;
     }
+    // The small filled dots of a figure or a character (the eyes) stay round: a wobble would turn them into stars.
+    if ((el.figure || el.portrait) && shape.fill && !shape.stroke) shapeOpts.roughness = 0;
     // A shape with no line (a filled shape of a file) has only its fill.
     if (!shape.stroke) shapeOpts.stroke = `none`;
     let made: PathPiece[] = [];

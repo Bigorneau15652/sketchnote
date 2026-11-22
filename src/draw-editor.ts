@@ -1354,7 +1354,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
   // pictogram and which unit the field has; `help` is its tooltip, the only text of the field.
   protected slider(parent: HTMLElement, label: string, help: string, min: number, max: number, step: number, read: (s: ToolStyle) => number, write: (v: number) => StylePatch, visible?: (s: ToolStyle) => boolean): void {
     const kind = FIELD_KINDS[label] ?? { icon: `sliders-horizontal`, unit: `` };
-    const field = valueField({ parent, icon: kind.icon, tooltip: help, min, max, step, unit: kind.unit, presets: presetValues(min, max, step), onChange: (v) => this.change(write(v)) });
+    const field = valueField({ parent, icon: kind.icon, tooltip: help, min, max, step, unit: kind.unit, presets: presetValues(min, max, step), stepButtons: true, onChange: (v) => this.change(write(v)) });
     this.sliders.push({ wrap: field.el, set: (v) => field.set(v), read, visible });
   }
 
