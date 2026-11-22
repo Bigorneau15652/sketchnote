@@ -31,8 +31,8 @@ test(`l'ordre habituel contient chaque fonction une fois, avec des separations e
 
 test(`les fonctions qui s'ouvrent en fenetre sont les icones, le personnage, les images, la bibliotheque et l'export, et les autres montrent des parties du menu`, () => {
   const opens = drawFunctions().filter((f) => f.opens).map((f) => `${f.id}:${f.opens}`);
-  assert.deepEqual(opens, [`portrait:portrait`, `icons:icons`, `images:images`, `library:library`, `export:export`]);
-  for (const f of drawFunctions()) if (f.id !== `export` && f.id !== `hand` && f.id !== `library` && f.id !== `portrait`) assert.ok(f.sections.length > 0, f.id);
+  assert.deepEqual(opens, [`figure:figure`, `portrait:portrait`, `icons:icons`, `images:images`, `library:library`, `export:export`]);
+  for (const f of drawFunctions()) if (f.id !== `export` && f.id !== `hand` && f.id !== `library` && f.id !== `portrait` && f.id !== `figure`) assert.ok(f.sections.length > 0, f.id);
   assert.equal(sectionShown(`organise`, new Set()), true);
   assert.equal(sectionShown(`display`, new Set([`rect`])), true);
 });
