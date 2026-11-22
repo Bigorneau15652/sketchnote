@@ -24,6 +24,7 @@ import { ToolStyle } from "./style";
 import { addPenPoint, CREATION_TOOLS, CreationTool, elementFromDrag, linearElement, penElement } from "./tools";
 import { stampElement, stampName } from "./stamps";
 import { figureElement } from "./figure";
+import { portraitElement } from "./portrait";
 import { dragFigureJoint, jointAt } from "./figure-edit";
 import type { JointId } from "./figure";
 import { normalizeAngle, resizeElement, resizeSide, rotateAbout, rotateBy, scaleAbout, translate } from "./transform";
@@ -973,8 +974,10 @@ export abstract class CanvasView<D> extends TextFileView {
     if (g.tool === `pen`) {
       g.pen = addPenPoint(g.pen, p, 1.5 / this.zoom);
       made = penElement(g.pen, style, id, seed, MAX_FREEDRAW_POINTS);
+    } else if (g.tool === `portrait`) {
+      made = portraitElement(style.portrait, p, style.portraitSize, { stroke: style.stroke, strokeWidth: style.strokeWidth, roughness: style.roughness, seed }, id);
     } else if (g.tool === `figure`) {
-      made = figureElement(style.figure, style.figureFace, style.figureBuild, p, style.figureSize, { stroke: style.stroke, strokeWidth: style.strokeWidth, roughness: style.roughness, seed }, id);
+      made = figureElement(style.figure, style.figureFace, style.figureBuild, style.figureLook, p, style.figureSize, { stroke: style.stroke, strokeWidth: style.strokeWidth, roughness: style.roughness, seed }, id);
     } else if (g.tool === `point`) {
       made = stampElement(style.stamp, p, style.stampSize, stampName(style.stamp), { stroke: style.stroke, strokeWidth: style.strokeWidth, roughness: style.roughness, seed }, id);
     } else {
@@ -1337,7 +1340,7 @@ export abstract class CanvasView<D> extends TextFileView {
       g.lastY = e.clientY;
     } else if (g.kind === `create`) {
       if (Math.hypot(p[0] - g.start[0], p[1] - g.start[1]) * this.zoom > 3) g.dragged = true;
-      if (g.tool !== `point` && g.tool !== `figure`) this.updateCreation(g, p, e);
+      if (g.tool !== `point` && g.tool !== `figure` && g.tool !== `portrait`) this.updateCreation(g, p, e);
     } else if (g.kind === `move`) {
       this.dragMove(g, p, e);
     } else if (g.kind === `resize`) {

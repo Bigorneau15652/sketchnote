@@ -3,8 +3,9 @@
 import { addIcon } from "obsidian";
 import { BUBBLE_FORMS, FESTOON_FORMS, formPath } from "./shape-forms";
 import { STAMP_IDS, stampShapes } from "./stamps";
-import { BUILD_IDS, buildIconShapes, FACE_IDS, faceIconShapes, POSE_IDS, poseIconShapes } from "./figure";
+import { BUILD_IDS, buildIconShapes, FACE_IDS, faceIconShapes, LOOK_IDS, POSE_IDS, poseIconShapes } from "./figure";
 import type { IconShapeData } from "./elements";
+import { HAIR_COLORS, HAT_COLORS, PARTS, partIconShapes, SKIN_TONES } from "./portrait";
 
 const Q = String.fromCharCode(34);
 
@@ -107,6 +108,13 @@ export function registerIcons(): void {
     shapes.map((sh) => (sh.fill ? tag(`path`, { d: sh.d, fill: `currentColor`, stroke: `none` }) : tag(`path`, { d: sh.d, fill: `none`, stroke: `currentColor`, "stroke-width": width, "stroke-linecap": `round`, "stroke-linejoin": `round` }))).join(``);
   for (const id of POSE_IDS) addIcon(`sketchnote-pose-${id}`, figureIcon(poseIconShapes(id), 6));
   for (const id of FACE_IDS) addIcon(`sketchnote-face-${id}`, figureIcon(faceIconShapes(id), 6));
+  for (const id of LOOK_IDS) addIcon(`sketchnote-look-${id}`, figureIcon(faceIconShapes(`happy`, id), 6));
+  // The pictograms of the portrait: each choice drawn on a bare head, and a disc for each colour (the colour is its own, the line takes the colour of the text).
+  for (const part of PARTS) for (const id of part.ids) addIcon(`sketchnote-part-${part.key}-${id}`, figureIcon(partIconShapes(part.key, id), 4));
+  const disc = (colour: string): string => tag(`circle`, { cx: 50, cy: 50, r: 36, fill: colour, stroke: `currentColor`, "stroke-width": 6 });
+  for (const [id, colour] of Object.entries(SKIN_TONES)) addIcon(`sketchnote-skin-${id}`, disc(colour));
+  for (const [id, colour] of Object.entries(HAIR_COLORS)) addIcon(`sketchnote-haircolor-${id}`, disc(colour));
+  for (const [id, colour] of Object.entries(HAT_COLORS)) addIcon(`sketchnote-hatcolor-${id}`, disc(colour));
   for (const id of BUILD_IDS) addIcon(`sketchnote-build-${id}`, figureIcon(buildIconShapes(id), 5));
   // The pictogram of each form of a bubble or of a festoon is the form itself, drawn from the same data as the shape on the page.
   for (const form of [...BUBBLE_FORMS, ...FESTOON_FORMS]) {

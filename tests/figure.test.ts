@@ -23,8 +23,10 @@ test(`chaque pose tient dans la grille et garde les longueurs de ses membres`, (
     for (const name of JOINTS) {
       assert.ok(j[name][0] >= 0 && j[name][0] <= 100 && j[name][1] >= 0 && j[name][1] <= 100, `${id} ${name} dans la grille : ${j[name]}`);
     }
-    assert.ok(Math.abs(dist(j.neck, j.hip) - 28) < 0.5, `colonne de ${id}`);
-    assert.ok(Math.abs(dist(j.elbowL, j.handL) - 16) < 0.5, `avant-bras de ${id}`);
+    const k = dist(j.neck, j.hip) / 28;
+    assert.ok(k > 0.6 && k <= 1.001, `echelle de ${id} : ${k}`);
+    assert.ok(Math.abs(dist(j.elbowL, j.handL) - 18.4 * k) < 0.5, `avant-bras de ${id}`);
+    assert.ok(Math.abs(dist(j.hip, j.kneeR) - 24.2 * k) < 0.5, `cuisse de ${id}`);
   }
 });
 
@@ -69,7 +71,7 @@ test(`tirer la hanche plie le corps, le haut ne bouge pas, les jambes suivent`, 
   const next = moveJoint(fig, `hip`, [80, 70]);
   assert.deepEqual(next.joints.neck, fig.joints.neck);
   assert.deepEqual(next.joints.head, fig.joints.head);
-  assert.ok(Math.abs(dist(next.joints.neck, next.joints.hip) - 28) < 0.2);
+  assert.ok(Math.abs(dist(next.joints.neck, next.joints.hip) - dist(fig.joints.neck, fig.joints.hip)) < 0.2);
   assert.ok(Math.abs(dist(next.joints.hip, next.joints.kneeL) - dist(fig.joints.hip, fig.joints.kneeL)) < 0.2);
 });
 
@@ -80,7 +82,7 @@ test(`aucun geste ne fait sortir un point de la grille`, () => {
 });
 
 test(`un bonhomme est une icone qui garde ses articulations`, () => {
-  const el = figureElement(`wave`, `laugh`, `thick`, [200, 200], 150, look, `f1`);
+  const el = figureElement(`wave`, `laugh`, `thick`, `front`, [200, 200], 150, look, `f1`);
   assert.equal(el.type, `icon`);
   assert.equal(el.width, 150);
   assert.deepEqual(el.vb, FIGURE_VB);
@@ -89,7 +91,7 @@ test(`un bonhomme est une icone qui garde ses articulations`, () => {
 });
 
 test(`la page et la grille se correspondent, tourne ou retourne`, () => {
-  const el = withFigure(figureElement(`stand`, `happy`, `stick`, [200, 200], 100, look, `f1`), figureOf(`stand`, `happy`, `stick`));
+  const el = withFigure(figureElement(`stand`, `happy`, `stick`, `front`, [200, 200], 100, look, `f1`), figureOf(`stand`, `happy`, `stick`));
   for (const variant of [el, { ...el, angle: 40 }, { ...el, flipX: true }, { ...el, flipY: true, angle: 75 }] as IconElement[]) {
     for (const p of [[10, 20], [50, 50], [90, 80]] as [number, number][]) {
       const back = pageToFigure(variant, figureToPage(variant, p));
@@ -99,7 +101,7 @@ test(`la page et la grille se correspondent, tourne ou retourne`, () => {
 });
 
 test(`un clic atteint l articulation la plus proche et la fait bouger`, () => {
-  const el = figureElement(`stand`, `happy`, `stick`, [200, 200], 100, look, `f1`);
+  const el = figureElement(`stand`, `happy`, `stick`, `front`, [200, 200], 100, look, `f1`);
   const hand = figureToPage(el, el.figure!.joints.handR);
   assert.equal(jointAt(el, hand, 6), `handR`);
   assert.equal(jointAt(el, [0, 0], 6), null);
@@ -109,7 +111,7 @@ test(`un clic atteint l articulation la plus proche et la fait bouger`, () => {
 });
 
 test(`le fichier garde le bonhomme et redessine ses formes depuis les articulations`, () => {
-  const el = figureElement(`run`, `fear`, `thick`, [300, 300], 120, look, `f1`);
+  const el = figureElement(`run`, `fear`, `thick`, `front`, [300, 300], 120, look, `f1`);
   const doc = { ...createEmptyDoc(), elements: [el] };
   const back = parseSketchnote(serializeSketchnote(doc));
   assert.ok(back.ok);
@@ -136,7 +138,7 @@ test(`une articulation fausse fait refuser le bonhomme`, () => {
 });
 
 test(`le visage et le corps d un bonhomme choisi se changent par le style`, () => {
-  const el = figureElement(`stand`, `happy`, `stick`, [200, 200], 100, look, `f1`);
+  const el = figureElement(`stand`, `happy`, `stick`, `front`, [200, 200], 100, look, `f1`);
   assert.equal(styleOf(el)?.figureFace, `happy`);
   const sad = applyStyle(el, { figureFace: `sad`, figureBuild: `thick` }) as IconElement;
   assert.equal(sad.figure?.face, `sad`);
@@ -149,8 +151,30 @@ test(`le visage et le corps d un bonhomme choisi se changent par le style`, () =
 test(`le menu du bonhomme apparait pour l outil et pour un bonhomme choisi`, () => {
   assert.equal(sectionShown(`figure`, panelKinds(`figure`, [])), true);
   assert.equal(sectionShown(`figuresize`, panelKinds(`figure`, [])), true);
-  const el = figureElement(`stand`, `happy`, `stick`, [200, 200], 100, look, `f1`);
+  const el = figureElement(`stand`, `happy`, `stick`, `front`, [200, 200], 100, look, `f1`);
   assert.equal(sectionShown(`figure`, panelKinds(`select`, [el])), true);
   assert.equal(sectionShown(`figuresize`, panelKinds(`select`, [el])), false);
   assert.equal(sectionShown(`figure`, panelKinds(`rect`, [])), false);
+});
+
+test(`les bras et les jambes sont plus longs d un sixieme que la colonne ne le laisse attendre`, () => {
+  const j = poseJoints(`stand`);
+  const spine = dist(j.neck, j.hip);
+  assert.ok(dist(j.hip, j.kneeL) + dist(j.kneeL, j.footL) > spine * 1.6, `jambes longues`);
+  assert.ok(dist(j.neck, j.elbowL) + dist(j.elbowL, j.handL) > spine * 1.3, `bras longs`);
+});
+
+test(`le visage se tourne a gauche ou a droite : un nez et des traits decales`, () => {
+  const front = figureShapes(figureOf(`stand`, `happy`, `stick`, `front`));
+  const left = figureShapes(figureOf(`stand`, `happy`, `stick`, `left`));
+  const right = figureShapes(figureOf(`stand`, `happy`, `stick`, `right`));
+  assert.equal(left.length, front.length + 1, `un nez de plus`);
+  assert.notDeepEqual(left.map((s) => s.d), right.map((s) => s.d));
+  assert.notDeepEqual(left.map((s) => s.d), front.map((s) => s.d));
+  const patched = applyStyle(figureElement(`stand`, `happy`, `stick`, `front`, [100, 100], 100, look, `a`), { figureLook: `left` }) as IconElement;
+  assert.equal(patched.figure?.look, `left`);
+  assert.equal(readFigure({ ...figureOf(`stand`, `happy`, `stick`), look: `haut` }), null);
+  const old = figureOf(`stand`, `happy`, `stick`) as unknown as Record<string, unknown>;
+  delete old.look;
+  assert.equal(readFigure(old)?.look, `front`);
 });

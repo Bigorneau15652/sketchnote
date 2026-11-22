@@ -300,7 +300,11 @@ function iconPaths(el: IconElement, opts: Record<string, unknown>): ElementPaths
   const pieces: PathPiece[] = [];
   data.shapes.forEach((shape, i) => {
     const shapeOpts: Record<string, unknown> = { ...base, seed: seed + i };
-    if (shape.fill) {
+    if (shape.paint) {
+      // A shape that has its own colour (the skin or the hair of a portrait).
+      shapeOpts.fill = shape.paint;
+      shapeOpts.fillStyle = `solid`;
+    } else if (shape.fill) {
       shapeOpts.fill = el.stroke;
       shapeOpts.fillStyle = `solid`;
     } else if (el.fill !== undefined && shape.closed) {
