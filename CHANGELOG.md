@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.41.0
+
+English
+
+Keys that choose the tools. A tool is chosen with one key: by default G for the eraser, P for the pen, C for the rectangle, R for the ellipse, T for the line, F for the arrow, X for the text, L for the diamond, M for the triangle, B for the bubble, N for the festoon, V for the selection, H for the hand and the point key for the point tool. The tooltip of each button of the column gives its key. In the drawing mode, the eye button now has a button Keyboard shortcuts that shows or hides a small floating menu: a pictogram and the key of each tool, the active tool lit, a click on a line chooses the tool, and its top bar moves it anywhere on the drawing. In the settings of Sketchnote, under the buttons of the drawer, a list gives one field per tool to type its key; a key that another tool already has is refused with a message, and a button gives the original keys back. A saved value that is wrong is ignored. The bottom menu is also pushed to the right of its row. The old keys of the other letters (D, O, E, A and L for the line) are replaced by the new ones.
+
+Français
+
+Des touches pour choisir les outils. Un outil se choisit d'une seule touche : par défaut G pour la gomme, P pour le stylo, C pour le rectangle, R pour l'ellipse, T pour le trait, F pour la flèche, X pour le texte, L pour le losange, M pour le triangle, B pour la bulle, N pour le feston, V pour la sélection, H pour la main et le point pour l'outil Point. L'infobulle de chaque bouton de la colonne donne sa touche. En mode dessin, le bouton œil a maintenant un bouton Raccourcis clavier qui montre ou cache un petit menu flottant : un pictogramme et la touche de chaque outil, l'outil actif en évidence, un clic sur une ligne choisit l'outil, et sa barre du haut le déplace n'importe où sur le dessin. Dans les réglages de Sketchnote, sous les boutons du dessinateur, une liste donne un champ par outil pour taper sa touche ; une touche déjà prise par un autre outil est refusée avec un message, et un bouton remet les touches d'origine. Une valeur enregistrée qui est fausse est ignorée. Le menu du bas est aussi poussé à droite de sa rangée. Les anciennes touches des autres lettres (D, O, E, A et L pour le trait) sont remplacées par les nouvelles.
+
 ## 0.40.1
 
 English

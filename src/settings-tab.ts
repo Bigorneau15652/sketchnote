@@ -8,6 +8,8 @@ import { renderDrawButtonList } from "./draw-buttons-list";
 import { importImages } from "./image-import";
 import { importFonts } from "./font-import";
 import { DEFAULT_SETTINGS, normalizeFolder } from "./settings";
+import { drawFunctions } from "./draw-functions";
+import { DEFAULT_TOOL_KEYS, KEY_TOOLS, setToolKey } from "./tool-keys";
 
 // Suggests the folders of the vault under a text field.
 class FolderSuggest extends AbstractInputSuggest<TFolder> {
@@ -252,5 +254,36 @@ export class SketchnoteSettingTab extends PluginSettingTab {
       hidden: () => this.plugin.settingsData.drawButtonsHidden,
       save: (order, hidden) => this.plugin.changeSettings({ drawButtonsOrder: order, drawButtonsHidden: hidden }),
     });
+
+    // The keys that choose a tool: one character each, never the same key for two tools.
+    new Setting(containerEl).setName(t(`Raccourcis clavier des outils`)).setHeading();
+    new Setting(containerEl)
+      .setName(t(`Une touche par outil`))
+      .setDesc(t(`Tapez la lettre qui choisit l'outil dans le dessin. Une touche déjà prise par un autre outil est refusée. Le bouton Raccourcis clavier du menu de l'œil montre la liste dans un petit menu flottant.`))
+      .addButton((b) => b.setButtonText(t(`Remettre les touches d'origine`)).onClick(() => void this.plugin.changeSettings({ toolKeys: { ...DEFAULT_TOOL_KEYS } }).then(() => this.display())));
+    const functions = drawFunctions();
+    for (const tool of KEY_TOOLS) {
+      const fn = functions.find((f) => f.tools[0] === tool);
+      if (!fn) continue;
+      new Setting(containerEl).setName(fn.name()).addText((text) => {
+        text.inputEl.maxLength = 1;
+        text.inputEl.addClass(`sketchnote-key-field`);
+        text.setValue(this.plugin.settingsData.toolKeys[tool].toUpperCase()).onChange((value) => {
+          if (value.trim() === ``) return;
+          const result = setToolKey(this.plugin.settingsData.toolKeys, tool, value);
+          if (`keys` in result) {
+            text.inputEl.removeClass(`mod-error`);
+            void this.plugin.changeSettings({ toolKeys: result.keys });
+            return;
+          }
+          text.inputEl.addClass(`mod-error`);
+          if (`taken` in result) {
+            const other = functions.find((f) => f.tools[0] === result.taken);
+            new Notice(t(`La touche {0} est déjà prise par l'outil {1}.`, value.toUpperCase(), other ? other.name() : ``));
+          }
+          text.setValue(this.plugin.settingsData.toolKeys[tool].toUpperCase());
+        });
+      });
+    }
   }
 }

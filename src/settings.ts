@@ -1,5 +1,6 @@
 // Settings of the plugin, and the rules to name and place the drawing notes. Pure module.
 import { DEFAULT_ORDER, drawFunctions, readHidden, readOrder } from "./draw-functions";
+import { DEFAULT_TOOL_KEYS, readToolKeys, ToolKeys } from "./tool-keys";
 
 export interface SketchnoteSettings {
   // Folder of the vault that holds every drawing note.
@@ -18,11 +19,13 @@ export interface SketchnoteSettings {
   drawButtonsOrder: string[];
   drawButtonsHidden: string[];
   contextPosition: `top` | `bottom`;
+  // The key that chooses each tool.
+  toolKeys: ToolKeys;
   // Zen mode: whether the window also goes full screen.
   zenFullscreen: boolean;
 }
 
-export const DEFAULT_SETTINGS: SketchnoteSettings = { drawingsFolder: `Sketchnote dessins`, fontsFolder: `Sketchnote polices`, iconsFolder: `Sketchnote icônes`, imagesFolder: `Sketchnote images`, exportsFolder: `Sketchnote exports`, libraryFolder: `Sketchnote bibliothèque`, drawButtonsOrder: [...DEFAULT_ORDER], drawButtonsHidden: [], contextPosition: `bottom`, zenFullscreen: false };
+export const DEFAULT_SETTINGS: SketchnoteSettings = { drawingsFolder: `Sketchnote dessins`, fontsFolder: `Sketchnote polices`, iconsFolder: `Sketchnote icônes`, imagesFolder: `Sketchnote images`, exportsFolder: `Sketchnote exports`, libraryFolder: `Sketchnote bibliothèque`, drawButtonsOrder: [...DEFAULT_ORDER], drawButtonsHidden: [], contextPosition: `bottom`, toolKeys: { ...DEFAULT_TOOL_KEYS }, zenFullscreen: false };
 
 // Returns a folder path of the vault in its clean form (slashes, no slash at the ends), or null when it is not acceptable: empty, with `..`, with a drive
 // letter, or with characters that a file name cannot hold. A leading slash (`/dessin`) is accepted and means the root of the vault.
@@ -44,6 +47,7 @@ export function readSettings(raw: unknown): SketchnoteSettings {
     drawButtonsOrder: readOrder(r.drawButtonsOrder, known),
     drawButtonsHidden: readHidden(r.drawButtonsHidden, known),
     contextPosition: r.contextPosition === `top` ? `top` : `bottom`,
+    toolKeys: readToolKeys(r.toolKeys),
     zenFullscreen: r.zenFullscreen === true,
   };
 }

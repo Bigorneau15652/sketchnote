@@ -499,6 +499,13 @@ const PAIRS: [string, string][] = [
   [`Chercher un dessin`, `Search a drawing`],
   [`Afficher plus de dessins`, `Show more drawings`],
   [`Aucun dessin dans la bibliothèque. Sélectionnez des éléments sur une page, puis utilisez le bouton Enregistrer dans la bibliothèque.`, `No drawing in the library. Select elements on a page, then use the button Save in the library.`],
+  [`Raccourcis clavier`, `Keyboard shortcuts`],
+  [`Raccourcis clavier des outils`, `Keyboard shortcuts of the tools`],
+  [`Une touche par outil`, `One key for each tool`],
+  [`Tapez la lettre qui choisit l'outil dans le dessin. Une touche déjà prise par un autre outil est refusée. Le bouton Raccourcis clavier du menu de l'œil montre la liste dans un petit menu flottant.`, `Type the letter that chooses the tool in the drawing. A key that another tool already has is refused. The button Keyboard shortcuts of the eye menu shows the list in a small floating menu.`],
+  [`Remettre les touches d'origine`, `Reset the keys`],
+  [`La touche {0} est déjà prise par l'outil {1}.`, `The key {0} is already used by the tool {1}.`],
+  [`Le bouton Raccourcis clavier montre ou cache un petit menu flottant qui donne la touche de chaque outil. Les touches se changent dans les réglages de Sketchnote.`, `The button Keyboard shortcuts shows or hides a small floating menu that gives the key of each tool. The keys are changed in the settings of Sketchnote.`],
 ];
 
 export const EN: Record<string, string> = Object.fromEntries(PAIRS);
