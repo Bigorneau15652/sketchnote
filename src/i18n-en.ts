@@ -1,6 +1,14 @@
 // English translations: the French text is the key. Every text passed to t() in the code must be listed here (a test checks it).
 // Variable values are written {0}, {1}... as in the French text.
 const PAIRS: [string, string][] = [
+  [`Imprimante`, `Printer`],
+  [`Type d'export`, `Type of export`],
+  [`Qualité`, `Quality`],
+  [`Couleur au choix`, `Colour of your choice`],
+  [`Fond transparent`, `Transparent background`],
+  [`Niveaux de gris`, `Shades of grey`],
+  [`Noir et blanc`, `Black and white`],
+  [`Couleurs`, `Colours`],
   [`Ouvre la fenêtre du bonhomme : à gauche tous les choix en grands pictogrammes (pose, expression, direction du visage, homme ou femme, corps en bâtons ou épais, objet dans chaque main parmi trente, habit du haut et habit du bas), à droite le résultat, qui change à chaque choix. Le bouton OK pose le bonhomme sur la page.`, `Opens the window of the little man: on the left all the choices as large pictograms (pose, expression, direction of the face, man or woman, stick or thick body, an object in each hand among thirty, top clothes and bottom clothes), on the right the result, which changes with each choice. The OK button puts the little man on the page.`],
   [`Un double clic sur un bonhomme rouvre la fenêtre pour le modifier. Quand il est sélectionné, les petits ronds sur son corps plient ses membres : tirer une main tourne l'avant-bras autour du coude, tirer un coude tourne le bras autour de l'épaule.`, `A double click on a little man opens the window again to change it. When it is selected, the small circles on its body bend its limbs: dragging a hand turns the forearm about the elbow, dragging an elbow turns the arm about the shoulder.`],
   [`Rien dans la main`, `Nothing in the hand`],
@@ -359,7 +367,6 @@ const PAIRS: [string, string][] = [
   [`Sélection`, `Selection`],
   [`Partie`, `Part`],
   [`Taille`, `Size`],
-  [`Transparent`, `Transparent`],
   [`Fond d'origine`, `Original background`],
   [`Aperçu de l'export`, `Preview of the export`],
   [`Enregistrer dans le coffre`, `Save in the vault`],

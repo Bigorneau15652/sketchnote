@@ -7,11 +7,32 @@ import { cleanName } from "./settings";
 import { freeName } from "./image-files";
 
 export type ExportScope = `all` | `selection`;
-export type ExportFormat = `png` | `svg` | `pdf`;
-export type ExportBackground = `transparent` | `white` | `page`;
+export type ExportFormat = `png` | `jpg` | `svg` | `pdf`;
+// Where the export goes: a file of one of the formats, or the printer.
+export type ExportTarget = ExportFormat | `printer`;
+// The background: none (transparent), white, the one of the page, or a colour chosen.
+export type ExportBackground = `transparent` | `white` | `page` | `color`;
+// The colours of the picture: as drawn, in shades of grey, or in black and white only.
+export type ExportTone = `color` | `gray` | `bw`;
 
-export const EXPORT_FORMATS: ExportFormat[] = [`png`, `svg`, `pdf`];
-export const EXPORT_BACKGROUNDS: ExportBackground[] = [`transparent`, `white`, `page`];
+export const EXPORT_FORMATS: ExportFormat[] = [`png`, `jpg`, `svg`, `pdf`];
+export const EXPORT_TARGETS: ExportTarget[] = [`printer`, `png`, `jpg`, `pdf`, `svg`];
+export const EXPORT_BACKGROUNDS: ExportBackground[] = [`transparent`, `white`, `page`, `color`];
+export const EXPORT_TONES: ExportTone[] = [`color`, `gray`, `bw`];
+// The quality choices of a JPG, in percent.
+export const JPEG_QUALITIES = [60, 75, 90, 100];
+export const DEFAULT_JPEG_QUALITY = 90;
+export const DEFAULT_BACKGROUND_COLOR = `#ffffff`;
+
+// Tells whether a value is a colour written as #rrggbb.
+export function isHexColor(value: unknown): value is string {
+  return typeof value === `string` && /^#[0-9a-fA-F]{6}$/.test(value);
+}
+
+// Tells whether a format can have a transparent background.
+export function canBeTransparent(format: ExportTarget): boolean {
+  return format === `png` || format === `svg`;
+}
 // How many pixels one unit of the drawing becomes: one is the size on the screen, the others give pictures for printing.
 export const EXPORT_SCALES = [1, 2, 3, 4];
 // The space left around the exported elements of a drawing or of a selection, in units of the drawing.

@@ -15,7 +15,7 @@ import { RenderedPage } from "./page-render";
 import { drawUi } from "./selection-render";
 import { cloneElements, moveElements, reorder, reorderStep, removeElements } from "./selection-ops";
 import { ExportModal } from "./export-modal";
-import { ExportBackground, ExportScope, elementsBox } from "./export-plan";
+import { ExportBackground, ExportScope, elementsBox, isHexColor } from "./export-plan";
 import type { ExportSource } from "./export-render";
 import type { ExportServices } from "./export-service";
 import { svgEl } from "./svg";
@@ -558,14 +558,14 @@ export abstract class CanvasView<D> extends TextFileView {
         allLabel: this.exportPartName(),
         hasSelection: selected,
         hasContent: this.exportBoxAll() !== null,
-        build: (scope, background) => this.buildExport(scope, background),
+        build: (scope, background, color) => this.buildExport(scope, background, color),
         services: this.exportServices(),
       },
     ).open();
   }
 
   // Draws what is exported as an SVG of its own: the surface (or nothing, or white), the elements, and the box that is exported. Returns null when there is nothing to export.
-  protected buildExport(scope: ExportScope, background: ExportBackground): ExportSource | null {
+  protected buildExport(scope: ExportScope, background: ExportBackground, color = `#ffffff`): ExportSource | null {
     const list = scope === `selection` ? this.selectedElements() : this.elementsOf(this.doc);
     const box = scope === `selection` ? elementsBox(list) : this.exportBoxAll();
     if (!box || list.length === 0 && scope === `selection`) return null;
@@ -577,7 +577,7 @@ export abstract class CanvasView<D> extends TextFileView {
     if (background !== `page`) {
       for (const child of Array.from(svg.children)) if (child !== rendered.content) child.remove();
       // The white goes a little beyond the box, so that the pixels at the edge are fully white whatever the size of the picture.
-      if (background === `white`) svg.insertBefore(svgEl(`rect`, { x: box.x - 2, y: box.y - 2, width: box.w + 4, height: box.h + 4, fill: `#ffffff` }), svg.firstChild);
+      if (background === `white` || background === `color`) svg.insertBefore(svgEl(`rect`, { x: box.x - 2, y: box.y - 2, width: box.w + 4, height: box.h + 4, fill: background === `color` && isHexColor(color) ? color : `#ffffff` }), svg.firstChild);
     }
     this.drawExport(list, rendered.content);
     return { svg, box };

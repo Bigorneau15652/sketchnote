@@ -1,9 +1,10 @@
-// The window of the export: what is exported (everything or the selection), the format (PNG, SVG or PDF), the size and the background, a preview, and three buttons: save in the vault,
-// copy, and put the link in the note. Every button is a pictogram whose name is its tooltip.
+// The window of the export, in the style of a print window: on the left menus to choose what is exported (everything or the selection), where it goes (printer, PNG, JPG, PDF or SVG), the
+// size, the background (with a box for transparency), the colours (colour, shades of grey, black and white) and, for the printer, the paper and the scale; on the right the preview and the
+// buttons (save in the vault, copy, put the link in the note, or print). Every button is a pictogram whose name is its tooltip.
 import { App, Modal, Notice, setIcon } from "obsidian";
 import { t } from "./i18n";
-import { EXPORT_BACKGROUNDS, EXPORT_FORMATS, EXPORT_SCALES, ExportBackground, ExportFormat, exportFileName, ExportScope, fitSize } from "./export-plan";
-import { canvasToPdf, canvasToPng, ExportSource, finishSvg, svgDataUrl, svgToCanvas } from "./export-render";
+import { canBeTransparent, DEFAULT_BACKGROUND_COLOR, DEFAULT_JPEG_QUALITY, EXPORT_SCALES, EXPORT_TARGETS, EXPORT_TONES, ExportBackground, ExportFormat, exportFileName, ExportScope, ExportTarget, ExportTone, fitSize, isHexColor, JPEG_QUALITIES } from "./export-plan";
+import { applyTone, canvasToJpeg, canvasToPdf, canvasToPng, ExportSource, finishSvg, svgDataUrl, svgToCanvas } from "./export-render";
 import type { ExportServices } from "./export-service";
 import { Paper, PAPERS, planPrint, PRINT_SCALES, PrintScale } from "./print-plan";
 import { printSvg } from "./print-render";
@@ -16,21 +17,26 @@ export interface ExportHost {
   hasSelection: boolean;
   hasContent: boolean;
   // Draws what is exported (null when there is nothing).
-  build(scope: ExportScope, background: ExportBackground): ExportSource | null;
+  build(scope: ExportScope, background: ExportBackground, color: string): ExportSource | null;
   services: ExportServices;
 }
 
 // The choices of the last export, kept while the application runs.
-const last = { format: `png` as ExportFormat, scale: 2, background: `white` as ExportBackground, paper: `a4` as Paper, printScale: `fit` as PrintScale };
+const last = { target: `png` as ExportTarget, scale: 2, background: `white` as `white` | `page` | `color`, color: DEFAULT_BACKGROUND_COLOR, transparent: false, tone: `color` as ExportTone, quality: DEFAULT_JPEG_QUALITY, paper: `a4` as Paper, printScale: `fit` as PrintScale };
 
 export class ExportModal extends Modal {
   private part: ExportScope;
-  private format: ExportFormat = last.format;
+  private target: ExportTarget = last.target;
   private scale = last.scale;
-  private background: ExportBackground = last.background;
+  private background = last.background;
+  private color = last.color;
+  private transparent = last.transparent;
+  private tone: ExportTone = last.tone;
+  private quality = last.quality;
   private paper: Paper = last.paper;
   private printScale: PrintScale = last.printScale;
   private body!: HTMLElement;
+  private form!: HTMLElement;
   private preview!: HTMLImageElement;
   private info!: HTMLElement;
   private status!: HTMLElement;
@@ -56,29 +62,46 @@ export class ExportModal extends Modal {
     this.contentEl.empty();
   }
 
+  // The format of the file that is made (the printer prints a picture that is made as an SVG).
+  private get format(): ExportFormat {
+    return this.target === `printer` ? `svg` : this.target;
+  }
+
   // The key of the choices (the file that is saved depends on all of them).
   private key(): string {
-    return `${this.part}|${this.format}|${this.scale}|${this.effectiveBackground()}`;
+    return `${this.part}|${this.target}|${this.scale}|${this.effectiveBackground()}|${this.color}|${this.tone}|${this.quality}`;
   }
 
-  // A PDF has no transparency: the transparent background is white there.
+  // Only a PNG or an SVG can be transparent: for the others the background chosen is used.
   private effectiveBackground(): ExportBackground {
-    return this.format === `pdf` && this.background === `transparent` ? `white` : this.background;
+    return this.transparent && canBeTransparent(this.target) ? `transparent` : this.background;
   }
 
-  // Draws a row of buttons that choose one value.
-  private chips<V extends string | number>(label: string, items: [V, string][], current: V, pick: (v: V) => void): void {
-    const row = this.body.createDiv({ cls: `sketchnote-export-row` });
-    row.createSpan({ cls: `sketchnote-export-label`, text: label });
-    const group = row.createDiv({ cls: `sketchnote-icons-themes sketchnote-export-chips` });
+  // Draws what is exported with the background and the colours chosen.
+  private source(): ExportSource | null {
+    const source = this.host.build(this.part, this.effectiveBackground(), this.color);
+    if (source) applyTone(source.svg, this.tone);
+    return source;
+  }
+
+  // Adds a menu (a list that drops down) with its label to the column of choices.
+  private menu<V extends string | number>(label: string, items: [V, string][], current: V, pick: (v: V) => void): HTMLSelectElement {
+    const row = this.form.createDiv({ cls: `sketchnote-export-row` });
+    row.createEl(`label`, { cls: `sketchnote-export-label`, text: label });
+    const select = row.createEl(`select`, { cls: `dropdown sketchnote-export-select` });
     for (const [value, text] of items) {
-      const button = group.createEl(`button`, { cls: `sketchnote-icons-theme`, text });
-      if (value === current) button.addClass(`is-active`);
-      button.addEventListener(`click`, () => pick(value));
+      const option = select.createEl(`option`, { text });
+      option.value = String(value);
+      if (value === current) option.selected = true;
     }
+    select.addEventListener(`change`, () => {
+      const found = items.find(([value]) => String(value) === select.value);
+      if (found) pick(found[0]);
+    });
+    return select;
   }
 
-  // Draws the window: the choices, the preview and the buttons.
+  // Draws the window: the menus on the left, the preview and the buttons on the right.
   private render(): void {
     const { contentEl } = this;
     contentEl.empty();
@@ -87,27 +110,57 @@ export class ExportModal extends Modal {
       this.body.createDiv({ cls: `sketchnote-icons-info`, text: t(`Il n'y a rien à exporter pour l'instant.`) });
       return;
     }
+    this.form = this.body.createDiv({ cls: `sketchnote-export-form` });
+    const side = this.body.createDiv({ cls: `sketchnote-export-side` });
     const parts: [ExportScope, string][] = [[`all`, this.host.allLabel]];
     if (this.host.hasSelection) parts.push([`selection`, t(`Sélection`)]);
-    this.chips(t(`Partie`), parts, this.part, (v) => this.set(() => (this.part = v)));
-    this.chips(t(`Format`), EXPORT_FORMATS.map((f): [ExportFormat, string] => [f, f.toUpperCase()]), this.format, (v) => this.set(() => (this.format = v)));
-    if (this.format !== `svg`) this.chips(t(`Taille`), EXPORT_SCALES.map((s): [number, string] => [s, `×${s}`]), this.scale, (v) => this.set(() => (this.scale = v)));
-    const backgrounds: [ExportBackground, string][] = EXPORT_BACKGROUNDS.filter((b) => !(this.format === `pdf` && b === `transparent`)).map((b) => [b, b === `transparent` ? t(`Transparent`) : b === `white` ? t(`Blanc`) : t(`Fond d'origine`)]);
-    this.chips(t(`Fond`), backgrounds, this.effectiveBackground(), (v) => this.set(() => (this.background = v)));
-    // The paper and the scale are used by the print only.
-    this.chips(t(`Papier`), PAPERS.map((p): [Paper, string] => [p, p.toUpperCase()]), this.paper, (v) => this.set(() => (this.paper = v)));
-    this.chips(t(`Échelle`), PRINT_SCALES.map((s): [PrintScale, string] => [s, s === `fit` ? t(`Ajustée à la feuille`) : t(`Taille réelle`)]), this.printScale, (v) => this.set(() => (this.printScale = v)));
-    this.preview = this.body.createEl(`img`, { cls: `sketchnote-export-preview`, attr: { alt: t(`Aperçu de l'export`) } });
-    this.info = this.body.createDiv({ cls: `sketchnote-icons-info` });
-    const bar = this.body.createDiv({ cls: `sketchnote-export-actions` });
+    this.menu(t(`Partie`), parts, this.part, (v) => this.set(() => (this.part = v)));
+    const targetNames: Record<ExportTarget, string> = { printer: t(`Imprimante`), png: `PNG`, jpg: `JPG`, pdf: `PDF`, svg: `SVG` };
+    this.menu(t(`Type d'export`), EXPORT_TARGETS.map((x): [ExportTarget, string] => [x, targetNames[x]]), this.target, (v) => this.set(() => (this.target = v)));
+    if (this.target === `printer`) {
+      this.menu(t(`Papier`), PAPERS.map((p): [Paper, string] => [p, p.toUpperCase()]), this.paper, (v) => this.set(() => (this.paper = v)));
+      this.menu(t(`Échelle`), PRINT_SCALES.map((s): [PrintScale, string] => [s, s === `fit` ? t(`Ajustée à la feuille`) : t(`Taille réelle`)]), this.printScale, (v) => this.set(() => (this.printScale = v)));
+    } else if (this.target !== `svg`) {
+      this.menu(t(`Taille`), EXPORT_SCALES.map((s): [number, string] => [s, `×${s}`]), this.scale, (v) => this.set(() => (this.scale = v)));
+    }
+    if (this.target === `jpg`) this.menu(t(`Qualité`), JPEG_QUALITIES.map((q): [number, string] => [q, `${q} %`]), this.quality, (v) => this.set(() => (this.quality = v)));
+    // The background: a menu, a colour when it is the one to choose, and a box for transparency (PNG and SVG only).
+    const backgrounds: [`white` | `page` | `color`, string][] = [[`white`, t(`Blanc`)], [`page`, t(`Fond d'origine`)], [`color`, t(`Couleur au choix`)]];
+    const fond = this.menu(t(`Fond`), backgrounds, this.background, (v) => this.set(() => (this.background = v)));
+    const transparentOn = this.transparent && canBeTransparent(this.target);
+    fond.disabled = transparentOn;
+    if (this.background === `color` && !transparentOn) {
+      const picker = fond.parentElement?.createEl(`input`, { cls: `sketchnote-export-color`, attr: { type: `color`, value: this.color, "aria-label": t(`Couleur du fond`) } });
+      picker?.addEventListener(`input`, () => {
+        if (!isHexColor(picker.value)) return;
+        this.color = picker.value;
+        last.color = this.color;
+        this.refreshPreview();
+      });
+    }
+    if (canBeTransparent(this.target)) {
+      const row = this.form.createDiv({ cls: `sketchnote-export-check` });
+      const box = row.createEl(`input`, { attr: { type: `checkbox`, id: `sketchnote-export-transparent` } });
+      box.checked = this.transparent;
+      row.createEl(`label`, { text: t(`Fond transparent`), attr: { for: `sketchnote-export-transparent` } });
+      box.addEventListener(`change`, () => this.set(() => (this.transparent = box.checked)));
+    }
+    const toneNames: Record<ExportTone, string> = { color: t(`Couleur`), gray: t(`Niveaux de gris`), bw: t(`Noir et blanc`) };
+    this.menu(t(`Couleurs`), EXPORT_TONES.map((x): [ExportTone, string] => [x, toneNames[x]]), this.tone, (v) => this.set(() => (this.tone = v)));
+    this.preview = side.createEl(`img`, { cls: `sketchnote-export-preview`, attr: { alt: t(`Aperçu de l'export`) } });
+    this.info = side.createDiv({ cls: `sketchnote-icons-info` });
+    const bar = side.createDiv({ cls: `sketchnote-export-actions` });
     this.buttons = [];
-    this.action(bar, `save`, t(`Enregistrer dans le coffre`), async () => {
-      await this.save();
-    });
-    this.action(bar, `clipboard-copy`, t(`Copier dans le presse-papiers`), () => this.copy(), this.format === `pdf`);
-    this.action(bar, `link`, t(`Enregistrer et copier le lien`), () => this.link());
-    this.action(bar, `printer`, t(`Imprimer`), () => this.print());
-    this.status = this.body.createDiv({ cls: `sketchnote-export-status` });
+    if (this.target === `printer`) {
+      this.action(bar, `printer`, t(`Imprimer`), () => this.print());
+    } else {
+      this.action(bar, `save`, t(`Enregistrer dans le coffre`), async () => {
+        await this.save();
+      });
+      this.action(bar, `clipboard-copy`, t(`Copier dans le presse-papiers`), () => this.copy(), this.target === `pdf`);
+      this.action(bar, `link`, t(`Enregistrer et copier le lien`), () => this.link());
+    }
+    this.status = side.createDiv({ cls: `sketchnote-export-status` });
     this.refreshPreview();
   }
 
@@ -124,9 +177,13 @@ export class ExportModal extends Modal {
   // Changes a choice, keeps it for the next export and draws the window again.
   private set(change: () => void): void {
     change();
-    last.format = this.format;
+    last.target = this.target;
     last.scale = this.scale;
     last.background = this.background;
+    last.color = this.color;
+    last.transparent = this.transparent;
+    last.tone = this.tone;
+    last.quality = this.quality;
     last.paper = this.paper;
     last.printScale = this.printScale;
     this.render();
@@ -144,7 +201,7 @@ export class ExportModal extends Modal {
       this.status.setText(t(`L'export a échoué : l'image est peut-être trop grande. Essayez une taille plus petite.`));
     } finally {
       this.busy = false;
-      this.buttons.forEach((b, i) => (b.disabled = this.format === `pdf` && i === 1));
+      this.buttons.forEach((b, i) => (b.disabled = this.target === `pdf` && i === 1));
     }
   }
 
@@ -155,7 +212,7 @@ export class ExportModal extends Modal {
   }
 
   private async drawPreview(): Promise<void> {
-    const source = this.host.build(this.part, this.effectiveBackground());
+    const source = this.source();
     if (!source) {
       this.info.setText(t(`Il n'y a rien à exporter pour l'instant.`));
       return;
@@ -174,16 +231,17 @@ export class ExportModal extends Modal {
   }
 
   // Makes the file of the export with the choices that are shown: its name, its bytes and its type.
-  private async make(): Promise<{ name: string; bytes: Uint8Array; mime: string; text: string } | null> {
-    const source = this.host.build(this.part, this.effectiveBackground());
+  private async make(format: ExportFormat = this.format): Promise<{ name: string; bytes: Uint8Array; mime: string; text: string } | null> {
+    const source = this.source();
     if (!source) return null;
     // The name of the note already says what is exported when everything is; a selection says so.
     const part = this.part === `selection` ? t(`sélection`) : ``;
-    const name = exportFileName(this.host.name, part, this.format, new Date(), this.host.services.usedNames());
-    const done = await finishSvg(source, this.format === `svg` ? 1 : this.scale, this.host.services);
-    if (this.format === `svg`) return { name, bytes: new TextEncoder().encode(done.text), mime: `image/svg+xml`, text: done.text };
+    const name = exportFileName(this.host.name, part, format, new Date(), this.host.services.usedNames());
+    const done = await finishSvg(source, format === `svg` ? 1 : this.scale, this.host.services);
+    if (format === `svg`) return { name, bytes: new TextEncoder().encode(done.text), mime: `image/svg+xml`, text: done.text };
     const canvas = await svgToCanvas(done.text, done.width, done.height);
-    if (this.format === `png`) return { name, bytes: await canvasToPng(canvas), mime: `image/png`, text: `` };
+    if (format === `png`) return { name, bytes: await canvasToPng(canvas), mime: `image/png`, text: `` };
+    if (format === `jpg`) return { name, bytes: await canvasToJpeg(canvas, this.quality), mime: `image/jpeg`, text: `` };
     return { name, bytes: await canvasToPdf(canvas, done.width / Math.max(1, source.box.w), name), mime: `application/pdf`, text: `` };
   }
 
@@ -200,7 +258,7 @@ export class ExportModal extends Modal {
 
   // Prints what is chosen with the print dialog of the system: the picture is fitted on one sheet, or kept at its real size on several sheets to put side by side.
   private async print(): Promise<void> {
-    const source = this.host.build(this.part, this.effectiveBackground());
+    const source = this.source();
     if (!source) return;
     const done = await finishSvg(source, 1, this.host.services);
     const plan = planPrint(source.box.w, source.box.h, this.paper, this.printScale);
@@ -211,7 +269,8 @@ export class ExportModal extends Modal {
 
   // Copies the picture (PNG) or the text of the SVG.
   private async copy(): Promise<void> {
-    const made = await this.make();
+    // The clipboard takes a PNG, not a JPG: the picture is copied as a PNG.
+    const made = await this.make(this.format === `jpg` ? `png` : this.format);
     if (!made) return;
     if (this.format === `svg`) await navigator.clipboard.writeText(made.text);
     else await navigator.clipboard.write([new ClipboardItem({ [made.mime]: new Blob([made.bytes.slice().buffer], { type: made.mime }) })]);
