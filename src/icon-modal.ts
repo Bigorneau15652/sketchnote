@@ -37,6 +37,11 @@ function previewOf(parent: HTMLElement, data: IconData): void {
 
 export class IconModal extends Modal {
   private theme: string | null = null;
+  // The collection that is shown: every one (null), Lucide, or Tabler.
+  private collection: `lucide` | `tabler` | null = null;
+  private sources!: HTMLElement;
+  // The names of the icons of Lucide, with their other names.
+  private lucideNames = new Set<string>();
   private query = ``;
   private shown = PAGE;
   private grid!: HTMLElement;
@@ -55,6 +60,7 @@ export class IconModal extends Modal {
     this.titleEl.setText(t(`Choisir une icône`));
     this.modalEl.addClass(`sketchnote-icons`);
     this.entries = this.source.entries();
+    this.lucideNames = new Set(this.entries.filter((e) => e.source === `lucide`).flatMap((e) => [e.label, ...(e.aliases ?? [])]));
     const { contentEl } = this;
     contentEl.empty();
     const search = contentEl.createEl(`input`, { cls: `sketchnote-icons-search`, type: `search` });
@@ -66,6 +72,7 @@ export class IconModal extends Modal {
       if (this.timer !== null) window.clearTimeout(this.timer);
       this.timer = window.setTimeout(() => this.draw(true), 120);
     });
+    this.sources = contentEl.createDiv({ cls: `sketchnote-icons-themes sketchnote-icons-sources` });
     this.themes = contentEl.createDiv({ cls: `sketchnote-icons-themes` });
     this.info = contentEl.createDiv({ cls: `sketchnote-icons-info` });
     this.grid = contentEl.createDiv({ cls: `sketchnote-icons-grid` });
@@ -74,6 +81,7 @@ export class IconModal extends Modal {
       this.shown += PAGE;
       this.draw(false);
     });
+    this.drawSources();
     this.drawThemes();
     this.draw(true);
     window.setTimeout(() => search.focus(), 30);
@@ -84,11 +92,40 @@ export class IconModal extends Modal {
     this.contentEl.empty();
   }
 
+  // The icons that the collection chosen holds (the drawings of the user are in every collection).
+  private visible(): IconEntry[] {
+    if (this.collection !== null) return this.entries.filter((e) => e.source === this.collection || e.source === `custom`);
+    // With every collection together, an icon of Tabler that has the name of an icon of Lucide is left out: it is the same thing drawn twice (a house is not shown twice).
+    return this.entries.filter((e) => e.source !== `tabler` || !this.lucideNames.has(e.label));
+  }
+
+  // Draws the buttons of the collections: all of them, Lucide, Tabler.
+  private drawSources(): void {
+    this.sources.empty();
+    const list: { id: `lucide` | `tabler` | null; name: string }[] = [
+      { id: null, name: t(`Toutes les collections`) },
+      { id: `lucide`, name: `Lucide` },
+      { id: `tabler`, name: `Tabler` },
+    ];
+    for (const item of list) {
+      const button = this.sources.createEl(`button`, { cls: `sketchnote-icons-theme`, text: item.name });
+      if (item.id === this.collection) button.addClass(`is-active`);
+      button.addEventListener(`click`, () => {
+        this.collection = item.id;
+        this.theme = null;
+        this.shown = PAGE;
+        this.drawSources();
+        this.drawThemes();
+        this.draw(true);
+      });
+    }
+  }
+
   // Draws the buttons of the themes: all the icons, the themes of Lucide that have icons, the others, then the themes of the folder of the user.
   private drawThemes(): void {
     this.themes.empty();
-    const count = (id: string | null): number => this.entries.filter((e) => id === null || e.themes.includes(id)).length;
-    const own = [...new Set(this.entries.filter((e) => e.source === `custom`).flatMap((e) => e.themes))].sort((a, b) => a.localeCompare(b));
+    const count = (id: string | null): number => this.visible().filter((e) => id === null || e.themes.includes(id)).length;
+    const own = [...new Set(this.visible().filter((e) => e.source === `custom`).flatMap((e) => e.themes))].sort((a, b) => a.localeCompare(b));
     const ids: (string | null)[] = [null, ...ICON_THEMES.map((th) => th.id).filter((id) => count(id) > 0), ...(count(OTHER_THEME.id) > 0 ? [OTHER_THEME.id] : []), ...own];
     for (const id of ids) {
       const button = this.themes.createEl(`button`, { cls: `sketchnote-icons-theme`, text: id === null ? t(`Toutes`) : themeLabel(id) });
@@ -106,7 +143,7 @@ export class IconModal extends Modal {
   // Draws the icons that match the theme and the search.
   private draw(reset: boolean): void {
     if (reset) this.shown = PAGE;
-    const { shown, total } = listIcons(this.entries, this.theme, this.query, this.shown);
+    const { shown, total } = listIcons(this.visible(), this.theme, this.query, this.shown);
     this.grid.empty();
     for (const entry of shown) {
       const cell = this.grid.createEl(`button`, { cls: `sketchnote-icons-cell` });

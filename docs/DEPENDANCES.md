@@ -14,4 +14,6 @@ Distorsions du texte (version 0.23.0) : aucune bibliothèque ajoutée. La biblio
 
 Icônes (version 0.24.0) : les icônes Lucide (licence ISC) sont celles que l'application Obsidian contient et met à la disposition des plugins (fonctions getIcon et getIconIds) : le plugin n'en embarque aucune et ne les copie pas dans son code. Leurs formes sont lues à l'utilisation et dessinées par le plugin. Les icônes Tabler (licence MIT) ne sont pas utilisées pour l'instant : elles seraient ajoutées, avec leur licence dans le dossier licences, si Lucide ne suffit pas (accord d'Olivier du 15 novembre 2026).
 
+Icônes Tabler (version 0.44.0, accord d'Olivier du 22 novembre 2026) : une sélection d'environ 1 500 icônes de style contour du paquet @tabler/icons 3.35.0 (licence MIT, Copyright (c) 2020-2025 Paweł Kuna, texte dans licences/MIT-tabler-icons.txt), copiées dans src/tabler-data.ts (environ 260 Ko, sous forme de texte) par l'outil tools/make-tabler.mjs. Le paquet lui-même n'est pas une dépendance : il sert seulement à refaire la sélection à la main. Les catégories Marques, Lettres et Chiffres sont exclues, ainsi que les variantes (-off, -filled, numérotées).
+
 Avis pour l'audit : npm audit signale esbuild (serveur de développement, non utilisé) et moment (dépendance interne du paquet obsidian, non embarquée dans main.js).
