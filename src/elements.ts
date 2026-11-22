@@ -8,6 +8,7 @@ import { isSafePath } from "./svg-path";
 import { isShapeForm, readTail, ShapeForm, Tail } from "./shape-forms";
 import { EraseStroke, readErase } from "./erase-data";
 import { FIGURE_VB, FigureData, figureShapes, readFigure } from "./figure";
+import { PortraitData, portraitShapes, readPortrait } from "./portrait";
 
 export type Point = [number, number];
 // How a fill is drawn: solid, with hatching lines, with dots or with a grid (crossed hatching).
@@ -259,6 +260,8 @@ export interface IconElement extends BaseElement, Strokes, Fills {
   shapes?: IconShapeData[];
   // For an articulated figure: its joints, its face and its build. The shapes are drawn from them.
   figure?: FigureData;
+  // For a portrait: its choices. The shapes are drawn from them.
+  portrait?: PortraitData;
 }
 
 // A shape of an icon that is kept in an element: the data of its path, whether it is filled, whether it has a line and whether it is closed.
@@ -267,6 +270,8 @@ export interface IconShapeData {
   fill: boolean;
   stroke: boolean;
   closed: boolean;
+  // A colour that fills the shape whatever the fill of the element is (the skin and the hair of a portrait).
+  paint?: string;
 }
 
 // A picture of the vault (a PNG, a JPEG, a WebP, a GIF or an SVG file), kept by its path: the file stays in the vault and is not copied into the drawing. The box shows the part that is
@@ -610,8 +615,13 @@ function readElement(value: unknown): SketchElement | null {
     const lucide = value.icon === undefined ? undefined : typeof value.icon === `string` && /^[a-z0-9][a-z0-9-]{0,80}$/.test(value.icon) ? value.icon : null;
     if (lucide === null) return null;
     if (value.name !== undefined && (typeof value.name !== `string` || value.name.length > 120 || /[\u0000-\u001f]/.test(value.name))) return null;
-    let customFields: { vb?: [number, number, number, number]; shapes?: IconShapeData[]; figure?: FigureData } = {};
-    if (value.figure !== undefined) {
+    let customFields: { vb?: [number, number, number, number]; shapes?: IconShapeData[]; figure?: FigureData; portrait?: PortraitData } = {};
+    if (value.portrait !== undefined) {
+      // A portrait keeps its choices: its shapes are drawn again from them.
+      const portrait = readPortrait(value.portrait);
+      if (portrait === null) return null;
+      customFields = { vb: [...FIGURE_VB], shapes: portraitShapes(portrait), portrait };
+    } else if (value.figure !== undefined) {
       // A figure keeps its joints: its shapes are drawn again from them, so that the two can never disagree.
       const figure = readFigure(value.figure);
       if (figure === null) return null;
@@ -624,7 +634,7 @@ function readElement(value: unknown): SketchElement | null {
       for (const item of list) {
         if (!isRecord(item) || !isSafePath(item.d) || typeof item.fill !== `boolean` || typeof item.stroke !== `boolean` || typeof item.closed !== `boolean`) return null;
         weight += item.d.length;
-        shapes.push({ d: item.d, fill: item.fill, stroke: item.stroke, closed: item.closed });
+        shapes.push({ d: item.d, fill: item.fill, stroke: item.stroke, closed: item.closed, ...(isSafeColor(item.paint) ? { paint: item.paint } : {}) });
       }
       const vb = value.vb;
       if (weight > MAX_ICON_WEIGHT || !Array.isArray(vb) || vb.length !== 4 || !vb.every((n) => typeof n === `number` && Number.isFinite(n) && Math.abs(n) <= 100000) || (vb[2] as number) <= 0 || (vb[3] as number) <= 0) return null;

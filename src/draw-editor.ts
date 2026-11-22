@@ -47,7 +47,8 @@ import { MIN_ERASE_SIZE } from "./erase-data";
 import { effectiveToolKeys, isFunctionKeyId, isKeyTool, KEY_TOOLS, keyTable, ToolKeys } from "./tool-keys";
 import { commandHotkeyText, functionCommandId } from "./hotkeys";
 import { MIN_STAMP_SIZE, STAMP_IDS, stampName, StampId } from "./stamps";
-import { BUILD_IDS, buildName, faceName, FACE_IDS, FaceId, BuildId, figureName, MIN_FIGURE_SIZE, MAX_FIGURE_SIZE, PoseId, POSE_IDS } from "./figure";
+import { HAIR_COLOR_IDS, hairColorName, HairColorId, HAT_COLOR_IDS, hatColorName, HatColorId, MAX_PORTRAIT_SIZE, MIN_PORTRAIT_SIZE, partName, PortraitData, PortraitKey, PARTS, SKIN_IDS, skinName, SkinId } from "./portrait";
+import { BUILD_IDS, buildName, LOOK_IDS, LookId, lookName, faceName, FACE_IDS, FaceId, BuildId, figureName, MIN_FIGURE_SIZE, MAX_FIGURE_SIZE, PoseId, POSE_IDS } from "./figure";
 import { BUBBLE_FORMS, BubbleForm, FESTOON_FORMS, FestoonForm, ShapeForm } from "./shape-forms";
 
 // Returns the name of a distortion of the texts in the language of the user.
@@ -212,7 +213,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
 
 
   protected creationTools(): CreationTool[] {
-    return [`rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `arrow`, `line`, `pen`, `point`, `figure`];
+    return [`rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `arrow`, `line`, `pen`, `point`, `figure`, `portrait`];
   }
 
   // Runs a function of the drawer: the same as a click on its button.
@@ -872,6 +873,8 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
         return { showChoice: true, values: [...STAMP_IDS], icon: (v) => `sketchnote-stamp-${v}`, name: (v) => stampName(v as StampId), read: (s) => s.stamp, write: (v) => ({ stamp: v as StampId }) };
       case `figure`:
         return { showChoice: true, values: [...POSE_IDS], icon: (v) => `sketchnote-pose-${v}`, name: (v) => figureName(v as PoseId), read: (s) => s.figure, write: (v) => ({ figure: v as PoseId }) };
+      case `portrait`:
+        return { showChoice: true, values: [...FACE_IDS], icon: (v) => `sketchnote-face-${v}`, name: (v) => faceName(v as FaceId), read: (s) => s.portrait.face, write: (v) => ({ portrait: { ...this.currentStyle().portrait, face: v as FaceId } }) };
       case `eraser`:
         return {
           showChoice: false,
@@ -1032,9 +1035,32 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     const faces = figureSec.createDiv({ cls: `sketchdraw-row` });
     this.dropdown<FaceId>(faces, t(`Visage`), [...FACE_IDS], (v) => `sketchnote-face-${v}`, faceName, (st) => st.figureFace, (v) => ({ figureFace: v }), true);
     for (const build of BUILD_IDS) this.panelButton(faces, `sketchnote-build-${build}`, buildName(build), (st) => st.figureBuild === build, () => this.change({ figureBuild: build as BuildId }));
+    for (const look of LOOK_IDS) this.panelButton(faces, `sketchnote-look-${look}`, lookName(look), (st) => st.figureLook === look, () => this.change({ figureLook: look as LookId }));
     const figureSizeSec = this.section(props, `figuresize`);
     this.sectionIcon(figureSizeSec, `ruler`, t(`Taille`));
     this.slider(figureSizeSec, t(`Taille`), t(`Taille du bonhomme`), MIN_FIGURE_SIZE, MAX_FIGURE_SIZE, 10, (st) => st.figureSize, (v) => ({ figureSize: v }));
+
+    // The character: the choices of the identikit, each one a menu of pictograms, the skin and the sides it looks at as buttons, then its size. All of them also change the character that is selected.
+    const portraitSec = this.section(props, `portrait`);
+    this.sectionIcon(portraitSec, `sketchnote-face-happy`, t(`Personnage`));
+    const portraitRow = portraitSec.createDiv({ cls: `sketchdraw-row` });
+    const portraitChoice = (key: PortraitKey, label: string, ids: readonly string[], icon: (id: string) => string, name: (id: string) => string): void =>
+      this.dropdown<string>(portraitRow, label, [...ids], icon, name, (st) => st.portrait[key], (v) => ({ portrait: { ...this.currentStyle().portrait, [key]: v } as PortraitData }), true);
+    portraitChoice(`face`, t(`Expression`), FACE_IDS, (id) => `sketchnote-face-${id}`, (id) => faceName(id as FaceId));
+    for (const part of PARTS) {
+      if (part.key === `sex`) {
+        for (const id of part.ids) this.panelButton(portraitRow, `sketchnote-part-sex-${id}`, partName(`sex`, id), (st) => st.portrait.sex === id, () => this.change({ portrait: { ...this.currentStyle().portrait, sex: id as PortraitData[`sex`] } }));
+        continue;
+      }
+      portraitChoice(part.key, partLabel(part.key), part.ids, (id) => `sketchnote-part-${part.key}-${id}`, (id) => partName(part.key, id));
+    }
+    portraitChoice(`hatcolor`, t(`Couleur du chapeau`), HAT_COLOR_IDS, (id) => `sketchnote-hatcolor-${id}`, (id) => hatColorName(id as HatColorId));
+    portraitChoice(`haircolor`, t(`Couleur des cheveux`), HAIR_COLOR_IDS, (id) => `sketchnote-haircolor-${id}`, (id) => hairColorName(id as HairColorId));
+    for (const id of SKIN_IDS) this.panelButton(portraitRow, `sketchnote-skin-${id}`, skinName(id as SkinId), (st) => st.portrait.skin === id, () => this.change({ portrait: { ...this.currentStyle().portrait, skin: id } }));
+    for (const look of LOOK_IDS) this.panelButton(portraitRow, `sketchnote-look-${look}`, lookName(look), (st) => st.portrait.look === look, () => this.change({ portrait: { ...this.currentStyle().portrait, look: look as LookId } }));
+    const portraitSizeSec = this.section(props, `portraitsize`);
+    this.sectionIcon(portraitSizeSec, `ruler`, t(`Taille`));
+    this.slider(portraitSizeSec, t(`Taille`), t(`Taille du personnage`), MIN_PORTRAIT_SIZE, MAX_PORTRAIT_SIZE, 10, (st) => st.portraitSize, (v) => ({ portraitSize: v }));
 
     const eraserSec = this.section(props, `eraser`);
     this.sectionIcon(eraserSec, `sketchnote-eraser`, t(`Gomme`));
@@ -1473,7 +1499,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
   // Tells whether a section of the panel can be used before anything is drawn: the settings of a text, and the settings of the pen (its brush and its regularity, and with the pen
   // tool its colour and its thickness too), which are kept for the next strokes.
   protected usableBeforeDrawing(name: PanelSection): boolean {
-    if (name === `text` || name === `regularity` || name === `brush` || name === `display` || name === `shortcuts` || name === `bubbleform` || name === `festoonform` || name === `eraser` || name === `stamp` || name === `figure` || name === `figuresize`) return true;
+    if (name === `text` || name === `regularity` || name === `brush` || name === `display` || name === `shortcuts` || name === `bubbleform` || name === `festoonform` || name === `eraser` || name === `stamp` || name === `figure` || name === `figuresize` || name === `portrait` || name === `portraitsize`) return true;
     return this.tool === `pen` && (name === `colour` || name === `width`);
   }
 
@@ -1570,7 +1596,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     for (const el of this.selectedElements()) {
       const s = styleOf(el);
       // The settings of the eraser belong to the tool, not to the element that is selected.
-      if (s) return { ...s, eraseShape: base.eraseShape, eraseSize: base.eraseSize, eraseDensity: base.eraseDensity, stamp: base.stamp, stampSize: base.stampSize, figure: base.figure, figureSize: base.figureSize };
+      if (s) return { ...s, eraseShape: base.eraseShape, eraseSize: base.eraseSize, eraseDensity: base.eraseDensity, stamp: base.stamp, stampSize: base.stampSize, figure: base.figure, figureSize: base.figureSize, portrait: el.type === `icon` && el.portrait ? s.portrait : base.portrait, portraitSize: base.portraitSize };
     }
     return this.tool === `pen` ? { ...base, ...this.penLook } : base;
   }
@@ -1597,6 +1623,9 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       if (clean.figureSize !== undefined) keep.figureSize = clean.figureSize;
       if (clean.figureFace !== undefined) keep.figureFace = clean.figureFace;
       if (clean.figureBuild !== undefined) keep.figureBuild = clean.figureBuild;
+      if (clean.figureLook !== undefined) keep.figureLook = clean.figureLook;
+      if (clean.portrait !== undefined) keep.portrait = clean.portrait;
+      if (clean.portraitSize !== undefined) keep.portraitSize = clean.portraitSize;
       if (clean.eraseShape !== undefined) keep.eraseShape = clean.eraseShape;
       if (clean.eraseSize !== undefined) keep.eraseSize = clean.eraseSize;
       if (clean.eraseDensity !== undefined) keep.eraseDensity = clean.eraseDensity;
@@ -1735,4 +1764,24 @@ function borderName(kind: BorderKind): string {
     mat: t(`Cadre avec marie-louise`),
   };
   return names[kind];
+}
+
+// The name of a menu of the portrait (its tooltip).
+function partLabel(key: PortraitKey): string {
+  const names: Record<PortraitKey, string> = {
+    shape: t(`Forme du visage`),
+    sex: t(`Homme ou femme`),
+    hair: t(`Cheveux`),
+    hat: t(`Chapeau`),
+    beard: t(`Barbe et moustache`),
+    glasses: t(`Lunettes`),
+    earrings: t(`Boucles d'oreilles`),
+    nose: t(`Nez`),
+    face: t(`Expression`),
+    look: t(`Direction du visage`),
+    skin: t(`Peau`),
+    haircolor: t(`Couleur des cheveux`),
+    hatcolor: t(`Couleur du chapeau`),
+  };
+  return names[key];
 }

@@ -17,16 +17,22 @@ export type FaceId = (typeof FACE_IDS)[number];
 export const BUILD_IDS = [`stick`, `thick`] as const;
 export type BuildId = (typeof BUILD_IDS)[number];
 
+// Where the face looks: at the viewer, or turned to the left or to the right (of the page).
+export const LOOK_IDS = [`front`, `left`, `right`] as const;
+export type LookId = (typeof LOOK_IDS)[number];
+
 // What an element keeps of a figure.
 export interface FigureData {
   joints: Pose;
   face: FaceId;
   build: BuildId;
+  look: LookId;
 }
 
 export const DEFAULT_POSE: PoseId = `stand`;
 export const DEFAULT_FACE: FaceId = `happy`;
 export const DEFAULT_BUILD: BuildId = `stick`;
+export const DEFAULT_LOOK: LookId = `front`;
 export const MIN_FIGURE_SIZE = 40;
 export const MAX_FIGURE_SIZE = 400;
 export const DEFAULT_FIGURE_SIZE = 120;
@@ -35,6 +41,7 @@ export const FIGURE_VB: [number, number, number, number] = [0, 0, 100, 100];
 export const isPoseId = (v: unknown): v is PoseId => typeof v === `string` && (POSE_IDS as readonly string[]).includes(v);
 export const isFaceId = (v: unknown): v is FaceId => typeof v === `string` && (FACE_IDS as readonly string[]).includes(v);
 export const isBuildId = (v: unknown): v is BuildId => typeof v === `string` && (BUILD_IDS as readonly string[]).includes(v);
+export const isLookId = (v: unknown): v is LookId => typeof v === `string` && (LOOK_IDS as readonly string[]).includes(v);
 
 export function cleanFigureSize(size: number): number {
   return Math.round(Math.min(MAX_FIGURE_SIZE, Math.max(MIN_FIGURE_SIZE, size)));
@@ -45,7 +52,8 @@ const LIMIT = [-20, 120];
 const clampCoord = (n: number): number => Math.min(LIMIT[1], Math.max(LIMIT[0], n));
 
 // The lengths of the parts of the body on the grid (the head is a circle of this radius, at this distance above the neck).
-const LEN = { spine: 28, head: 16, upperArm: 17, foreArm: 16, thigh: 21, shin: 20 };
+// The arms and the legs are 15 % longer than the first version (the whole figure is then made smaller to stay in its square).
+const LEN = { spine: 28, head: 16, upperArm: 19.6, foreArm: 18.4, thigh: 24.2, shin: 23 };
 const HEAD_RADIUS = { stick: 10.5, thick: 13 };
 
 // The direction of an angle that is 0 for down, 90 for right, 180 for up and -90 for left (the page goes down).
@@ -99,15 +107,22 @@ export function poseJoints(id: PoseId): Pose {
   const maxX = Math.max(...xs) + HEAD_RADIUS.thick;
   const minY = Math.min(...ys) - HEAD_RADIUS.thick;
   const maxY = Math.max(...ys) + HEAD_RADIUS.thick;
-  const dx = 50 - (minX + maxX) / 2;
-  const dy = 50 - (minY + maxY) / 2;
+  // The figure is made smaller, all of it, when it would be wider or higher than its square.
+  const k = Math.min(1, 94 / (maxX - minX), 94 / (maxY - minY));
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
   const out = {} as Pose;
-  for (const j of JOINTS) out[j] = [r1(all[j][0] + dx), r1(all[j][1] + dy)];
+  for (const j of JOINTS) out[j] = [r1(50 + (all[j][0] - cx) * k), r1(50 + (all[j][1] - cy) * k)];
   return out;
 }
 
-export function figureOf(pose: PoseId, face: FaceId, build: BuildId): FigureData {
-  return { joints: poseJoints(pose), face, build };
+export function figureOf(pose: PoseId, face: FaceId, build: BuildId, look: LookId = DEFAULT_LOOK): FigureData {
+  return { joints: poseJoints(pose), face, build, look };
+}
+
+// How big the figure is compared with the first pose: the length of its spine, as a part of the usual one. The head, the thick limbs and the face are drawn at this scale.
+function unitOf(j: Pose): number {
+  return Math.hypot(j.neck[0] - j.hip[0], j.neck[1] - j.hip[1]) / LEN.spine;
 }
 
 // Reads a figure from a file: every joint is a point of the grid, the face and the build are known. Null for anything else.
@@ -115,6 +130,7 @@ export function readFigure(value: unknown): FigureData | null {
   if (typeof value !== `object` || value === null) return null;
   const v = value as Record<string, unknown>;
   if (!isFaceId(v.face) || !isBuildId(v.build) || typeof v.joints !== `object` || v.joints === null) return null;
+  if (v.look !== undefined && !isLookId(v.look)) return null;
   const raw = v.joints as Record<string, unknown>;
   const joints = {} as Pose;
   for (const j of JOINTS) {
@@ -122,7 +138,7 @@ export function readFigure(value: unknown): FigureData | null {
     if (!Array.isArray(p) || p.length !== 2 || !p.every((n) => typeof n === `number` && Number.isFinite(n) && n >= LIMIT[0] && n <= LIMIT[1])) return null;
     joints[j] = [p[0] as number, p[1] as number];
   }
-  return { joints, face: v.face, build: v.build };
+  return { joints, face: v.face, build: v.build, look: isLookId(v.look) ? v.look : DEFAULT_LOOK };
 }
 
 // ------------------------------------------------------------------------------------------------------------------------------------------------ moving a joint
@@ -217,11 +233,18 @@ function capsule(a: Point, b: Point, r: number): string {
 }
 
 // The face, drawn in the frame of the head: its centre, its radius and the turn of the head. Every feature is given on a grid where the head is a circle of radius 1.
-function faceShapes(face: FaceId, centre: Point, radius: number, turn: number): IconShapeData[] {
+export function faceShapes(face: FaceId, centre: Point, radius: number, turn: number, look: LookId = DEFAULT_LOOK): IconShapeData[] {
   if (face === `blank`) return [];
+  // A face turned to a side: its features are squeezed and moved that way, and a nose shows which way it looks.
+  const side = look === `left` ? -1 : look === `right` ? 1 : 0;
+  const squeeze = side === 0 ? 1 : 0.8;
+  const shift = side * 0.32;
   const cos = Math.cos(turn);
   const sin = Math.sin(turn);
-  const T = (x: number, y: number): Point => [centre[0] + radius * (x * cos - y * sin), centre[1] + radius * (x * sin + y * cos)];
+  const T = (x0: number, y: number): Point => {
+    const x = x0 * squeeze + shift;
+    return [centre[0] + radius * (x * cos - y * sin), centre[1] + radius * (x * sin + y * cos)];
+  };
   const P = (x: number, y: number): string => pt(T(x, y));
   const seg = (x1: number, y1: number, x2: number, y2: number): IconShapeData => line(`M${P(x1, y1)}L${P(x2, y2)}`);
   const quad = (x1: number, y1: number, cx: number, cy: number, x2: number, y2: number): IconShapeData => line(`M${P(x1, y1)}Q${P(cx, cy)} ${P(x2, y2)}`);
@@ -234,7 +257,10 @@ function faceShapes(face: FaceId, centre: Point, radius: number, turn: number): 
   const frown = (): IconShapeData => quad(-0.38, 0.65, 0, 0.2, 0.38, 0.65);
   const closedUp = (x: number): IconShapeData => quad(x - 0.2, -0.05, x, -0.4, x + 0.2, -0.05);
   const closedDown = (x: number): IconShapeData => quad(x - 0.2, -0.2, x, 0.05, x + 0.2, -0.2);
-  switch (face) {
+  const nose: IconShapeData[] = side === 0 ? [] : [line(`M${P(0, -0.08)}L${P(0.24 * side / squeeze, 0.2)}L${P(0, 0.25)}`)];
+  return [...nose, ...faceFeatures(face)];
+  function faceFeatures(which: FaceId): IconShapeData[] {
+  switch (which) {
     case `neutral`:
       return [...eyes(), seg(-0.32, 0.45, 0.32, 0.45)];
     case `happy`:
@@ -266,6 +292,7 @@ function faceShapes(face: FaceId, centre: Point, radius: number, turn: number): 
     default:
       return [];
   }
+  }
 }
 
 // Returns the shapes of a figure: its head and its face, then its body (lines for a stick figure, closed capsules for a thick one).
@@ -273,22 +300,23 @@ export function figureShapes(fig: FigureData): IconShapeData[] {
   const j = fig.joints;
   const out: IconShapeData[] = [];
   const thick = fig.build === `thick`;
-  const radius = thick ? HEAD_RADIUS.thick : HEAD_RADIUS.stick;
+  const u = unitOf(j);
+  const radius = (thick ? HEAD_RADIUS.thick : HEAD_RADIUS.stick) * u;
   // The turn of the head: how far the line from the neck to the head leans from the vertical.
   const turn = Math.atan2(j.head[0] - j.neck[0], -(j.head[1] - j.neck[1]));
   out.push(loop(circlePath(j.head, radius)));
-  out.push(...faceShapes(fig.face, j.head, radius, turn));
+  out.push(...faceShapes(fig.face, j.head, radius, turn, fig.look));
   if (thick) {
     // The limbs start inside the body, a little way along their first segment, so that their outlines do not cross it.
     const from = (a: Point, b: Point, d: number): Point => {
       const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
       return [a[0] + ((b[0] - a[0]) / l) * d, a[1] + ((b[1] - a[1]) / l) * d];
     };
-    out.push(loop(capsule(from(j.neck, j.hip, 3), from(j.hip, j.neck, 3), 10)));
-    out.push(loop(capsule(from(j.neck, j.elbowL, 7), j.elbowL, 4.8)), loop(capsule(j.elbowL, j.handL, 4.4)));
-    out.push(loop(capsule(from(j.neck, j.elbowR, 7), j.elbowR, 4.8)), loop(capsule(j.elbowR, j.handR, 4.4)));
-    out.push(loop(capsule(from(j.hip, j.kneeL, 7), j.kneeL, 5.8)), loop(capsule(j.kneeL, j.footL, 5.2)));
-    out.push(loop(capsule(from(j.hip, j.kneeR, 7), j.kneeR, 5.8)), loop(capsule(j.kneeR, j.footR, 5.2)));
+    out.push(loop(capsule(from(j.neck, j.hip, 3 * u), from(j.hip, j.neck, 3 * u), 10 * u)));
+    out.push(loop(capsule(from(j.neck, j.elbowL, 7 * u), j.elbowL, 4.8 * u)), loop(capsule(j.elbowL, j.handL, 4.4 * u)));
+    out.push(loop(capsule(from(j.neck, j.elbowR, 7 * u), j.elbowR, 4.8 * u)), loop(capsule(j.elbowR, j.handR, 4.4 * u)));
+    out.push(loop(capsule(from(j.hip, j.kneeL, 7 * u), j.kneeL, 5.8 * u)), loop(capsule(j.kneeL, j.footL, 5.2 * u)));
+    out.push(loop(capsule(from(j.hip, j.kneeR, 7 * u), j.kneeR, 5.8 * u)), loop(capsule(j.kneeR, j.footR, 5.2 * u)));
     return out;
   }
   // The neck goes from the neck joint to the edge of the head.
@@ -303,9 +331,9 @@ export function figureShapes(fig: FigureData): IconShapeData[] {
 }
 
 // Builds the element that a click with the Figure tool puts: an icon, centred on the click, that keeps its figure.
-export function figureElement(pose: PoseId, face: FaceId, build: BuildId, center: Point, size: number, look: { stroke: string; strokeWidth: number; roughness: number; seed: number }, elementId: string): IconElement {
+export function figureElement(pose: PoseId, face: FaceId, build: BuildId, look: LookId, center: Point, size: number, ink: { stroke: string; strokeWidth: number; roughness: number; seed: number }, elementId: string): IconElement {
   const side = cleanFigureSize(size);
-  const figure = figureOf(pose, face, build);
+  const figure = figureOf(pose, face, build, look);
   return {
     id: elementId,
     type: `icon`,
@@ -317,10 +345,10 @@ export function figureElement(pose: PoseId, face: FaceId, build: BuildId, center
     vb: [...FIGURE_VB],
     shapes: figureShapes(figure),
     figure,
-    stroke: look.stroke,
-    strokeWidth: Math.max(1, Math.min(look.strokeWidth, side / 45)),
-    roughness: look.roughness,
-    seed: look.seed,
+    stroke: ink.stroke,
+    strokeWidth: Math.max(1, Math.min(ink.strokeWidth, side / 45)),
+    roughness: ink.roughness,
+    seed: ink.seed,
   };
 }
 
@@ -366,6 +394,10 @@ export function faceName(id: FaceId): string {
   return names[id];
 }
 
+export function lookName(id: LookId): string {
+  return id === `front` ? t(`Visage de face`) : id === `left` ? t(`Visage tourné à gauche`) : t(`Visage tourné à droite`);
+}
+
 export function buildName(id: BuildId): string {
   return id === `stick` ? t(`Bonhomme en bâtons`) : t(`Corps épais`);
 }
@@ -375,8 +407,8 @@ export function poseIconShapes(id: PoseId): IconShapeData[] {
   return figureShapes(figureOf(id, `blank`, `stick`));
 }
 
-export function faceIconShapes(id: FaceId): IconShapeData[] {
-  return [loop(circlePath([50, 50], 40)), ...faceShapes(id, [50, 50], 40, 0)];
+export function faceIconShapes(id: FaceId, look: LookId = DEFAULT_LOOK): IconShapeData[] {
+  return [loop(circlePath([50, 50], 40)), ...faceShapes(id, [50, 50], 40, 0, look)];
 }
 
 export function buildIconShapes(id: BuildId): IconShapeData[] {

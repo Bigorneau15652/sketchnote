@@ -13,6 +13,8 @@ export interface IconShape {
   stroke: boolean;
   // Whether the shape is closed (a fill can be given to it).
   closed: boolean;
+  // A colour that fills the shape whatever the fill of the element is.
+  paint?: string;
   // What a circle, an ellipse or a rectangle was, so that it can become a circle, an ellipse or a rectangle again.
   prim?: { kind: `ellipse`; cx: number; cy: number; rx: number; ry: number } | { kind: `rect`; x: number; y: number; w: number; h: number; r: number };
 }
