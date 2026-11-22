@@ -71,6 +71,8 @@ export const DEFAULT_PORTRAIT: PortraitData = { shape: `round`, sex: `man`, hair
 export const MIN_PORTRAIT_SIZE = 40;
 export const MAX_PORTRAIT_SIZE = 400;
 export const DEFAULT_PORTRAIT_SIZE = 140;
+// The line of a new character: clean (an imperfection of 3) and fine.
+export const DEFAULT_PORTRAIT_LOOK = { roughness: 0.3, strokeWidth: 2 };
 
 const KINDS = { shape: SHAPE_IDS, sex: SEX_IDS, hair: HAIR_IDS, hat: HAT_IDS, beard: BEARD_IDS, glasses: GLASSES_IDS, earrings: EARRING_IDS, nose: NOSE_IDS, face: FACE_IDS, look: LOOK_IDS, skin: SKIN_IDS, haircolor: HAIR_COLOR_IDS, hatcolor: HAT_COLOR_IDS } as const;
 export type PortraitKey = keyof PortraitData;
@@ -175,10 +177,29 @@ const circleD = (cx: number, cy: number, r: number): string => {
 
 // ------------------------------------------------------------------------------------------------------------------------------------------------ the parts
 
+// Where the face looks, for the parts that follow the face: the side (-1 left, 0 front, 1 right), how much the features are squeezed and how far they are moved. The features (eyes, brows,
+// nose, mouth, glasses, moustache) follow all of it, the beard and the goatee follow part of it (they hang on the jaw), the hair line a third of it; the skull, the hat and the outline stay.
+interface Turn {
+  side: -1 | 0 | 1;
+  // A feature on the face: squeezed and moved.
+  fx: (x: number) => number;
+  // A part that hangs on the jaw (the inside of the beard, the goatee).
+  fb: (x: number) => number;
+  // The hair line.
+  fh: (x: number) => number;
+}
+
+function turnOf(look: LookId): Turn {
+  const side = look === `left` ? -1 : look === `right` ? 1 : 0;
+  const squeeze = side === 0 ? 1 : 0.8;
+  const shift = side * 9.6;
+  return { side: side as -1 | 0 | 1, fx: (x) => x * squeeze + shift, fb: (x) => x * (1 - (1 - squeeze) * 0.6) + shift * 0.7, fh: (x) => x + shift * 0.35 };
+}
+
 // The hair, in two parts: what covers the top of the head (hidden by a hat) and what hangs at the sides. Every closed shape of the hair is painted with the colour of the hair.
-function hairParts(hair: HairId, top: number, paint: string): { top: IconShapeData[]; side: IconShapeData[] } {
+function hairParts(hair: HairId, top: number, paint: string, t: Turn): { top: IconShapeData[]; side: IconShapeData[] } {
   const cap = (): IconShapeData =>
-    loop(`${move(-27, -12)}C${pt(A(-31, top - 12))} ${pt(A(31, top - 12))} ${pt(A(27, -12))}${lineTo(24, -18)}C${pt(A(18, top + 4))} ${pt(A(-18, top + 4))} ${pt(A(-24, -18))}Z`, paint);
+    loop(`${move(-27, -12)}C${pt(A(-31, top - 12))} ${pt(A(31, top - 12))} ${pt(A(27, -12))}${lineTo(t.fh(24), -18)}C${pt(A(t.fh(18), top + 4))} ${pt(A(t.fh(-18), top + 4))} ${pt(A(t.fh(-24), -18))}Z`, paint);
   const sides = (to: number, flat = false): IconShapeData[] => {
     const l = flat
       ? loop(`${move(-28, -14)}${lineTo(-34, to)}${lineTo(-22, to)}${lineTo(-24, -14)}Z`, paint)
@@ -188,6 +209,8 @@ function hairParts(hair: HairId, top: number, paint: string): { top: IconShapeDa
       : loop(`${move(28, -14)}C${pt(A(37, 8))} ${pt(A(35, to - 12))} ${pt(A(29, to))}${lineTo(20, to)}C${pt(A(25, to - 16))} ${pt(A(24, 8))} ${pt(A(25, -14))}Z`, paint);
     return [l, r];
   };
+  // The ponytail hangs behind the head: on the side away from where the face looks.
+  const m = t.side === 1 ? -1 : 1;
   switch (hair) {
     case `short`:
       return { top: [cap()], side: [] };
@@ -198,11 +221,11 @@ function hairParts(hair: HairId, top: number, paint: string): { top: IconShapeDa
     case `bob`:
       return { top: [cap()], side: sides(24, true) };
     case `ponytail`:
-      return { top: [cap()], side: [loop(`${move(29, -18)}C${pt(A(46, -22))} ${pt(A(54, 0))} ${pt(A(42, 22))}C${pt(A(42, 10))} ${pt(A(38, 0))} ${pt(A(30, -8))}Z`, paint), loop(circleD(30, -14, 2.4), paint)] };
+      return { top: [cap()], side: [loop(`${move(m * 29, -18)}C${pt(A(m * 46, -22))} ${pt(A(m * 54, 0))} ${pt(A(m * 42, 22))}C${pt(A(m * 42, 10))} ${pt(A(m * 38, 0))} ${pt(A(m * 30, -8))}Z`, paint), loop(circleD(m * 30, -14, 2.4), paint)] };
     case `bun`:
       return { top: [loop(circleD(0, top - 8, 9), paint), cap()], side: [] };
     case `fringe`:
-      return { top: [loop(`${move(-27, -14)}C${pt(A(-31, top - 12))} ${pt(A(31, top - 12))} ${pt(A(27, -14))}${quadTo(14, -4, 0, -15)}${quadTo(-14, -4, -27, -14)}Z`, paint)], side: [] };
+      return { top: [loop(`${move(-27, -14)}C${pt(A(-31, top - 12))} ${pt(A(31, top - 12))} ${pt(A(27, -14))}${quadTo(t.fh(14), -4, t.fh(0), -15)}${quadTo(t.fh(-14), -4, -27, -14)}Z`, paint)], side: [] };
     case `crest`:
       return { top: [loop(poly([[-12, top + 8], [-10, top - 10], [-5, top + 2], [0, top - 14], [5, top + 2], [10, top - 10], [12, top + 8]], true), paint)], side: [] };
     case `punk`:
@@ -212,17 +235,19 @@ function hairParts(hair: HairId, top: number, paint: string): { top: IconShapeDa
   }
 }
 
-// The hat, sitting on the top of the head.
-function hatShapes(hat: HatId, top: number, paint: string): IconShapeData[] {
+// The hat, sitting on the top of the head. The peak of a cap points where the face looks.
+function hatShapes(hat: HatId, top: number, paint: string, t: Turn): IconShapeData[] {
   const ty = top;
   const loop = (d: string): IconShapeData => paintedLoop(d, paint);
+  const m = t.side === 0 ? 1 : t.side;
+  const c = t.fh(0);
   switch (hat) {
     case `cap`:
       // A baseball cap: a dome and a peak.
-      return [loop(`${move(-28, ty + 12)}C${pt(A(-28, ty - 14))} ${pt(A(28, ty - 14))} ${pt(A(28, ty + 12))}Z`), loop(`${move(10, ty + 10)}${lineTo(42, ty + 12)}${quadTo(46, ty + 18, 38, ty + 18)}${lineTo(10, ty + 16)}Z`), line(`${move(0, ty - 10)}${lineTo(0, ty + 10)}`)];
+      return [loop(`${move(-28, ty + 12)}C${pt(A(-28, ty - 14))} ${pt(A(28, ty - 14))} ${pt(A(28, ty + 12))}Z`), loop(`${move(m * 10, ty + 10)}${lineTo(m * 42, ty + 12)}${quadTo(m * 46, ty + 18, m * 38, ty + 18)}${lineTo(m * 10, ty + 16)}Z`), line(`${move(c, ty - 10)}${lineTo(c, ty + 10)}`)];
     case `captain`:
       // A ship captain's cap: a wide flat crown, a band, a badge and a peak.
-      return [loop(`${move(-31, ty + 10)}C${pt(A(-36, ty - 12))} ${pt(A(36, ty - 12))} ${pt(A(31, ty + 10))}Z`), loop(poly([[-27, ty + 10], [27, ty + 10], [27, ty + 19], [-27, ty + 19]], true)), loop(circleD(0, ty + 4, 3.4)), loop(`${move(-17, ty + 19)}${quadTo(0, ty + 29, 17, ty + 19)}Z`)];
+      return [loop(`${move(-31, ty + 10)}C${pt(A(-36, ty - 12))} ${pt(A(36, ty - 12))} ${pt(A(31, ty + 10))}Z`), loop(poly([[-27, ty + 10], [27, ty + 10], [27, ty + 19], [-27, ty + 19]], true)), loop(circleD(c, ty + 4, 3.4)), loop(`${move(c + m * -17 + m * 0, ty + 19)}${quadTo(c + m * 8, ty + 29, c + m * 24, ty + 19)}Z`)];
     case `round`:
       return [loop(`${move(-24, ty + 10)}C${pt(A(-24, ty - 20))} ${pt(A(24, ty - 20))} ${pt(A(24, ty + 10))}Z`), loop(`${move(-42, ty + 12)}${quadTo(0, ty + 20, 42, ty + 12)}${quadTo(0, ty + 4, -42, ty + 12)}Z`)];
     case `top`:
@@ -230,7 +255,7 @@ function hatShapes(hat: HatId, top: number, paint: string): IconShapeData[] {
     case `beanie`:
       return [loop(`${move(-29, ty + 14)}C${pt(A(-30, ty - 16))} ${pt(A(30, ty - 16))} ${pt(A(29, ty + 14))}Z`), loop(poly([[-29, ty + 14], [29, ty + 14], [29, ty + 22], [-29, ty + 22]], true)), loop(circleD(0, ty - 12, 6))];
     case `helmet`:
-      return [loop(`${move(-28, ty + 12)}C${pt(A(-28, ty - 14))} ${pt(A(28, ty - 14))} ${pt(A(28, ty + 12))}Z`), loop(poly([[-34, ty + 12], [34, ty + 12], [32, ty + 18], [-32, ty + 18]], true)), line(poly([[0, ty - 10], [0, ty + 12]], false))];
+      return [loop(`${move(-28, ty + 12)}C${pt(A(-28, ty - 14))} ${pt(A(28, ty - 14))} ${pt(A(28, ty + 12))}Z`), loop(poly([[-34, ty + 12], [34, ty + 12], [32, ty + 18], [-32, ty + 18]], true)), line(poly([[c, ty - 10], [c, ty + 12]], false))];
     case `crown`:
       return [loop(poly([[-24, ty + 12], [-24, ty - 8], [-12, ty + 2], [0, ty - 14], [12, ty + 2], [24, ty - 8], [24, ty + 12]], true))];
     default:
@@ -238,8 +263,8 @@ function hatShapes(hat: HatId, top: number, paint: string): IconShapeData[] {
   }
 }
 
-// The beard and the moustache, painted with the colour of the hair. The beard follows the lower half of the outline.
-function beardShapes(beard: BeardId, outline: [number, number][], chin: number, long: boolean, paint: string): IconShapeData[] {
+// The beard and the moustache, painted with the colour of the hair. The beard follows the lower half of the outline; its inside, the goatee and the moustache follow the face when it turns.
+function beardShapes(beard: BeardId, outline: [number, number][], chin: number, long: boolean, paint: string, t: Turn): IconShapeData[] {
   const out: IconShapeData[] = [];
   const full = beard === `short` || beard === `long` || beard === `both`;
   if (full) {
@@ -247,32 +272,31 @@ function beardShapes(beard: BeardId, outline: [number, number][], chin: number, 
     const lower = [...outline.slice(2, Math.ceil(outline.length / 2) + 1), ...outline.slice(Math.floor(outline.length / 2) + 1, outline.length - 1)];
     const grow = beard === `long` || (beard === `both` && long) ? 1 : 0;
     const outer = lower.map(([x, y]): [number, number] => [x * 1.05, y > 0 ? y * 1.05 + grow * 12 * (y / 34) : y]);
-    const inner = lower.map(([x, y]): [number, number] => [x * 0.78, y > 4 ? y * 0.78 - 4 : y]).reverse();
+    const inner = lower.map(([x, y]): [number, number] => [t.fb(x * 0.78), y > 4 ? y * 0.78 - 4 : y]).reverse();
     out.push(loop(smooth([...outer, ...inner]), paint));
   }
+  const X = t.fx;
   if (beard === `goatee` || beard === `goateestache`) {
-    out.push(loop(smooth([[-7, chin - 16], [7, chin - 16], [6, chin - 6], [0, chin + 5], [-6, chin - 6]]), paint));
+    out.push(loop(smooth([[t.fb(-7), chin - 16], [t.fb(7), chin - 16], [t.fb(6), chin - 6], [t.fb(0), chin + 5], [t.fb(-6), chin - 6]]), paint));
   }
   if (beard === `moustache` || beard === `goateestache` || beard === `both`) {
-    out.push(loop(`${move(0, 5)}${quadTo(-8, 1, -17, 7)}${quadTo(-9, 10, 0, 8)}${quadTo(9, 10, 17, 7)}${quadTo(8, 1, 0, 5)}Z`, paint));
+    out.push(loop(`${move(X(0), 5)}${quadTo(X(-8), 1, X(-17), 7)}${quadTo(X(-9), 10, X(0), 8)}${quadTo(X(9), 10, X(17), 7)}${quadTo(X(8), 1, X(0), 5)}Z`, paint));
   }
   if (beard === `thin`) {
-    out.push(line(`${move(-15, 7)}${quadTo(-8, 3, 0, 6)}${quadTo(8, 3, 15, 7)}`));
+    out.push(line(`${move(X(-15), 7)}${quadTo(X(-8), 3, X(0), 6)}${quadTo(X(8), 3, X(15), 7)}`));
   }
   if (beard === `handlebar`) {
     // A big moustache whose ends curl up.
-    out.push(loop(`${move(0, 5)}${quadTo(-10, 1, -18, 8)}${quadTo(-24, 13, -28, 5)}${quadTo(-25, 11, -19, 12)}${quadTo(-9, 10, 0, 10)}${quadTo(9, 10, 19, 12)}${quadTo(25, 11, 28, 5)}${quadTo(24, 13, 18, 8)}${quadTo(10, 1, 0, 5)}Z`, paint));
+    out.push(loop(`${move(X(0), 5)}${quadTo(X(-10), 1, X(-18), 8)}${quadTo(X(-24), 13, X(-28), 5)}${quadTo(X(-25), 11, X(-19), 12)}${quadTo(X(-9), 10, X(0), 10)}${quadTo(X(9), 10, X(19), 12)}${quadTo(X(25), 11, X(28), 5)}${quadTo(X(24), 13, X(18), 8)}${quadTo(X(10), 1, X(0), 5)}Z`, paint));
   }
   return out;
 }
 
 // The glasses, on the eyes.
-function glassesShapes(glasses: GlassesId, look: LookId): IconShapeData[] {
+function glassesShapes(glasses: GlassesId, t: Turn): IconShapeData[] {
   if (glasses === `none`) return [];
-  const side = look === `left` ? -1 : look === `right` ? 1 : 0;
-  const squeeze = side === 0 ? 1 : 0.8;
-  const shift = side * 0.32 * 30;
-  const X = (x: number): number => x * squeeze + shift;
+  const squeeze = t.side === 0 ? 1 : 0.8;
+  const X = t.fx;
   const out: IconShapeData[] = [];
   const ey = -4;
   for (const sx of [-1, 1]) {
@@ -285,25 +309,34 @@ function glassesShapes(glasses: GlassesId, look: LookId): IconShapeData[] {
   return out;
 }
 
-// The nose seen from the front (a face that looks aside has the nose of the face).
-function noseShapes(nose: NoseId, look: LookId): IconShapeData[] {
-  if (look !== `front`) return [];
+// The nose: seen from the front it is a small hook, a long line or a ball; seen from the side it sticks out toward where the face looks, as far as its kind.
+function noseShapes(nose: NoseId, t: Turn): IconShapeData[] {
+  if (t.side === 0) {
+    switch (nose) {
+      case `long`:
+        return [line(`${move(0, -6)}${lineTo(-1.5, 11)}${quadTo(-7, 14, 5, 13)}`)];
+      case `round`:
+        return [loop(circleD(0, 8, 3.6))];
+      default:
+        return [line(`${move(1, 2)}${quadTo(5, 9, -2, 10)}`)];
+    }
+  }
+  const c = t.fx(0);
+  const s = t.side;
   switch (nose) {
     case `long`:
-      return [line(`${move(0, -6)}${lineTo(-1.5, 11)}${quadTo(-7, 14, 5, 13)}`)];
+      return [line(`${move(c, -8)}${lineTo(c + s * 13, 9)}${lineTo(c, 11)}`)];
     case `round`:
-      return [loop(circleD(0, 8, 3.6))];
+      return [line(`${move(c, -4)}${lineTo(c + s * 3, 3)}`), loop(circleD(c + s * 5, 6, 4.2))];
     default:
-      return [line(`${move(1, 2)}${quadTo(5, 9, -2, 10)}`)];
+      return [line(`${move(c, -6)}${lineTo(c + s * 7, 6)}${lineTo(c, 8)}`)];
   }
 }
 
 // The eyebrows and the lashes that the expressions do not have.
-function extraShapes(face: FaceId, sex: SexId, look: LookId): IconShapeData[] {
+function extraShapes(face: FaceId, sex: SexId, t: Turn): IconShapeData[] {
   const out: IconShapeData[] = [];
-  const squeeze = look === `front` ? 1 : 0.8;
-  const shift = look === `left` ? -9.6 : look === `right` ? 9.6 : 0;
-  const X = (x: number): number => x * squeeze + shift;
+  const X = t.fx;
   const browless: FaceId[] = [`neutral`, `happy`, `laugh`, `wink`, `love`, `sleep`];
   if (browless.includes(face)) out.push(line(`${move(X(-16), -14)}${quadTo(X(-11), -17, X(-6), -14)}`), line(`${move(X(6), -14)}${quadTo(X(11), -17, X(16), -14)}`));
   const dotEyes: FaceId[] = [`neutral`, `happy`, `sad`, `cry`, `angry`, `think`, `shout`, `wink`, `talk`];
@@ -311,7 +344,7 @@ function extraShapes(face: FaceId, sex: SexId, look: LookId): IconShapeData[] {
   return out;
 }
 
-// Returns the shapes of a portrait. The face is painted with the skin tone, the hair and the beard with the colour of the hair.
+// Returns the shapes of a portrait. The face is painted with the skin tone, the hair and the beard with the colour of the hair. Every part that belongs to the face turns with it.
 export function portraitShapes(p: PortraitData): IconShapeData[] {
   const out: IconShapeData[] = [];
   const outline = outlinePoints(p.shape, p.sex);
@@ -319,7 +352,8 @@ export function portraitShapes(p: PortraitData): IconShapeData[] {
   const chin = HALF[p.shape][HALF[p.shape].length - 1][1];
   const skin = SKIN_TONES[p.skin];
   const hairPaint = HAIR_COLORS[p.haircolor];
-  const hair = hairParts(p.hair, top, hairPaint);
+  const t = turnOf(p.look);
+  const hair = hairParts(p.hair, top, hairPaint, t);
   // The hair that hangs behind the face is drawn first, then the face, then what covers it.
   out.push(...hair.side);
   out.push(loop(smooth(outline), skin));
@@ -331,13 +365,13 @@ export function portraitShapes(p: PortraitData): IconShapeData[] {
     if (p.earrings === `rings`) out.push(loop(circleD(sx * (earX + 2.5), 8, 2.4)));
   }
   // The beard is over the face, under the features.
-  out.push(...beardShapes(p.beard, outline, chin, p.shape === `long`, hairPaint));
-  out.push(...extraShapes(p.face, p.sex, p.look));
-  out.push(...faceShapes(p.face, A(0, p.shape === `long` ? 3 : 0), 30 * SC, 0, p.look));
-  out.push(...noseShapes(p.nose, p.look));
-  out.push(...glassesShapes(p.glasses, p.look));
+  out.push(...beardShapes(p.beard, outline, chin, p.shape === `long`, hairPaint, t));
+  out.push(...extraShapes(p.face, p.sex, t));
+  out.push(...faceShapes(p.face, A(0, p.shape === `long` ? 3 : 0), 30 * SC, 0, p.look, false));
+  out.push(...noseShapes(p.nose, t));
+  out.push(...glassesShapes(p.glasses, t));
   if (p.hat === `none`) out.push(...hair.top);
-  else out.push(...hatShapes(p.hat, top, HAT_COLORS[p.hatcolor]));
+  else out.push(...hatShapes(p.hat, top, HAT_COLORS[p.hatcolor], t));
   return out;
 }
 
@@ -356,7 +390,7 @@ export function portraitElement(data: PortraitData, center: Point, size: number,
     shapes: portraitShapes(data),
     portrait: data,
     stroke: ink.stroke,
-    strokeWidth: Math.max(1, Math.min(ink.strokeWidth, side / 60)),
+    strokeWidth: Math.max(0.5, Math.min(24, ink.strokeWidth)),
     roughness: ink.roughness,
     seed: ink.seed,
   };

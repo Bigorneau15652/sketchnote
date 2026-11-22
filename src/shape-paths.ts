@@ -301,7 +301,12 @@ function iconPaths(el: IconElement, opts: Record<string, unknown>): ElementPaths
   const base: Record<string, unknown> = { ...opts, strokeWidth: el.strokeWidth / k, maxRandomnessOffset: 2 / k, hachureGap: Math.max(6, el.strokeWidth * 3.5) / k, fillWeight: Math.max(1, el.strokeWidth / 2) / k };
   // The figure and the character are drawn on a small grid with many short lines: the imperfection that suits a shape would tear them apart, so it is softened (the usual setting then
   // looks like a light imperfection, and the strongest one keeps the figure recognisable).
-  if ((el.figure || el.portrait) && typeof opts.roughness === `number`) base.roughness = opts.roughness * SOFT_ROUGHNESS;
+  if ((el.figure || el.portrait) && typeof opts.roughness === `number`) {
+    const soft = opts.roughness * SOFT_ROUGHNESS;
+    base.roughness = soft;
+    // A light imperfection draws each line once, so that the line is clean (a double line is only for a strong imperfection).
+    if (soft < 0.6) base.disableMultiStroke = true;
+  }
   const seed = (opts.seed as number) ?? 1;
   const pieces: PathPiece[] = [];
   data.shapes.forEach((shape, i) => {

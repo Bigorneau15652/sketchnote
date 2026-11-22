@@ -5,8 +5,10 @@ import { setIcon } from "obsidian";
 import { drawElement, PLAIN } from "./element-render";
 import { faceName, FACE_IDS, LOOK_IDS, lookName } from "./figure";
 import { t } from "./i18n";
-import { hairColorName, hatColorName, HAIR_COLOR_IDS, HAT_COLOR_IDS, partLabel, partName, PARTS, PortraitData, portraitElement, PortraitKey, SKIN_IDS, skinName } from "./portrait";
+import { DEFAULT_PORTRAIT_SIZE, hairColorName, hatColorName, HAIR_COLOR_IDS, HAT_COLOR_IDS, partLabel, partName, PARTS, PortraitData, portraitElement, PortraitKey, SKIN_IDS, skinName } from "./portrait";
 import { svgEl } from "./svg";
+import { FIELD_KINDS, presetValues } from "./field-values";
+import { valueField } from "./value-field";
 
 export interface PortraitWindowOptions {
   // The element of the drawing that holds the window.
@@ -17,8 +19,11 @@ export interface PortraitWindowOptions {
   // The colour of the line, and the seed of the wobble (so that the character on the page looks like the one in the window).
   ink: string;
   seed: number;
-  // Called with the choices when OK is pressed, and when the window closes.
-  onOk: (data: PortraitData) => void;
+  // The imperfection (0 to 5) and the thickness of the line.
+  roughness: number;
+  strokeWidth: number;
+  // Called with the choices and the line when OK is pressed, and when the window closes.
+  onOk: (data: PortraitData, line: { roughness: number; strokeWidth: number }) => void;
   onClose: () => void;
 }
 
@@ -60,11 +65,15 @@ function groups(): Group[] {
 export class PortraitWindow {
   private el: HTMLElement | null = null;
   private data: PortraitData;
+  private roughness: number;
+  private strokeWidth: number;
   private preview: SVGGElement | null = null;
   private readonly buttons: { key: PortraitKey; id: string; el: HTMLElement }[] = [];
 
   constructor(private opts: PortraitWindowOptions) {
     this.data = { ...opts.initial };
+    this.roughness = opts.roughness;
+    this.strokeWidth = opts.strokeWidth;
   }
 
   // Shows the window, in the middle of the drawing or where it was left.
@@ -98,6 +107,14 @@ export class PortraitWindow {
     const side = body.createDiv({ cls: `sketchnote-portrait-side` });
     const svg = svgEl(`svg`, { viewBox: `0 0 100 100`, class: `sketchnote-portrait-preview`, preserveAspectRatio: `xMidYMid meet` }, side);
     this.preview = svgEl(`g`, {}, svg) as SVGGElement;
+    // The line: its imperfection (0 for a clean line) and its thickness, with a minus and a plus.
+    const line = side.createDiv({ cls: `sketchnote-portrait-line` });
+    const rough = FIELD_KINDS[`Imperfection`];
+    const width = FIELD_KINDS[`Épaisseur`];
+    const roughField = valueField({ parent: line, icon: rough.icon, tooltip: t(`Imperfection du tracé : 0 pour un trait net`), min: 0, max: 50, step: 1, unit: rough.unit, presets: presetValues(0, 50, 1), stepButtons: true, onChange: (v) => { this.roughness = v / 10; this.refresh(); } });
+    roughField.set(Math.round(this.roughness * 10));
+    const widthField = valueField({ parent: line, icon: width.icon, tooltip: t(`Épaisseur`), min: 1, max: 12, step: 1, unit: width.unit, presets: presetValues(1, 12, 1), stepButtons: true, onChange: (v) => { this.strokeWidth = v; this.refresh(); } });
+    widthField.set(Math.round(this.strokeWidth));
     const foot = side.createDiv({ cls: `sketchnote-portrait-foot` });
     const cancel = foot.createEl(`button`, { text: t(`Annuler`) });
     cancel.addEventListener(`click`, () => this.close());
@@ -120,7 +137,7 @@ export class PortraitWindow {
   // The result is kept and the window closes.
   private ok(): void {
     const data = { ...this.data };
-    this.opts.onOk(data);
+    this.opts.onOk(data, { roughness: this.roughness, strokeWidth: this.strokeWidth });
     this.close();
   }
 
@@ -148,7 +165,8 @@ export class PortraitWindow {
     const g = this.preview;
     if (!g) return;
     while (g.firstChild) g.removeChild(g.firstChild);
-    const made = portraitElement(this.data, [50, 50], 100, { stroke: this.opts.ink, strokeWidth: 3, roughness: 1, seed: this.opts.seed }, `preview`);
+    // The preview is 100 wide where the character is 140: its line is thinner in the same proportion.
+    const made = portraitElement(this.data, [50, 50], 100, { stroke: this.opts.ink, strokeWidth: (this.strokeWidth * 100) / DEFAULT_PORTRAIT_SIZE, roughness: this.roughness, seed: this.opts.seed }, `preview`);
     try {
       drawElement(made, g, { ...PLAIN, ink: this.opts.ink });
     } catch {

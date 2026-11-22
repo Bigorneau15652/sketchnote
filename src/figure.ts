@@ -233,7 +233,7 @@ function capsule(a: Point, b: Point, r: number): string {
 }
 
 // The face, drawn in the frame of the head: its centre, its radius and the turn of the head. Every feature is given on a grid where the head is a circle of radius 1.
-export function faceShapes(face: FaceId, centre: Point, radius: number, turn: number, look: LookId = DEFAULT_LOOK): IconShapeData[] {
+export function faceShapes(face: FaceId, centre: Point, radius: number, turn: number, look: LookId = DEFAULT_LOOK, withNose = true): IconShapeData[] {
   if (face === `blank`) return [];
   // A face turned to a side: its features are squeezed and moved that way, and a nose shows which way it looks.
   const side = look === `left` ? -1 : look === `right` ? 1 : 0;
@@ -257,7 +257,7 @@ export function faceShapes(face: FaceId, centre: Point, radius: number, turn: nu
   const frown = (): IconShapeData => quad(-0.38, 0.65, 0, 0.2, 0.38, 0.65);
   const closedUp = (x: number): IconShapeData => quad(x - 0.2, -0.05, x, -0.4, x + 0.2, -0.05);
   const closedDown = (x: number): IconShapeData => quad(x - 0.2, -0.2, x, 0.05, x + 0.2, -0.2);
-  const nose: IconShapeData[] = side === 0 ? [] : [line(`M${P(0, -0.08)}L${P(0.24 * side / squeeze, 0.2)}L${P(0, 0.25)}`)];
+  const nose: IconShapeData[] = side === 0 || !withNose ? [] : [line(`M${P(0, -0.08)}L${P(0.24 * side / squeeze, 0.2)}L${P(0, 0.25)}`)];
   return [...nose, ...faceFeatures(face)];
   function faceFeatures(which: FaceId): IconShapeData[] {
   switch (which) {
