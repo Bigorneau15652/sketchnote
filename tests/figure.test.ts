@@ -1,4 +1,5 @@
 import test from "node:test";
+import { BOTTOM_IDS, ITEM_IDS, itemIconShapes, TOP_IDS } from "../src/figure-items";
 import assert from "node:assert/strict";
 import { BUILD_IDS, FACE_IDS, figureElement, figureOf, figureShapes, FIGURE_VB, JOINTS, moveJoint, poseJoints, POSE_IDS, readFigure, withFigure } from "../src/figure";
 import { dragFigureJoint, figureToPage, jointAt, pageToFigure } from "../src/figure-edit";
@@ -148,13 +149,10 @@ test(`le visage et le corps d un bonhomme choisi se changent par le style`, () =
   assert.deepEqual(cleanPatch({ figureFace: `nope`, figure: `walk`, figureSize: 9999 }), { figure: `walk`, figureSize: 400 });
 });
 
-test(`le menu du bonhomme apparait pour l outil et pour un bonhomme choisi`, () => {
-  assert.equal(sectionShown(`figure`, panelKinds(`figure`, [])), true);
-  assert.equal(sectionShown(`figuresize`, panelKinds(`figure`, [])), true);
+test(`un bonhomme choisi montre le menu des icones et la fonction du bonhomme n a ni outil ni menu`, () => {
   const el = figureElement(`stand`, `happy`, `stick`, `front`, [200, 200], 100, look, `f1`);
-  assert.equal(sectionShown(`figure`, panelKinds(`select`, [el])), true);
-  assert.equal(sectionShown(`figuresize`, panelKinds(`select`, [el])), false);
-  assert.equal(sectionShown(`figure`, panelKinds(`rect`, [])), false);
+  assert.equal(sectionShown(`icon`, panelKinds(`select`, [el])), true);
+  assert.equal(sectionShown(`figure`, panelKinds(`select`, [el])), false);
 });
 
 test(`les bras et les jambes sont plus longs d un sixieme que la colonne ne le laisse attendre`, () => {
@@ -177,4 +175,36 @@ test(`le visage se tourne a gauche ou a droite : un nez et des traits decales`, 
   const old = figureOf(`stand`, `happy`, `stick`) as unknown as Record<string, unknown>;
   delete old.look;
   assert.equal(readFigure(old)?.look, `front`);
+});
+
+test(`un bonhomme garde son sexe, ses objets et ses habits, et un fichier ancien reste lisible`, () => {
+  const fig = { ...figureOf(`stand`, `happy`, `stick`, `front`), sex: `woman` as const, itemL: `umbrellaClosed` as const, itemR: `book` as const, top: `cape` as const, bottom: `skirt` as const };
+  const back = readFigure(JSON.parse(JSON.stringify(fig)));
+  assert.deepEqual(back, fig);
+  const old = readFigure(JSON.parse(JSON.stringify(figureOf(`walk`, `sad`, `thick`, `left`))));
+  assert.ok(old);
+  assert.equal(old?.sex, undefined);
+  const bad = readFigure({ ...fig, itemL: `inconnu`, top: 5 });
+  assert.equal(bad?.itemL, undefined);
+  assert.equal(bad?.top, undefined);
+});
+
+test(`chaque objet, habit et sexe ajoute des traits et reste dans la grille`, () => {
+  const base = figureShapes(figureOf(`stand`, `happy`, `stick`, `front`)).length;
+  for (const item of ITEM_IDS) {
+    for (const pose of POSE_IDS) {
+      const shapes = figureShapes({ ...figureOf(pose, `happy`, `thick`, `right`), itemL: item, itemR: item });
+      for (const sh of shapes) assert.ok(!/NaN|undefined/.test(sh.d), `${item} ${pose}`);
+    }
+    const one = figureShapes({ ...figureOf(`stand`, `happy`, `stick`, `front`), itemR: item });
+    if (item !== `none`) assert.ok(one.length > base, item);
+  }
+  for (const top of TOP_IDS) if (top !== `none`) assert.ok(figureShapes({ ...figureOf(`stand`, `happy`, `stick`, `front`), top }).length > base, top);
+  for (const bottom of BOTTOM_IDS) if (bottom !== `none`) assert.ok(figureShapes({ ...figureOf(`stand`, `happy`, `stick`, `front`), bottom }).length > base, bottom);
+  assert.ok(figureShapes({ ...figureOf(`stand`, `happy`, `stick`, `front`), sex: `woman` }).length > base);
+});
+
+test(`il y a trente objets et un pictogramme pour chacun`, () => {
+  assert.equal(ITEM_IDS.filter((i) => i !== `none`).length, 30);
+  for (const id of ITEM_IDS) assert.ok(itemIconShapes(id).length > 0, id);
 });

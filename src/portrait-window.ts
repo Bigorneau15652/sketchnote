@@ -113,8 +113,9 @@ export class PortraitWindow {
     const width = FIELD_KINDS[`Épaisseur`];
     const roughField = valueField({ parent: line, icon: rough.icon, tooltip: t(`Imperfection du tracé : 0 pour un trait net`), min: 0, max: 50, step: 1, unit: rough.unit, presets: presetValues(0, 50, 1), stepButtons: true, onChange: (v) => { this.roughness = v / 10; this.refresh(); } });
     roughField.set(Math.round(this.roughness * 10));
-    const widthField = valueField({ parent: line, icon: width.icon, tooltip: t(`Épaisseur`), min: 1, max: 12, step: 1, unit: width.unit, presets: presetValues(1, 12, 1), stepButtons: true, onChange: (v) => { this.strokeWidth = v; this.refresh(); } });
-    widthField.set(Math.round(this.strokeWidth));
+    // The thickness is in tenths of a pixel: a character is a fine drawing, a line of 1 pixel is already a strong one (10 here), and the field goes from 2 to 40.
+    const widthField = valueField({ parent: line, icon: width.icon, tooltip: t(`Épaisseur du trait, en dixièmes de pixel`), min: 2, max: 40, step: 1, unit: ``, presets: presetValues(2, 40, 1), stepButtons: true, onChange: (v) => { this.strokeWidth = v / 10; this.refresh(); } });
+    widthField.set(Math.round(this.strokeWidth * 10));
     const foot = side.createDiv({ cls: `sketchnote-portrait-foot` });
     const cancel = foot.createEl(`button`, { text: t(`Annuler`) });
     cancel.addEventListener(`click`, () => this.close());

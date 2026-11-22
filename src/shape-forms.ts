@@ -123,6 +123,58 @@ function withTail(outline: Outline, centre: Point, tip: Point, width: number): O
   return out;
 }
 
+// The outline of the rectangular bubble: a rectangle with small round corners and a tail that comes out of the side the tail point is on. The tail is a narrow wedge, a little curved on
+// its left side, whose tip is the tail point; it starts near the tip, so the tail hangs almost straight under its base. The outline is made on a rectangle whose tail is on the bottom,
+// then turned back to the real side.
+function speechOutline(x: number, y: number, w: number, h: number, tip: Point): Outline {
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  const dx = tip[0] - cx;
+  const dy = tip[1] - cy;
+  // The side of the tail: the one the tail point is the farthest beyond (measured in half sides).
+  const nx = dx / (w / 2);
+  const ny = dy / (h / 2);
+  const side = Math.abs(ny) >= Math.abs(nx) ? (ny >= 0 ? `bottom` : `top`) : nx >= 0 ? `right` : `left`;
+  const turn = (px: number, py: number): Point => (side === `bottom` ? [px, py] : side === `top` ? [-px, -py] : side === `right` ? [-py, px] : [py, -px]);
+  const back = (u: number, v: number): Point => {
+    const q: Point = side === `bottom` ? [u, v] : side === `top` ? [-u, -v] : side === `right` ? [v, -u] : [-v, u];
+    return [cx + q[0], cy + q[1]];
+  };
+  const [W, H] = side === `bottom` || side === `top` ? [w, h] : [h, w];
+  const [tu, tv] = turn(dx, dy);
+  const r = Math.max(1, Math.min(W, H) * 0.07);
+  const half = [W / 2, H / 2];
+  // A tail that does not leave the box is not drawn.
+  if (tv <= half[1] + 1) return roundedOutline(x, y, w, h, r);
+  const baseW = Math.max(6, W * 0.2);
+  const room = half[0] - r - 3;
+  let left = tu - baseW * 0.08;
+  left = Math.max(-room, Math.min(room - baseW, left));
+  const right = left + baseW;
+  const out: Outline = [];
+  const arc = (u0: number, v0: number, from: number): void => {
+    for (let i = 0; i <= 8; i++) {
+      const a = from + (i / 8) * (Math.PI / 2);
+      out.push(back(u0 + r * Math.cos(a), v0 + r * Math.sin(a)));
+    }
+  };
+  // Clockwise: the top right corner, the bottom right corner, the bottom edge with the tail, the bottom left corner, the top left corner.
+  arc(half[0] - r, -half[1] + r, -Math.PI / 2);
+  arc(half[0] - r, half[1] - r, 0);
+  out.push(back(right, half[1]), back(tu, tv));
+  // The curved side of the tail, from the tip back to its base.
+  const ctrl: Point = [left + baseW * 0.35, half[1] + (tv - half[1]) * 0.55];
+  for (let i = 1; i <= 12; i++) {
+    const t = i / 12;
+    const a: Point = [tu, tv];
+    const b: Point = [left, half[1]];
+    out.push(back((1 - t) * (1 - t) * a[0] + 2 * (1 - t) * t * ctrl[0] + t * t * b[0], (1 - t) * (1 - t) * a[1] + 2 * (1 - t) * t * ctrl[1] + t * t * b[1]));
+  }
+  arc(-half[0] + r, half[1] - r, Math.PI / 2);
+  arc(-half[0] + r, -half[1] + r, Math.PI);
+  return out;
+}
+
 // The small circles that go from a thought bubble to the speaker: three, smaller and smaller, along the line to the tail point.
 function thoughtDots(centre: Point, rx: number, ry: number, tip: Point): Outline[] {
   const angle = Math.atan2(tip[1] - centre[1], tip[0] - centre[0]);
@@ -217,7 +269,7 @@ export function formPath(form: ShapeForm, x: number, y: number, w: number, h: nu
     case `oval`:
       return pathOf([withTail(ellipseOutline(centre[0], centre[1], gw / 2, gh / 2, 96), centre, tip, 0.045)]);
     case `rounded`:
-      return pathOf([withTail(roundedOutline(gx, gy, gw, gh, Math.min(gw, gh) * 0.25), centre, tip, 0.03)]);
+      return pathOf([speechOutline(gx, gy, gw, gh, tip)]);
     case `thought`:
       return pathOf([cloudOutline(centre[0], centre[1], gw / 2, gh / 2, Math.max(6, Math.min(14, Math.round((gw + gh) / 70)))), ...thoughtDots(centre, gw / 2, gh / 2, tip)]);
     case `shout`:

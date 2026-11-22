@@ -49,7 +49,8 @@ import { commandHotkeyText, functionCommandId } from "./hotkeys";
 import { MIN_STAMP_SIZE, STAMP_IDS, stampName, StampId } from "./stamps";
 import { DEFAULT_PORTRAIT, DEFAULT_PORTRAIT_LOOK, DEFAULT_PORTRAIT_SIZE, PortraitData, portraitElement, withPortrait } from "./portrait";
 import { PortraitWindow } from "./portrait-window";
-import { BUILD_IDS, buildName, LOOK_IDS, LookId, lookName, faceName, FACE_IDS, FaceId, BuildId, figureName, MIN_FIGURE_SIZE, MAX_FIGURE_SIZE, PoseId, POSE_IDS } from "./figure";
+import { FigureWindow } from "./figure-window";
+import { DEFAULT_BUILD, DEFAULT_FACE, DEFAULT_FIGURE_SIZE, DEFAULT_LOOK, FigureData, figureElementOf, PoseId, figureOf, withFigure } from "./figure";
 import { BUBBLE_FORMS, BubbleForm, FESTOON_FORMS, FestoonForm, ShapeForm } from "./shape-forms";
 
 // Returns the name of a distortion of the texts in the language of the user.
@@ -168,6 +169,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     this.unsubscribeSettings = null;
     this.cancelPendingContent();
     this.portraitWindow?.close();
+    this.figureWindow?.close();
     this.flyout?.remove();
     this.flyout = null;
     this.shortcutsBox?.remove();
@@ -215,7 +217,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
 
 
   protected creationTools(): CreationTool[] {
-    return [`rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `arrow`, `line`, `pen`, `point`, `figure`];
+    return [`rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `arrow`, `line`, `pen`, `point`];
   }
 
   // Runs a function of the drawer: the same as a click on its button.
@@ -259,6 +261,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     if (isLocked(el)) return;
     if (el.type === `text`) this.editText(el, [el.x, el.y]);
     else if (el.type === `icon` && el.portrait) this.openPortrait(el);
+    else if (el.type === `icon` && el.figure) this.openFigure(el);
     else if (isLabeledShape(el)) this.editLabel(el);
     else if (el.type === `line` || el.type === `arrow`) this.editLineLabel(el);
   }
@@ -635,6 +638,65 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     if (next.some((e, i) => e !== elements[i])) this.commitElements(next);
   }
 
+  // The window of the little man, and what it remembers for the next one while the application runs.
+  protected figureWindow: FigureWindow | null = null;
+  private static lastFigure: FigureData = figureOf(`stand`, DEFAULT_FACE, DEFAULT_BUILD, DEFAULT_LOOK);
+  private static lastFigureLine = { ...DEFAULT_PORTRAIT_LOOK };
+
+  protected openFigure(edit: IconElement | null): void {
+    this.figureWindow?.close();
+    this.portraitWindow?.close();
+    if (!this.style) return;
+    const seed = edit?.seed ?? this.newSeed();
+    const ink = edit?.stroke ?? this.style.stroke;
+    const window = new FigureWindow({
+      parent: this.contentEl,
+      initial: edit?.figure ?? DrawEditor.lastFigure,
+      editing: edit !== null,
+      ink,
+      seed,
+      roughness: edit ? edit.roughness ?? 0 : DrawEditor.lastFigureLine.roughness,
+      strokeWidth: edit ? edit.strokeWidth : DrawEditor.lastFigureLine.strokeWidth,
+      onOk: (data, pose, line) => {
+        DrawEditor.lastFigure = { ...data, joints: figureOf(pose, data.face, data.build, data.look).joints };
+        DrawEditor.lastFigureLine = line;
+        if (edit) this.changeFigure(edit.id, data, line);
+        else this.putFigure(data, pose, seed, line);
+      },
+      onClose: () => {
+        this.figureWindow = null;
+        this.contentEl.focus({ preventScroll: true });
+      },
+    });
+    this.figureWindow = window;
+    window.open();
+  }
+
+  // Puts a new little man in the middle of what is shown, as one change that can be undone, and selects it.
+  protected putFigure(data: FigureData, pose: PoseId, seed: number, line: { roughness: number; strokeWidth: number }): void {
+    if (!this.style) return;
+    const elements = this.elementsOf(this.doc);
+    let cx = 200;
+    let cy = 200;
+    if (this.scroller && this.svg) {
+      const sr = this.scroller.getBoundingClientRect();
+      const r = this.svg.getBoundingClientRect();
+      cx = ((Math.max(sr.left, r.left) + Math.min(sr.right, r.right)) / 2 - r.left) / this.zoom;
+      cy = ((Math.max(sr.top, r.top) + Math.min(sr.bottom, r.bottom)) / 2 - r.top) / this.zoom;
+    }
+    const made = figureElementOf(data, pose, [cx, cy], DEFAULT_FIGURE_SIZE, { stroke: this.style.stroke, strokeWidth: line.strokeWidth, roughness: line.roughness, seed }, newId(elements));
+    this.selected = new Set([made.id]);
+    this.tool = `select`;
+    this.commitElements([...elements, made]);
+  }
+
+  // Changes the choices of a little man that is on the page, as one change that can be undone.
+  protected changeFigure(id: string, data: FigureData, line: { roughness: number; strokeWidth: number }): void {
+    const elements = this.elementsOf(this.doc);
+    const next = elements.map((e) => (e.id === id && e.type === `icon` && !isLocked(e) ? { ...withFigure(e, data), roughness: line.roughness, strokeWidth: line.strokeWidth } : e));
+    if (next.some((e, i) => e !== elements[i])) this.commitElements(next);
+  }
+
   // Puts an icon in the middle of what is shown, as one change that can be undone. An icon of Lucide is kept by its name; a drawing of the user carries its shapes. It is made
   // with the standard look (a black line, no fill, no effect) like every new element, and selected so that the panel acts on it.
   protected insertIcon(entry: IconEntry, data: IconData): void {
@@ -933,8 +995,6 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
         return { showChoice: true, values: [...FESTOON_FORMS], icon: (v) => bubbleFormIcon(v as ShapeForm), name: (v) => formName(v as ShapeForm), read: (s) => s.festoonForm, write: (v) => ({ festoonForm: v as FestoonForm }) };
       case `point`:
         return { showChoice: true, values: [...STAMP_IDS], icon: (v) => `sketchnote-stamp-${v}`, name: (v) => stampName(v as StampId), read: (s) => s.stamp, write: (v) => ({ stamp: v as StampId }) };
-      case `figure`:
-        return { showChoice: true, values: [...POSE_IDS], icon: (v) => `sketchnote-pose-${v}`, name: (v) => figureName(v as PoseId), read: (s) => s.figure, write: (v) => ({ figure: v as PoseId }) };
       case `eraser`:
         return {
           showChoice: false,
@@ -1068,6 +1128,10 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       this.openPortrait(null);
       return;
     }
+    if (fn.opens === `figure`) {
+      this.openFigure(null);
+      return;
+    }
     this.activeFn = fn.id;
     if (fn.tools.length > 0 && !fn.tools.includes(this.tool)) this.setTool(fn.tools[0] as Tool);
     this.lastTool = this.tool;
@@ -1094,16 +1158,6 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     this.sectionIcon(stampSec, `sketchnote-stamp-star`, t(`Forme du point`));
     this.slider(stampSec, t(`Taille`), t(`Taille de la forme`), MIN_STAMP_SIZE, 120, 1, (st) => st.stampSize, (v) => ({ stampSize: v }));
 
-    // The articulated figure: its face (a menu of fifteen), its build (stick or thick), then its size. The pose is chosen in the floating menu of its button.
-    const figureSec = this.section(props, `figure`);
-    this.sectionIcon(figureSec, `sketchnote-pose-stand`, t(`Bonhomme`));
-    const faces = figureSec.createDiv({ cls: `sketchdraw-row` });
-    this.dropdown<FaceId>(faces, t(`Visage`), [...FACE_IDS], (v) => `sketchnote-face-${v}`, faceName, (st) => st.figureFace, (v) => ({ figureFace: v }), true);
-    for (const build of BUILD_IDS) this.panelButton(faces, `sketchnote-build-${build}`, buildName(build), (st) => st.figureBuild === build, () => this.change({ figureBuild: build as BuildId }));
-    for (const look of LOOK_IDS) this.panelButton(faces, `sketchnote-look-${look}`, lookName(look), (st) => st.figureLook === look, () => this.change({ figureLook: look as LookId }));
-    const figureSizeSec = this.section(props, `figuresize`);
-    this.sectionIcon(figureSizeSec, `ruler`, t(`Taille`));
-    this.slider(figureSizeSec, t(`Taille`), t(`Taille du bonhomme`), MIN_FIGURE_SIZE, MAX_FIGURE_SIZE, 10, (st) => st.figureSize, (v) => ({ figureSize: v }));
 
     const eraserSec = this.section(props, `eraser`);
     this.sectionIcon(eraserSec, `sketchnote-eraser`, t(`Gomme`));

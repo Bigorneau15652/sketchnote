@@ -3,6 +3,7 @@
 import { addIcon } from "obsidian";
 import { BUBBLE_FORMS, FESTOON_FORMS, formPath } from "./shape-forms";
 import { STAMP_IDS, stampShapes } from "./stamps";
+import { BOTTOM_IDS, bottomIconShapes, ITEM_IDS, itemIconShapes, TOP_IDS, topIconShapes } from "./figure-items";
 import { BUILD_IDS, buildIconShapes, FACE_IDS, faceIconShapes, LOOK_IDS, POSE_IDS, poseIconShapes } from "./figure";
 import type { IconShapeData } from "./elements";
 import { HAIR_COLORS, HAT_COLORS, PARTS, partIconShapes, SKIN_TONES } from "./portrait";
@@ -115,6 +116,9 @@ export function registerIcons(): void {
   for (const [id, colour] of Object.entries(SKIN_TONES)) addIcon(`sketchnote-skin-${id}`, disc(colour));
   for (const [id, colour] of Object.entries(HAIR_COLORS)) addIcon(`sketchnote-haircolor-${id}`, disc(colour));
   for (const [id, colour] of Object.entries(HAT_COLORS)) addIcon(`sketchnote-hatcolor-${id}`, disc(colour));
+  for (const id of ITEM_IDS) addIcon(`sketchnote-item-${id}`, figureIcon(itemIconShapes(id), 5));
+  for (const id of TOP_IDS) addIcon(`sketchnote-top-${id}`, figureIcon(topIconShapes(id), 5));
+  for (const id of BOTTOM_IDS) addIcon(`sketchnote-bottom-${id}`, figureIcon(bottomIconShapes(id), 5));
   for (const id of BUILD_IDS) addIcon(`sketchnote-build-${id}`, figureIcon(buildIconShapes(id), 5));
   // The pictogram of each form of a bubble or of a festoon is the form itself, drawn from the same data as the shape on the page.
   for (const form of [...BUBBLE_FORMS, ...FESTOON_FORMS]) {

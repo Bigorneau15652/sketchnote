@@ -172,9 +172,9 @@ test(`tout ce qui est sur le visage tourne avec lui : barbe, moustache, lunettes
   assert.ok(tail(`right`) < tail(`front`) && tail(`left`) >= tail(`front`));
 });
 
-test(`le trait d un nouveau personnage est net : une imperfection de 3 et un trait fin`, () => {
+test(`le trait d un nouveau personnage est net : une imperfection de 3 et un trait de 1 pixel`, () => {
   assert.equal(DEFAULT_PORTRAIT_LOOK.roughness, 0.3);
-  assert.equal(DEFAULT_PORTRAIT_LOOK.strokeWidth, 2);
+  assert.equal(DEFAULT_PORTRAIT_LOOK.strokeWidth, 1);
   const el = portraitElement(DEFAULT_PORTRAIT, [100, 100], 140, { stroke: `#000000`, strokeWidth: 5, roughness: 0.3, seed: 1 }, `p`);
   assert.equal(el.strokeWidth, 5, `la largeur choisie est gardee`);
 });

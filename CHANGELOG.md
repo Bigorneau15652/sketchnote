@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.48.0
+
+English
+
+The little man has a window of its own, like the character. The Little man button opens a floating window that can be moved by its top bar: on the left all the choices as large pictograms, on the right the result, which changes with each choice. The choices are the pose (eight), the expression (fifteen), the direction of the face, man or woman (a woman has lashes and long hair), the body (sticks or thick), an object in the left hand and another in the right hand among thirty (closed or open umbrella, cane, hat, pistol, rifle, rocket launcher, sword, knife, microphone, book, briefcase, suitcase, backpack, pickaxe, shovel, flag, game controller, steering wheel, hammer, flashlight, balloon, bunch of flowers, magnifying glass, phone, mug, ice cream, magic wand, trophy, baguette), the top clothes (cape, tailcoat, tie, bow tie, scarf) and the bottom clothes (rain boots, skirt). All are drawn with outlines only, without colour. The imperfection and the thickness of the line (in tenths of a pixel) are set in the window. OK puts the little man on the page; a double click on a little man opens the window again with its choices, and its joints are kept unless another pose is clicked. The floating menu of poses and the bottom menu of the little man are removed, and the little man is no longer a tool with a key: its button, like the character button, can have a shortcut chosen in the hotkeys of Obsidian. The round handles that bend the limbs still show on a selected little man.
+
+Français
+
+Le bonhomme a sa fenêtre, comme le personnage. Le bouton Bonhomme ouvre une fenêtre flottante que l'on déplace par sa barre du haut : à gauche tous les choix en grands pictogrammes, à droite le résultat, qui change à chaque choix. Les choix sont la pose (huit), l'expression (quinze), la direction du visage, homme ou femme (une femme a des cils et les cheveux longs), le corps (bâtons ou épais), un objet dans la main gauche et un autre dans la main droite parmi trente (parapluie fermé ou ouvert, canne, chapeau, pistolet, carabine, lance-roquettes, épée, couteau, micro, livre ouvert, mallette, valise, sac à dos, pioche, pelle, drapeau, manette de jeu, volant, marteau, lampe de poche, ballon, bouquet de fleurs, loupe, téléphone, tasse, glace, baguette magique, trophée, baguette de pain), l'habit du haut (cape, queue de pie, cravate, nœud papillon, écharpe) et l'habit du bas (bottes de pluie, jupe). Tout est dessiné au trait, sans couleur. L'imperfection et l'épaisseur du trait (en dixièmes de pixel) se règlent dans la fenêtre. OK pose le bonhomme sur la page ; un double clic sur un bonhomme rouvre la fenêtre avec ses choix, et ses articulations sont gardées tant qu'on ne clique pas une autre pose. Le menu flottant des poses et le menu du bas du bonhomme sont supprimés, et le bonhomme n'est plus un outil avec une touche : son bouton, comme celui du personnage, peut recevoir un raccourci choisi dans les raccourcis d'Obsidian. Les petits ronds qui plient les membres restent visibles sur un bonhomme sélectionné.
+
+## 0.47.4
+
+English
+
+The rectangular comic bubble is redrawn after the model that was given: a rectangle with small round corners and a narrow tail with one curved side, whose tip is the tail point, and that comes out of the side the point is on (the bottom, the top, the left or the right, as the handle of the tail is dragged). The tail hangs almost straight under its base, as in the model. A tail point that stays inside the box gives no tail. The text room and the pictogram are the same as before.
+
+Français
+
+La bulle rectangulaire est redessinée d'après le modèle donné : un rectangle aux petits coins arrondis et une queue étroite dont un côté est courbe, dont la pointe est le point de la queue, et qui sort du côté où se trouve le point (le bas, le haut, la gauche ou la droite, selon que l'on tire la poignée de la queue). La queue pend presque droite sous sa base, comme dans le modèle. Un point de queue qui reste dans la boîte ne donne pas de queue. La place du texte et le pictogramme sont les mêmes qu'avant.
+
+## 0.47.3
+
+English
+
+The thickness of the line of the character is now in tenths of a pixel, so that the whole range is usable: the field of the window goes from 2 to 40 (0.2 to 4 pixels), and a new character starts at 10 (1 pixel). The old field went from 1 to 12 pixels, and from 5 pixels up the face turned into a black shape that could no longer be read. A character that was already put keeps its line.
+
+Français
+
+L'épaisseur du trait du personnage est maintenant en dixièmes de pixel, pour que toute la plage soit utilisable : le champ de la fenêtre va de 2 à 40 (de 0,2 à 4 pixels), et un nouveau personnage commence à 10 (1 pixel). L'ancien champ allait de 1 à 12 pixels, et à partir de 5 pixels le visage devenait une forme noire qu'on ne pouvait plus lire. Un personnage déjà posé garde son trait.
+
 ## 0.47.2
 
 English

@@ -18,7 +18,7 @@ export interface DrawFunction {
   // The parts of the properties that its menu shows (the ones that do not concern the selection or the tool are left out).
   sections: PanelSection[];
   // A function that opens a window when it is clicked instead of showing a menu.
-  opens?: `icons` | `images` | `library` | `export` | `portrait`;
+  opens?: `icons` | `images` | `library` | `export` | `portrait` | `figure`;
 }
 
 const CONTENT: PanelSection[] = [`colour`, `fill`, `transparency`, `brush`, `width`, `dash`, `look`, `regularity`, `border`, `corners`, `bubbleform`, `festoonform`, `edges`, `taper`, `heads`, `text`, `warp`, `icon`, `image`, `effects`];
@@ -128,11 +128,12 @@ export function drawFunctions(): DrawFunction[] {
       icon: `sketchnote-pose-stand`,
       name: () => t(`Bonhomme`),
       help: () => [
-        t(`Pose un bonhomme articulé d'un clic : en bâtons ou avec un corps épais, dans une pose au choix (debout, marche, court, assis, bras levés, salue, montre du doigt, réfléchit) et avec un visage au choix (quinze expressions).`),
-        t(`Quand il est sélectionné, les petits ronds sur son corps plient ses membres : tirer une main tourne l'avant-bras autour du coude, tirer un coude tourne le bras autour de l'épaule. Le menu change son visage, son corps et sa taille, et ses couleurs comme pour une icône.`),
+        t(`Ouvre la fenêtre du bonhomme : à gauche tous les choix en grands pictogrammes (pose, expression, direction du visage, homme ou femme, corps en bâtons ou épais, objet dans chaque main parmi trente, habit du haut et habit du bas), à droite le résultat, qui change à chaque choix. Le bouton OK pose le bonhomme sur la page.`),
+        t(`Un double clic sur un bonhomme rouvre la fenêtre pour le modifier. Quand il est sélectionné, les petits ronds sur son corps plient ses membres : tirer une main tourne l'avant-bras autour du coude, tirer un coude tourne le bras autour de l'épaule.`),
       ],
-      tools: [`figure`],
-      sections: [`figure`, `figuresize`, `colour`, `fill`, `transparency`, `width`, `look`],
+      tools: [],
+      sections: [],
+      opens: `figure`,
     },
     {
       id: `portrait`,

@@ -29,7 +29,7 @@ function kindsOf(elements: SketchElement[]): Set<string> {
       if (e.type === `freedraw`) return [isClosedStroke(e.points, e.strokeWidth) ? `freedraw-closed` : `freedraw`];
       // A text that is an element of its own (not a text written in a shape) can be distorted and written vertically.
       if (e.type === `text`) return [`text`, `free-text`];
-      if (e.type === `icon`) return e.figure ? [`icon`, `figure`] : e.portrait ? [`portrait`] : [`icon`];
+      if (e.type === `icon`) return e.portrait ? [`portrait`] : [`icon`];
       if (e.type === `image`) return [`image`];
       // A bubble or a festoon is a rectangle with a form: it has the settings of a shape, and the choice of its form instead of the corners.
       if (e.type === `rect` && e.form !== undefined) return e.label ? [isBubbleForm(e.form) ? `bubble` : `festoon`, `text`] : [isBubbleForm(e.form) ? `bubble` : `festoon`];

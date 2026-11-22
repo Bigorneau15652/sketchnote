@@ -139,3 +139,22 @@ test(`le menu d une bulle montre sa forme et pas les coins`, () => {
   const labelled = panelKinds(`select`, [{ ...bubble, label: { text: `Salut`, font: `caveat`, size: 32 } }]);
   assert.equal(sectionShown(`text`, labelled), true);
 });
+
+test(`la bulle rectangulaire a de petits coins ronds et une queue fine, courbe d un cote, qui sort du cote ou elle pointe`, () => {
+  const points = (d: string): [number, number][] => [...d.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)].map((m) => [Number(m[1]), Number(m[2])]);
+  const tipOf = (tail: [number, number]): [number, number] => [100 + 0.5 * 200 + tail[0] * 200, 50 + 0.5 * 100 + tail[1] * 100];
+  for (const tail of [[-0.28, 0.78], [0.3, 0.85], [0.9, 0.1], [-0.9, 0.1], [0.1, -0.85]] as [number, number][]) {
+    const pts = points(formPath(`rounded`, 100, 50, 200, 100, tail));
+    const tip = tipOf(tail);
+    assert.ok(pts.some((p) => Math.abs(p[0] - tip[0]) < 0.06 && Math.abs(p[1] - tip[1]) < 0.06), `la queue arrive a son point : ${tail}`);
+    // the box itself is only left for the tail: nothing of the outline is outside of the box but the tail
+    const outside = pts.filter((p) => p[0] < 99.9 || p[0] > 300.1 || p[1] < 49.9 || p[1] > 150.1);
+    assert.ok(outside.length >= 8 && outside.length <= 20, `une queue fine : ${outside.length} points hors de la boite`);
+  }
+  // a tail that stays in the box is not drawn
+  const inside = points(formPath(`rounded`, 100, 50, 200, 100, [0.1, 0.1]));
+  assert.ok(inside.every((p) => p[0] >= 99.9 && p[0] <= 300.1 && p[1] >= 49.9 && p[1] <= 150.1));
+  // the corners are small
+  const corner = points(formPath(`rounded`, 100, 50, 200, 100, [-0.28, 0.78])).filter((p) => p[1] < 50.5 && p[0] < 110);
+  assert.ok(corner.length > 0 && Math.min(...corner.map((p) => p[0])) > 100);
+});

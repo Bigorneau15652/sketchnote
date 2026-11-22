@@ -71,8 +71,8 @@ export const DEFAULT_PORTRAIT: PortraitData = { shape: `round`, sex: `man`, hair
 export const MIN_PORTRAIT_SIZE = 40;
 export const MAX_PORTRAIT_SIZE = 400;
 export const DEFAULT_PORTRAIT_SIZE = 140;
-// The line of a new character: clean (an imperfection of 3) and fine.
-export const DEFAULT_PORTRAIT_LOOK = { roughness: 0.3, strokeWidth: 2 };
+// The line of a new character: clean (an imperfection of 3) and fine (1 pixel).
+export const DEFAULT_PORTRAIT_LOOK = { roughness: 0.3, strokeWidth: 1 };
 
 const KINDS = { shape: SHAPE_IDS, sex: SEX_IDS, hair: HAIR_IDS, hat: HAT_IDS, beard: BEARD_IDS, glasses: GLASSES_IDS, earrings: EARRING_IDS, nose: NOSE_IDS, face: FACE_IDS, look: LOOK_IDS, skin: SKIN_IDS, haircolor: HAIR_COLOR_IDS, hatcolor: HAT_COLOR_IDS } as const;
 export type PortraitKey = keyof PortraitData;
@@ -390,7 +390,7 @@ export function portraitElement(data: PortraitData, center: Point, size: number,
     shapes: portraitShapes(data),
     portrait: data,
     stroke: ink.stroke,
-    strokeWidth: Math.max(0.5, Math.min(24, ink.strokeWidth)),
+    strokeWidth: Math.max(0.2, Math.min(24, ink.strokeWidth)),
     roughness: ink.roughness,
     seed: ink.seed,
   };
