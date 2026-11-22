@@ -82,6 +82,8 @@ const ICONS: Record<string, string> = {
   "sketchnote-shadow-strong": tag(`rect`, { x: 30, y: 32, width: 52, height: 52, rx: 4, fill: `currentColor`, "fill-opacity": 0.55, stroke: `none` }) + tag(`rect`, { x: 16, y: 16, width: 52, height: 52, ...boxed, "stroke-width": 7 }),
   "sketchnote-shadow-offset": tag(`rect`, { x: 30, y: 30, width: 52, height: 52, fill: `currentColor`, "fill-opacity": 0.4, stroke: `none` }) + tag(`rect`, { x: 16, y: 16, width: 52, height: 52, ...boxed, "stroke-width": 7 }),
   "sketchnote-reflection": tag(`rect`, { x: 24, y: 14, width: 52, height: 30, ...boxed, "stroke-width": 7 }) + tag(`rect`, { x: 24, y: 54, width: 52, height: 30, fill: `currentColor`, "fill-opacity": 0.3, stroke: `none` }),
+  // The eraser: a tilted block with its band, standing on a line.
+  "sketchnote-eraser": `<g transform=${Q}rotate(-35 50 57)${Q}>` + tag(`rect`, { x: 22, y: 38, width: 56, height: 38, rx: 10, ...boxed, "stroke-width": 7 }) + tag(`path`, { d: `M46 38V76`, ...line, "stroke-width": 7 }) + `</g>` + tag(`path`, { d: `M12 91H88`, ...line, "stroke-width": 7 }),
   "sketchnote-opacity": tag(`circle`, { cx: 50, cy: 50, r: 32, ...boxed, "stroke-width": 7 }) + tag(`path`, { d: `M50 18A32 32 0 0 1 50 82Z`, fill: `currentColor`, stroke: `none` }),
 };
 

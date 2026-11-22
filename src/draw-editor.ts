@@ -955,7 +955,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     this.slider(stampSec, t(`Taille`), t(`Taille de la forme`), MIN_STAMP_SIZE, 120, 1, (st) => st.stampSize, (v) => ({ stampSize: v }));
 
     const eraserSec = this.section(props, `eraser`);
-    this.sectionIcon(eraserSec, `eraser`, t(`Gomme`));
+    this.sectionIcon(eraserSec, `sketchnote-eraser`, t(`Gomme`));
     this.slider(eraserSec, t(`Taille`), t(`Taille de la gomme`), MIN_ERASE_SIZE, 120, 1, (st) => st.eraseSize, (v) => ({ eraseSize: v }));
     this.slider(eraserSec, t(`Densité`), t(`Densité : de un effacement léger à un effacement complet`), 10, 100, 5, (st) => Math.round(st.eraseDensity * 100), (v) => ({ eraseDensity: v / 100 }));
 
