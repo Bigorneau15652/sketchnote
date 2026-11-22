@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.47.3
+
+English
+
+The thickness of the line of the character is now in tenths of a pixel, so that the whole range is usable: the field of the window goes from 2 to 40 (0.2 to 4 pixels), and a new character starts at 10 (1 pixel). The old field went from 1 to 12 pixels, and from 5 pixels up the face turned into a black shape that could no longer be read. A character that was already put keeps its line.
+
+Français
+
+L'épaisseur du trait du personnage est maintenant en dixièmes de pixel, pour que toute la plage soit utilisable : le champ de la fenêtre va de 2 à 40 (de 0,2 à 4 pixels), et un nouveau personnage commence à 10 (1 pixel). L'ancien champ allait de 1 à 12 pixels, et à partir de 5 pixels le visage devenait une forme noire qu'on ne pouvait plus lire. Un personnage déjà posé garde son trait.
+
 ## 0.47.2
 
 English

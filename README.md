@@ -2,7 +2,7 @@
 
 Obsidian plugin to draw sketchnotes: one page that mixes hand-drawn pictures and handwritten text, organised by one of seven structures (linear, radial, vertical, path, modular, skyscraper, popcorn).
 
-Status: version 0.47.2. A sketchnote page with seven structures, drawings made directly on the page, zone by zone, with hand drawn tools. Lines and arrows like Excalidraw, text, a library of drawings and the exports are being built version by version (see CHANGELOG.md).
+Status: version 0.47.3. A sketchnote page with seven structures, drawings made directly on the page, zone by zone, with hand drawn tools. Lines and arrows like Excalidraw, text, a library of drawings and the exports are being built version by version (see CHANGELOG.md).
 
 ## Install with BRAT
 
