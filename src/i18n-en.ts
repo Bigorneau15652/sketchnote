@@ -356,7 +356,7 @@ const PAIRS: [string, string][] = [
   [`Afficher ce bouton`, `Show this button`],
   [`Ajouter une séparation`, `Add a separation`],
   [`Boutons du dessinateur`, `Buttons of the drawing`],
-  [`Cochez les boutons à afficher à droite du dessin. Glissez la poignée d'une ligne pour changer l'ordre, ajoutez des séparations entre les groupes, tapez une lettre dans le champ d'un outil pour changer sa touche au clavier (les autres fonctions ont un raccourci avec Ctrl et Maj, sans raccourci quand le champ est vide), et ouvrez le point d'interrogation pour savoir ce que fait une fonction.`, `Check the buttons to show on the right of the drawing. Drag the handle of a row to change the order, add separations between the groups, type a letter in the field of a tool to change its key on the keyboard (the other functions have a shortcut with Ctrl and Shift, none when the field is empty), and open the question mark to know what a function does.`],
+  [`Cochez les boutons à afficher à droite du dessin. Glissez la poignée d'une ligne pour changer l'ordre, ajoutez des séparations entre les groupes, tapez une lettre dans le champ d'un outil pour changer sa touche au clavier (le raccourci des autres fonctions se choisit dans les réglages d'Obsidian, Raccourcis clavier, en cherchant Dessinateur), et ouvrez le point d'interrogation pour savoir ce que fait une fonction.`, `Check the buttons to show on the right of the drawing. Drag the handle of a row to change the order, add separations between the groups, type a letter in the field of a tool to change its key on the keyboard (the shortcut of the other functions is chosen in the settings of Obsidian, Hotkeys, by searching for Drawer), and open the question mark to know what a function does.`],
   [`Choisit les éléments du dessin pour les déplacer, les redimensionner, les tourner ou changer leur aspect.`, `Chooses the elements of the drawing to move them, resize them, turn them or change their look.`],
   [`Le menu règle la couleur, l'épaisseur, les pointillés, l'imperfection du tracé, les bords, le fuselage et les pointes aux deux bouts.`, `The menu sets the colour, the thickness, the dashes, the imperfection of the stroke, the edges, the taper and the heads at both ends.`],
   [`Écrit un texte : un clic pour une ligne, un glissement pour une zone où le texte passe à la ligne.`, `Writes a text: a click for a line, a drag for a zone where the text wraps.`],
@@ -379,7 +379,7 @@ const PAIRS: [string, string][] = [
   [`En bas`, `At the bottom`],
   [`En haut`, `At the top`],
   [`Boutons à droite du dessin`, `Buttons on the right of the drawing`],
-  [`Cochez les boutons à afficher, glissez la poignée d'une ligne pour changer l'ordre, ajoutez des séparations entre les groupes et tapez une lettre dans le champ d'un outil pour changer sa touche au clavier (les autres fonctions ont un raccourci avec Ctrl et Maj, sans raccourci quand le champ est vide). Le même réglage est dans la fenêtre du premier bouton de la colonne.`, `Check the buttons to show, drag the handle of a row to change the order, add separations between the groups and type a letter in the field of a tool to change its key on the keyboard (the other functions have a shortcut with Ctrl and Shift, none when the field is empty). The same setting is in the window of the first button of the column.`],
+  [`Cochez les boutons à afficher, glissez la poignée d'une ligne pour changer l'ordre, ajoutez des séparations entre les groupes et tapez une lettre dans le champ d'un outil pour changer sa touche au clavier (le raccourci des autres fonctions se choisit dans les réglages d'Obsidian, Raccourcis clavier, en cherchant Dessinateur). Le même réglage est dans la fenêtre du premier bouton de la colonne.`, `Check the buttons to show, drag the handle of a row to change the order, add separations between the groups and type a letter in the field of a tool to change its key on the keyboard (the shortcut of the other functions is chosen in the settings of Obsidian, Hotkeys, by searching for Drawer). The same setting is in the window of the first button of the column.`],
   [`Enregistrer et copier le lien`, `Save and copy the link`],
   [`Lien copié : {0}`, `Link copied: {0}`],
   [`Transparence`, `Transparency`],
@@ -504,8 +504,9 @@ const PAIRS: [string, string][] = [
   [`La touche {0} est déjà prise par l'outil {1}.`, `The key {0} is already used by the tool {1}.`],
   [`Le bouton Raccourcis clavier montre ou cache un petit menu flottant qui donne la touche de chaque outil. Les touches se changent dans les réglages de Sketchnote.`, `The button Keyboard shortcuts shows or hides a small floating menu that gives the key of each tool. The keys are changed in the settings of Sketchnote.`],
   [`Touche du clavier : {0}.`, `Keyboard key: {0}.`],
-  [`Ctrl+Maj+`, `Ctrl+Shift+`],
-  [`Raccourci avec Ctrl et Maj : aucun s'il n'y a rien d'écrit`, `Shortcut with Ctrl and Shift: none when nothing is written`],
+  [`Maj`, `Shift`],
+  [`Aucun raccourci : à choisir dans les réglages d'Obsidian, Raccourcis clavier`, `No shortcut: choose one in the settings of Obsidian, Hotkeys`],
+  [`Raccourci choisi dans les réglages d'Obsidian`, `Shortcut chosen in the settings of Obsidian`],
 ];
 
 export const EN: Record<string, string> = Object.fromEntries(PAIRS);

@@ -35,3 +35,31 @@ export function showFieldValue(value: number, unit: string): string {
 
 // The usual values of the zoom, in percent.
 export const ZOOM_PRESETS = [25, 50, 75, 100, 125, 150, 200, 250, 300, 400];
+
+// The pictogram and the unit of each field of the menu, from its short name. Every field has a pictogram of its own, so that the fields of a menu can be told apart (a test checks that
+// no two pictograms are the same).
+export const FIELD_KINDS: Record<string, { icon: string; unit: string }> = {
+  [`Épaisseur`]: { icon: `sketchnote-width-medium`, unit: ` px` },
+  [`Imperfection`]: { icon: `brush`, unit: `` },
+  [`Régularité`]: { icon: `pencil-ruler`, unit: `` },
+  [`Opacité`]: { icon: `sketchnote-opacity`, unit: ` %` },
+  [`Opacité de l'élément`]: { icon: `sketchnote-overlap`, unit: ` %` },
+  [`Taille`]: { icon: `ruler`, unit: `` },
+  [`Densité`]: { icon: `percent`, unit: ` %` },
+  [`Fuselage`]: { icon: `sketchnote-taper`, unit: ` %` },
+  [`Intensité`]: { icon: `activity`, unit: ` %` },
+  [`Éloignement de l'ombre`]: { icon: `sketchnote-shadow-offset`, unit: ` px` },
+  [`Flou de l'ombre`]: { icon: `sketchnote-shadow-soft`, unit: ` px` },
+  [`Densité de l'ombre`]: { icon: `sketchnote-shadow-strong`, unit: ` %` },
+  [`Profondeur du reflet`]: { icon: `arrow-down-to-line`, unit: ` %` },
+  [`Dégradé du reflet`]: { icon: `sketchnote-reflection`, unit: ` %` },
+  [`Éloignement du reflet`]: { icon: `move-vertical`, unit: ` %` },
+  // The settings of the brushes.
+  [`Flux`]: { icon: `eraser`, unit: ` %` },
+  [`Dureté`]: { icon: `contrast`, unit: ` %` },
+  [`Espacement`]: { icon: `sketchnote-brush-spacing`, unit: ` %` },
+  [`Forme`]: { icon: `sketchnote-brush-form`, unit: ` %` },
+  [`Rotation`]: { icon: `rotate-cw`, unit: ` °` },
+  [`Grain`]: { icon: `sketchnote-brush-grain`, unit: ` %` },
+  [`Dynamique`]: { icon: `gauge`, unit: ` %` },
+};

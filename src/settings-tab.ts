@@ -247,7 +247,7 @@ export class SketchnoteSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settingsData.contextPosition)
           .onChange((value) => void this.plugin.changeSettings({ contextPosition: value === `top` ? `top` : `bottom` })),
       );
-    new Setting(containerEl).setName(t(`Boutons à droite du dessin`)).setDesc(t(`Cochez les boutons à afficher, glissez la poignée d'une ligne pour changer l'ordre, ajoutez des séparations entre les groupes et tapez une lettre dans le champ d'un outil pour changer sa touche au clavier (les autres fonctions ont un raccourci avec Ctrl et Maj, sans raccourci quand le champ est vide). Le même réglage est dans la fenêtre du premier bouton de la colonne.`));
+    new Setting(containerEl).setName(t(`Boutons à droite du dessin`)).setDesc(t(`Cochez les boutons à afficher, glissez la poignée d'une ligne pour changer l'ordre, ajoutez des séparations entre les groupes et tapez une lettre dans le champ d'un outil pour changer sa touche au clavier (le raccourci des autres fonctions se choisit dans les réglages d'Obsidian, Raccourcis clavier, en cherchant Dessinateur). Le même réglage est dans la fenêtre du premier bouton de la colonne.`));
     renderDrawButtonList(containerEl, {
       app: this.app,
       order: () => this.plugin.settingsData.drawButtonsOrder,
@@ -255,8 +255,6 @@ export class SketchnoteSettingTab extends PluginSettingTab {
       save: (order, hidden) => this.plugin.changeSettings({ drawButtonsOrder: order, drawButtonsHidden: hidden }),
       keys: () => effectiveToolKeys(this.plugin.settingsData.toolKeys, currentLang()),
       saveKeys: (keys) => this.plugin.changeSettings({ toolKeys: keys }),
-      functionKeys: () => this.plugin.settingsData.functionKeys,
-      saveFunctionKeys: (keys) => this.plugin.changeSettings({ functionKeys: keys }),
     });
   }
 }

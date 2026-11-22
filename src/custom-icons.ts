@@ -84,6 +84,11 @@ const ICONS: Record<string, string> = {
   "sketchnote-reflection": tag(`rect`, { x: 24, y: 14, width: 52, height: 30, ...boxed, "stroke-width": 7 }) + tag(`rect`, { x: 24, y: 54, width: 52, height: 30, fill: `currentColor`, "fill-opacity": 0.3, stroke: `none` }),
   // The eraser: a tilted block with its band, standing on a line.
   "sketchnote-eraser": `<g transform=${Q}rotate(-35 50 57)${Q}>` + tag(`rect`, { x: 22, y: 38, width: 56, height: 38, rx: 10, ...boxed, "stroke-width": 7 }) + tag(`path`, { d: `M46 38V76`, ...line, "stroke-width": 7 }) + `</g>` + tag(`path`, { d: `M12 91H88`, ...line, "stroke-width": 7 }),
+  // The settings of the brushes: the spacing (dots in a row), the form (a flattened ellipse), the grain (scattered specks) and two circles that overlap (the opacity of an element).
+  "sketchnote-brush-spacing": tag(`circle`, { cx: 18, cy: 50, r: 9, fill: `currentColor`, stroke: `none` }) + tag(`circle`, { cx: 50, cy: 50, r: 9, fill: `currentColor`, stroke: `none` }) + tag(`circle`, { cx: 82, cy: 50, r: 9, fill: `currentColor`, stroke: `none` }),
+  "sketchnote-brush-form": tag(`ellipse`, { cx: 50, cy: 50, rx: 38, ry: 22, ...boxed, "stroke-width": 7 }),
+  "sketchnote-brush-grain": [[22, 24], [52, 18], [80, 30], [34, 50], [66, 54], [18, 76], [48, 80], [82, 78]].map(([x, y]) => tag(`circle`, { cx: x, cy: y, r: 6, fill: `currentColor`, stroke: `none` })).join(``),
+  "sketchnote-overlap": tag(`circle`, { cx: 38, cy: 50, r: 26, ...boxed, "stroke-width": 7 }) + tag(`circle`, { cx: 62, cy: 50, r: 26, ...boxed, "stroke-width": 7 }),
   "sketchnote-opacity": tag(`circle`, { cx: 50, cy: 50, r: 32, ...boxed, "stroke-width": 7 }) + tag(`path`, { d: `M50 18A32 32 0 0 1 50 82Z`, fill: `currentColor`, stroke: `none` }),
 };
 
