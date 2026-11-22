@@ -45,7 +45,7 @@ import { hitTop } from "./geometry";
 import { newId } from "./elements";
 import { MIN_ERASE_SIZE } from "./erase-data";
 import { MIN_STAMP_SIZE, STAMP_IDS, stampName, StampId } from "./stamps";
-import { BUBBLE_FORMS, FESTOON_FORMS, FestoonForm, ShapeForm } from "./shape-forms";
+import { BUBBLE_FORMS, BubbleForm, FESTOON_FORMS, FestoonForm, ShapeForm } from "./shape-forms";
 
 // Returns the name of a distortion of the texts in the language of the user.
 function warpName(kind: WarpKind | `none`): string {
@@ -180,6 +180,8 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     this.unsubscribeFonts = null;
     this.unsubscribeSettings?.();
     this.unsubscribeSettings = null;
+    this.flyout?.remove();
+    this.flyout = null;
     await super.onClose();
   }
 
@@ -677,6 +679,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       e.preventDefault();
       void this.takePictures(files);
     });
+    this.contentEl.addClass(`sketchdraw-has-flyout`);
     this.rail = main.createDiv({ cls: `sketchdraw-rail` });
     // The bottom row: the menu on the left (it scrolls sideways like a ribbon when the window is narrow) and the bar of the undo and the zoom on the right, which never moves. When the
     // row is too narrow the bar goes under the menu. With the setting of the top, the menu is above the drawing and the row holds the bar only.
@@ -769,11 +772,148 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       if (!fn) continue;
       const button = rail.createEl(`button`, { cls: `sketchnote-bar-button sketchdraw-rail-button` });
       button.dataset.fn = fn.id;
-      setIcon(button, fn.icon);
+      const variants = this.variantsOf(fn.id);
+      const icon = variants ? variants.icon(variants.read(this.toolStyle())) : fn.icon;
+      button.dataset.icon = icon;
+      setIcon(button, icon);
       button.setAttribute(`aria-label`, fn.name());
       button.toggleClass(`is-active`, this.activeFn === fn.id);
-      button.addEventListener(`click`, () => this.chooseFunction(fn));
+      button.addEventListener(`click`, () => {
+        // A second click on the active button of a function that has forms closes or opens its floating menu.
+        if (variants && this.activeFn === fn.id && this.tool === fn.tools[0]) {
+          this.flyoutHidden = !this.flyoutHidden;
+          this.syncFlyout();
+          this.contentEl.focus({ preventScroll: true });
+          return;
+        }
+        this.chooseFunction(fn);
+      });
     }
+    this.syncFlyout();
+  }
+
+  // The style of the tool itself (the one of the next elements), not the one of the selection.
+  protected toolStyle(): ToolStyle {
+    return this.style ?? defaultStyle(`#000000`);
+  }
+
+  // The forms that a function offers in its floating menu (bubble, festoon, point and eraser), or null for a function that has none.
+  protected variantsOf(id: DrawFunctionId): Variants | null {
+    switch (id) {
+      case `bubble`:
+        return { values: [...BUBBLE_FORMS], icon: (v) => bubbleFormIcon(v as ShapeForm), name: (v) => formName(v as ShapeForm), read: (s) => s.bubbleForm, write: (v) => ({ bubbleForm: v as BubbleForm }) };
+      case `festoon`:
+        return { values: [...FESTOON_FORMS], icon: (v) => bubbleFormIcon(v as ShapeForm), name: (v) => formName(v as ShapeForm), read: (s) => s.festoonForm, write: (v) => ({ festoonForm: v as FestoonForm }) };
+      case `point`:
+        return { values: [...STAMP_IDS], icon: (v) => `sketchnote-stamp-${v}`, name: (v) => stampName(v as StampId), read: (s) => s.stamp, write: (v) => ({ stamp: v as StampId }) };
+      case `eraser`:
+        return {
+          values: [`soft`, `round`, `square`],
+          icon: (v) => `sketchnote-erase-${v}`,
+          name: (v) => (v === `soft` ? t(`Pointe douce`) : v === `round` ? t(`Pointe ronde`) : t(`Pointe carrée`)),
+          read: (s) => s.eraseShape,
+          write: (v) => ({ eraseShape: v as StylePatch[`eraseShape`] }),
+        };
+      default:
+        return null;
+    }
+  }
+
+  protected flyout: HTMLElement | null = null;
+  protected flyoutHidden = false;
+  protected flyoutFn: DrawFunctionId | null = null;
+  // Where the user dragged the floating menu to (relative to the view), kept while the view is open.
+  protected flyoutPos: { left: number; top: number } | null = null;
+
+  // Shows the floating menu of the active function (beside its button, on its left), or removes it. It stays while the tool is active; a second click on the button closes it.
+  protected syncFlyout(): void {
+    if (this.flyoutFn !== this.activeFn) {
+      this.flyoutFn = this.activeFn;
+      this.flyoutHidden = false;
+    }
+    this.flyout?.remove();
+    this.flyout = null;
+    const variants = this.variantsOf(this.activeFn);
+    const fn = drawFunctions().find((f) => f.id === this.activeFn);
+    const rail = this.rail;
+    if (!variants || !fn || this.flyoutHidden || !rail || this.tool !== fn.tools[0]) return;
+    const anchor = Array.from(rail.querySelectorAll<HTMLElement>(`.sketchdraw-rail-button`)).find((b) => b.dataset.fn === fn.id);
+    if (!anchor || anchor.offsetParent === null) return;
+    const box = this.contentEl.createDiv({ cls: `sketchdraw-flyout` });
+    this.flyout = box;
+    const handle = box.createDiv({ cls: `sketchdraw-flyout-handle` });
+    handle.setAttribute(`aria-label`, fn.name());
+    const list = box.createDiv({ cls: `sketchdraw-flyout-list` });
+    for (const value of variants.values) {
+      const b = list.createEl(`button`, { cls: `sketchnote-bar-button sketchdraw-flyout-button` });
+      b.dataset.value = value;
+      setIcon(b, variants.icon(value));
+      b.setAttribute(`aria-label`, variants.name(value));
+      b.toggleClass(`is-active`, variants.read(this.toolStyle()) === value);
+      b.addEventListener(`click`, () => {
+        this.change(variants.write(value));
+        this.contentEl.focus({ preventScroll: true });
+      });
+    }
+    // The column is as many columns as needed, eleven buttons high at most.
+    list.style.gridTemplateRows = `repeat(${Math.min(11, variants.values.length)}, 30px)`;
+    const host = this.contentEl.getBoundingClientRect();
+    const a = anchor.getBoundingClientRect();
+    const width = box.offsetWidth;
+    const pos = this.flyoutPos ?? { left: rail.getBoundingClientRect().left - host.left - width - 4, top: a.top - host.top - 4 };
+    this.placeFlyout(box, pos.left, pos.top);
+    this.dragFlyout(handle, box);
+  }
+
+  // Puts the floating menu at a place, kept inside the view.
+  protected placeFlyout(box: HTMLElement, left: number, top: number): void {
+    const host = this.contentEl.getBoundingClientRect();
+    const x = Math.max(0, Math.min(host.width - box.offsetWidth, left));
+    const y = Math.max(0, Math.min(host.height - box.offsetHeight, top));
+    box.style.left = `${Math.round(x)}px`;
+    box.style.top = `${Math.round(y)}px`;
+  }
+
+  // The top bar of the floating menu moves it.
+  protected dragFlyout(handle: HTMLElement, box: HTMLElement): void {
+    handle.addEventListener(`pointerdown`, (e: PointerEvent) => {
+      e.preventDefault();
+      handle.setPointerCapture(e.pointerId);
+      const startX = e.clientX - box.offsetLeft;
+      const startY = e.clientY - box.offsetTop;
+      const move = (m: PointerEvent): void => {
+        this.placeFlyout(box, m.clientX - startX, m.clientY - startY);
+        this.flyoutPos = { left: box.offsetLeft, top: box.offsetTop };
+      };
+      const stop = (): void => {
+        handle.removeEventListener(`pointermove`, move);
+        handle.removeEventListener(`pointerup`, stop);
+        handle.removeEventListener(`pointercancel`, stop);
+      };
+      handle.addEventListener(`pointermove`, move);
+      handle.addEventListener(`pointerup`, stop);
+      handle.addEventListener(`pointercancel`, stop);
+    });
+  }
+
+  // Shows the form that is chosen: on the button of the function and in its floating menu.
+  protected refreshVariants(s: ToolStyle): void {
+    const rail = this.rail;
+    if (!rail) return;
+    for (const b of Array.from(rail.querySelectorAll<HTMLElement>(`.sketchdraw-rail-button`))) {
+      const id = b.dataset.fn as DrawFunctionId | undefined;
+      const variants = id ? this.variantsOf(id) : null;
+      if (!variants) continue;
+      const icon = variants.icon(variants.read(this.toolStyle()));
+      if (b.dataset.icon !== icon) {
+        b.dataset.icon = icon;
+        b.empty();
+        setIcon(b, icon);
+      }
+    }
+    const variants = this.variantsOf(this.activeFn);
+    if (this.flyout && variants) for (const b of Array.from(this.flyout.querySelectorAll<HTMLElement>(`.sketchdraw-flyout-button`))) b.toggleClass(`is-active`, variants.read(this.toolStyle()) === b.dataset.value);
+    void s;
   }
 
   // Opens the list where the buttons are checked, ordered and separated.
@@ -809,32 +949,15 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     this.sections.length = 0;
     this.compartments.length = 0;
 
-    // The Point tool: the shape that a click puts (a menu of the shapes, each with its pictogram) and its size.
+    // The Point tool and the eraser: only the sizes are here, the shape of the point and the tip of the eraser are chosen in the floating menu of their button.
     const stampSec = this.section(props, `stamp`);
     this.sectionIcon(stampSec, `sketchnote-stamp-star`, t(`Forme du point`));
-    const stamps = stampSec.createDiv({ cls: `sketchdraw-row` });
-    this.dropdown<StampId>(stamps, t(`Forme du point`), [...STAMP_IDS], (v) => `sketchnote-stamp-${v}`, stampName, (st) => st.stamp, (v) => ({ stamp: v }), true);
     this.slider(stampSec, t(`Taille`), t(`Taille de la forme`), MIN_STAMP_SIZE, 120, 1, (st) => st.stampSize, (v) => ({ stampSize: v }));
 
-    // The eraser: the tip (soft, round or square), its size and how much it erases. The settings stay for the next passes.
     const eraserSec = this.section(props, `eraser`);
     this.sectionIcon(eraserSec, `eraser`, t(`Gomme`));
-    const tips = eraserSec.createDiv({ cls: `sketchdraw-row` });
-    this.panelButton(tips, `sketchnote-erase-soft`, t(`Pointe douce`), (st) => st.eraseShape === `soft`, () => this.change({ eraseShape: `soft` }));
-    this.panelButton(tips, `sketchnote-erase-round`, t(`Pointe ronde`), (st) => st.eraseShape === `round`, () => this.change({ eraseShape: `round` }));
-    this.panelButton(tips, `sketchnote-erase-square`, t(`Pointe carrée`), (st) => st.eraseShape === `square`, () => this.change({ eraseShape: `square` }));
     this.slider(eraserSec, t(`Taille`), t(`Taille de la gomme`), MIN_ERASE_SIZE, 120, 1, (st) => st.eraseSize, (v) => ({ eraseSize: v }));
     this.slider(eraserSec, t(`Densité`), t(`Densité : de un effacement léger à un effacement complet`), 10, 100, 5, (st) => Math.round(st.eraseDensity * 100), (v) => ({ eraseDensity: v / 100 }));
-
-    // The form of a comic bubble (four pictograms) and of a festoon (a menu of eleven): the first group of the menu of their tool.
-    const bubbleSec = this.section(props, `bubbleform`);
-    this.sectionIcon(bubbleSec, bubbleFormIcon(`oval`), t(`Forme de la bulle`));
-    const bubbles = bubbleSec.createDiv({ cls: `sketchdraw-row` });
-    for (const form of BUBBLE_FORMS) this.panelButton(bubbles, bubbleFormIcon(form), formName(form), (st) => st.bubbleForm === form, () => this.change({ bubbleForm: form }));
-    const festoonSec = this.section(props, `festoonform`);
-    this.sectionIcon(festoonSec, bubbleFormIcon(`ribbon`), t(`Forme du feston`));
-    const festoons = festoonSec.createDiv({ cls: `sketchdraw-row` });
-    this.dropdown<FestoonForm>(festoons, t(`Forme du feston`), [...FESTOON_FORMS], bubbleFormIcon, formName, (st) => st.festoonForm, (v) => ({ festoonForm: v }), true);
 
     // The compartment of the colours: on its first row the round swatch of the border, the one of the fill and the three types of line (a click on the type that is on takes the border
     // away from a shape); under it, one thin slider of transparency. Each swatch opens the window of the colours.
@@ -1424,6 +1547,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       d.el.setAttribute(`aria-label`, d.name(s));
     }
     for (const f of this.syncers) f(s);
+    this.refreshVariants(s);
     if (this.imageName) {
       const picture = this.selectedElements().find((e): e is ImageElement => e.type === `image`);
       this.imageName.setText(picture ? picture.path : ``);
@@ -1465,6 +1589,15 @@ function formName(form: ShapeForm): string {
     seal: t(`Sceau`),
   };
   return names[form];
+}
+
+// The forms that a function offers in its floating menu.
+interface Variants {
+  values: string[];
+  icon: (value: string) => string;
+  name: (value: string) => string;
+  read: (s: ToolStyle) => string;
+  write: (value: string) => StylePatch;
 }
 
 // Returns the name of the pictogram of a form (registered by custom-icons.ts).
