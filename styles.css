@@ -218,7 +218,7 @@
   grid-column: 1 / -1;
   align-self: center;
   height: 1px;
-  margin: 0 6px;
+  margin: 6px 6px;
   background: var(--background-modifier-border);
 }
 
@@ -1580,8 +1580,14 @@ body.sketchnote-zen .workspace-tab-header-container {
   font-weight: 600;
 }
 
-.sketchnote-key-field {
-  width: 3em;
+/* The field of the key of a tool in the list of the buttons. */
+.sketchnote-buttons-key {
+  flex: 0 0 auto;
+  width: 2.4em;
+  height: 26px;
+  padding: 0;
   text-align: center;
   text-transform: uppercase;
+  font-family: var(--font-monospace);
+  font-weight: 600;
 }

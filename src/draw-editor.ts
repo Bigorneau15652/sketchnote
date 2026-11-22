@@ -23,7 +23,7 @@ import { openTextEditor } from "./text-editor";
 import { refitText, wrapLines } from "./text-layout";
 import { Box, rotatePoint } from "./geometry";
 import { brightness } from "./page-background";
-import { t } from "./i18n";
+import { currentLang, t } from "./i18n";
 import { panelKinds, PanelSection, sectionShown } from "./panel-kinds";
 import { BRUSH_DEFS, BRUSH_KINDS, BrushKind, BrushParam, brushMake, paramsOf, previewPoints } from "./brushes";
 import { eraserCursor, penCursor } from "./cursors";
@@ -44,7 +44,7 @@ import { isLabeledShape, labelBox, labelColor, LabeledShape, pathMiddle } from "
 import { hitTop } from "./geometry";
 import { newId } from "./elements";
 import { MIN_ERASE_SIZE } from "./erase-data";
-import { isKeyTool, KEY_TOOLS, keyTable } from "./tool-keys";
+import { effectiveToolKeys, isKeyTool, KEY_TOOLS, keyTable, ToolKeys } from "./tool-keys";
 import { MIN_STAMP_SIZE, STAMP_IDS, stampName, StampId } from "./stamps";
 import { BUBBLE_FORMS, BubbleForm, FESTOON_FORMS, FestoonForm, ShapeForm } from "./shape-forms";
 
@@ -231,9 +231,14 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     return [`rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `arrow`, `line`, `pen`, `point`];
   }
 
+  // The keys of the tools for the language of the plugin.
+  protected toolKeyList(): ToolKeys {
+    return effectiveToolKeys(this.api.settings().toolKeys, currentLang());
+  }
+
   // The keys that choose a tool come from the settings.
   protected toolKeys(): Record<string, Tool> {
-    return keyTable(this.api.settings().toolKeys);
+    return keyTable(this.toolKeyList());
   }
 
   // The Text tool: a click on a text edits it, a click elsewhere starts a text there, and a drag draws a text zone (a box that the text wraps to).
@@ -780,7 +785,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       const icon = variants ? variants.icon(variants.read(this.toolStyle())) : fn.icon;
       button.dataset.icon = icon;
       setIcon(button, icon);
-      const toolKey = isKeyTool(fn.tools[0]) ? settings.toolKeys[fn.tools[0]] : ``;
+      const toolKey = isKeyTool(fn.tools[0]) ? this.toolKeyList()[fn.tools[0]] : ``;
       button.setAttribute(`aria-label`, toolKey === `` ? fn.name() : `${fn.name()} (${toolKey.toUpperCase()})`);
       button.toggleClass(`is-active`, this.activeFn === fn.id);
       button.addEventListener(`click`, () => {
@@ -810,7 +815,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     this.shortcutsToggle?.toggleClass(`is-active`, DrawEditor.shortcutsShown);
     const rail = this.rail;
     if (!DrawEditor.shortcutsShown || !rail || rail.offsetParent === null) return;
-    const keys = this.api.settings().toolKeys;
+    const keys = this.toolKeyList();
     const box = this.contentEl.createDiv({ cls: `sketchdraw-flyout sketchdraw-shortcuts` });
     this.shortcutsBox = box;
     const handle = box.createDiv({ cls: `sketchdraw-flyout-handle` });
@@ -977,6 +982,8 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       order: () => this.api.settings().drawButtonsOrder,
       hidden: () => this.api.settings().drawButtonsHidden,
       save: (order, hidden) => this.api.updateSettings({ drawButtonsOrder: order, drawButtonsHidden: hidden }),
+      keys: () => this.toolKeyList(),
+      saveKeys: (keys) => this.api.updateSettings({ toolKeys: keys }),
     }).open();
   }
 

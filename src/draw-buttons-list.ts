@@ -1,20 +1,24 @@
 // The list of the buttons on the right of a drawing: for each function a handle to move it, its pictogram, its name, a question mark that opens a short explanation and a box to show or
 // hide it; separations can be added between two groups and removed. It is used by the window of the first button of the column and by the settings of the plugin, and every change is
 // saved at once (the open drawings draw their column again). Same idea as the list of buttons of the plugin Bigorneau.
-import { App, Modal, setIcon } from "obsidian";
+import { App, Modal, Notice, setIcon } from "obsidian";
 import { t } from "./i18n";
 import { addSeparator, drawFunctions, DrawFunction, isSeparator, moveEntry, removeEntry, setHidden } from "./draw-functions";
+import { DEFAULT_TOOL_KEYS, isKeyTool, setToolKey, ToolKeys } from "./tool-keys";
 
 export interface ButtonsHost {
   app: App;
   order(): string[];
   hidden(): string[];
   save(order: string[], hidden: string[]): Promise<void>;
+  // The key of each tool (for the language of the plugin), and the saving of the keys.
+  keys(): ToolKeys;
+  saveKeys(keys: ToolKeys): Promise<void>;
 }
 
 // The window that explains what a function does.
 export class ButtonHelpModal extends Modal {
-  constructor(app: App, private fn: DrawFunction) {
+  constructor(app: App, private fn: DrawFunction, private key: string) {
     super(app);
   }
 
@@ -24,6 +28,7 @@ export class ButtonHelpModal extends Modal {
     const head = this.contentEl.createDiv({ cls: `sketchnote-function-help-icon` });
     setIcon(head, this.fn.icon);
     for (const paragraph of this.fn.help()) this.contentEl.createEl(`p`, { text: paragraph });
+    if (this.key !== ``) this.contentEl.createEl(`p`, { text: t(`Touche du clavier : {0}.`, this.key.toUpperCase()) });
   }
 
   onClose(): void {
@@ -62,9 +67,34 @@ export function renderDrawButtonList(el: HTMLElement, host: ButtonsHost): void {
       const icon = row.createDiv({ cls: `sketchnote-buttons-icon` });
       setIcon(icon, fn.icon);
       row.createSpan({ cls: `sketchnote-buttons-name`, text: fn.name() });
+      const tool = fn.tools[0];
+      const keyOf = tool !== undefined && isKeyTool(tool) ? host.keys()[tool] : ``;
+      // The key that chooses the tool: one character, never the same for two tools.
+      if (tool !== undefined && isKeyTool(tool)) {
+        const field = row.createEl(`input`, { cls: `sketchnote-buttons-key`, type: `text` });
+        field.maxLength = 1;
+        field.value = keyOf.toUpperCase();
+        field.setAttribute(`aria-label`, t(`Touche du clavier : {0}.`, keyOf.toUpperCase()));
+        field.addEventListener(`focus`, () => field.select());
+        field.addEventListener(`change`, () => {
+          if (field.value.trim() === ``) {
+            field.value = keyOf.toUpperCase();
+            return;
+          }
+          const result = setToolKey(host.keys(), tool, field.value);
+          if (`keys` in result) void host.saveKeys(result.keys).then(draw);
+          else {
+            if (`taken` in result) {
+              const other = functions.find((f) => f.tools[0] === result.taken);
+              new Notice(t(`La touche {0} est déjà prise par l'outil {1}.`, field.value.toUpperCase(), other ? other.name() : ``));
+            }
+            field.value = keyOf.toUpperCase();
+          }
+        });
+      }
       const help = row.createEl(`button`, { cls: `sketchnote-buttons-help`, text: `?` });
       help.setAttribute(`aria-label`, t(`Que fait cette fonction ?`));
-      help.addEventListener(`click`, () => new ButtonHelpModal(host.app, fn).open());
+      help.addEventListener(`click`, () => new ButtonHelpModal(host.app, fn, keyOf).open());
       const box = row.createEl(`input`, { cls: `sketchnote-buttons-check`, type: `checkbox` });
       box.checked = !hidden.includes(id);
       box.setAttribute(`aria-label`, t(`Afficher ce bouton`));
@@ -74,6 +104,10 @@ export function renderDrawButtonList(el: HTMLElement, host: ButtonsHost): void {
     setIcon(add, `separator-horizontal`);
     add.createSpan({ text: t(`Ajouter une séparation`) });
     add.addEventListener(`click`, () => void host.save(addSeparator(order), hidden).then(draw));
+    const reset = list.createEl(`button`, { cls: `sketchnote-buttons-add` });
+    setIcon(reset, `rotate-ccw`);
+    reset.createSpan({ text: t(`Remettre les touches d'origine`) });
+    reset.addEventListener(`click`, () => void host.saveKeys({ ...DEFAULT_TOOL_KEYS }).then(draw));
   };
   draw();
 }
@@ -135,7 +169,7 @@ export class DrawButtonsModal extends Modal {
   onOpen(): void {
     this.titleEl.setText(t(`Boutons du dessinateur`));
     this.modalEl.addClass(`sketchnote-buttons-modal`);
-    this.contentEl.createEl(`p`, { cls: `sketchnote-icons-info`, text: t(`Cochez les boutons à afficher à droite du dessin. Glissez la poignée d'une ligne pour changer l'ordre, ajoutez des séparations entre les groupes, et ouvrez le point d'interrogation pour savoir ce que fait une fonction.`) });
+    this.contentEl.createEl(`p`, { cls: `sketchnote-icons-info`, text: t(`Cochez les boutons à afficher à droite du dessin. Glissez la poignée d'une ligne pour changer l'ordre, ajoutez des séparations entre les groupes, tapez une lettre dans le champ d'un outil pour changer sa touche au clavier, et ouvrez le point d'interrogation pour savoir ce que fait une fonction.`) });
     renderDrawButtonList(this.contentEl, this.host);
   }
 

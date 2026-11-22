@@ -23,6 +23,25 @@ export const DEFAULT_TOOL_KEYS: ToolKeys = {
   text: `x`,
 };
 
+// The keys of the English version: the first letter of the English name of the tool. Two names that start with the same letter cannot share it: the ellipse takes the O of oval and
+// the triangle the G of gon, and the point (like in French) the dot.
+export const ENGLISH_TOOL_KEYS: ToolKeys = {
+  select: `s`,
+  hand: `h`,
+  rect: `r`,
+  diamond: `d`,
+  ellipse: `o`,
+  triangle: `g`,
+  bubble: `b`,
+  festoon: `f`,
+  arrow: `a`,
+  line: `l`,
+  pen: `p`,
+  point: `.`,
+  eraser: `e`,
+  text: `t`,
+};
+
 export function isKeyTool(value: unknown): value is KeyTool {
   return typeof value === `string` && (KEY_TOOLS as readonly string[]).includes(value);
 }
@@ -37,7 +56,7 @@ export function cleanKey(value: unknown): string | null {
 
 // Reads the saved keys: a key that is wrong or already taken by an earlier tool gives the key that comes with the plugin, unless that one is taken too (then the tool has none free and
 // takes the first free default).
-export function readToolKeys(raw: unknown): ToolKeys {
+export function readToolKeys(raw: unknown, defaults: ToolKeys = DEFAULT_TOOL_KEYS): ToolKeys {
   const source = typeof raw === `object` && raw !== null ? (raw as Record<string, unknown>) : {};
   const out: Partial<ToolKeys> = {};
   const used = new Set<string>();
@@ -50,7 +69,7 @@ export function readToolKeys(raw: unknown): ToolKeys {
   }
   for (const tool of KEY_TOOLS) {
     if (out[tool] !== undefined) continue;
-    const key = DEFAULT_TOOL_KEYS[tool];
+    const key = defaults[tool];
     if (!used.has(key)) {
       out[tool] = key;
       used.add(key);
@@ -80,4 +99,13 @@ export function keyTable(keys: ToolKeys): Record<string, KeyTool> {
   const table: Record<string, KeyTool> = {};
   for (const tool of KEY_TOOLS) table[keys[tool]] = tool;
   return table;
+}
+
+// The keys that are used for a language. The keys are saved with the French ones as their start: a key that still is the French one has not been changed by the user, so the English
+// version takes its own (the first letter of the English name) in its place. A key that was changed stays.
+export function effectiveToolKeys(saved: ToolKeys, lang: `fr` | `en`): ToolKeys {
+  if (lang === `fr`) return saved;
+  const changed: Record<string, string> = {};
+  for (const tool of KEY_TOOLS) if (saved[tool] !== DEFAULT_TOOL_KEYS[tool]) changed[tool] = saved[tool];
+  return readToolKeys(changed, ENGLISH_TOOL_KEYS);
 }
