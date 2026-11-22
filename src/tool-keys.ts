@@ -1,6 +1,6 @@
 // The keys that choose a tool with one press (G for the eraser, P for the pen...). Each tool has one key; two tools never share a key. The user can change them in the settings.
 // Pure module: no page, no application.
-export const KEY_TOOLS = [`select`, `hand`, `rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `arrow`, `line`, `pen`, `point`, `figure`, `portrait`, `eraser`, `text`] as const;
+export const KEY_TOOLS = [`select`, `hand`, `rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `arrow`, `line`, `pen`, `point`, `figure`, `eraser`, `text`] as const;
 export type KeyTool = (typeof KEY_TOOLS)[number];
 
 export type ToolKeys = Record<KeyTool, string>;
@@ -20,7 +20,6 @@ export const DEFAULT_TOOL_KEYS: ToolKeys = {
   pen: `p`,
   point: `.`,
   figure: `o`,
-  portrait: `i`,
   eraser: `g`,
   text: `x`,
 };
@@ -41,7 +40,6 @@ export const ENGLISH_TOOL_KEYS: ToolKeys = {
   pen: `p`,
   point: `.`,
   figure: `m`,
-  portrait: `c`,
   eraser: `e`,
   text: `t`,
 };
@@ -115,7 +113,7 @@ export function effectiveToolKeys(saved: ToolKeys, lang: `fr` | `en`): ToolKeys 
 }
 
 // The functions that are not tools (they open a window or show a menu) are commands of the palette: their hotkeys are chosen in the settings of Obsidian.
-export const FUNCTION_KEY_IDS = [`icons`, `images`, `library`, `display`, `export`] as const;
+export const FUNCTION_KEY_IDS = [`icons`, `portrait`, `images`, `library`, `display`, `export`] as const;
 export type FunctionKeyId = (typeof FUNCTION_KEY_IDS)[number];
 
 export function isFunctionKeyId(value: unknown): value is FunctionKeyId {

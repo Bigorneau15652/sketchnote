@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { BEARD_IDS, DEFAULT_PORTRAIT, EARRING_IDS, GLASSES_IDS, HAIR_COLORS, HAIR_COLOR_IDS, HAIR_IDS, HAT_COLORS, HAT_IDS, mergePortrait, NOSE_IDS, partIconShapes, PARTS, portraitElement, portraitShapes, readPortrait, SEX_IDS, SHAPE_IDS, SKIN_IDS, SKIN_TONES, withPortrait } from "../src/portrait";
 import { FACE_IDS, LOOK_IDS } from "../src/figure";
-import { applyStyle, cleanPatch, styleOf } from "../src/style";
+import { iconToElements } from "../src/icon-strokes";
+import { iconData } from "../src/icon-registry";
 import { createEmptyDoc, parseSketchnote, serializeSketchnote } from "../src/file-format";
 import { isSafePath } from "../src/svg-path";
 import { isSafeColor } from "../src/color";
@@ -103,32 +104,44 @@ test(`un personnage est une icone qui garde ses choix et se relit`, () => {
   assert.equal(parseSketchnote(JSON.stringify(tampered)).ok, false, `un choix faux fait refuser le fichier`);
 });
 
-test(`les choix d un personnage choisi se changent par le style`, () => {
+test(`les choix d un personnage se changent sans changer sa place ni son trait`, () => {
   const el = portraitElement(DEFAULT_PORTRAIT, [100, 100], 100, ink, `p1`);
-  assert.deepEqual(styleOf(el)?.portrait, DEFAULT_PORTRAIT);
-  const next = applyStyle(el, { portrait: { ...DEFAULT_PORTRAIT, hat: `captain`, beard: `handlebar` } }) as IconElement;
+  const next = withPortrait(el, { ...DEFAULT_PORTRAIT, hat: `captain`, beard: `handlebar` });
   assert.equal(next.portrait?.hat, `captain`);
   assert.equal(next.portrait?.beard, `handlebar`);
   assert.notDeepEqual(next.shapes, el.shapes);
-  assert.deepEqual(withPortrait(el, { ...DEFAULT_PORTRAIT, hat: `captain`, beard: `handlebar` }).shapes, next.shapes);
-  assert.deepEqual(cleanPatch({ portrait: { hair: `faux`, hat: `crown` } as never }).portrait?.hat, `crown`);
-  assert.equal(cleanPatch({ portraitSize: 9999 }).portraitSize, 400);
+  assert.equal(next.x, el.x);
+  assert.equal(next.seed, el.seed);
+  assert.equal(next.strokeWidth, el.strokeWidth);
 });
 
-test(`le menu du personnage apparait pour l outil et pour un personnage choisi`, () => {
-  assert.equal(sectionShown(`portrait`, panelKinds(`portrait`, [])), true);
-  assert.equal(sectionShown(`portraitsize`, panelKinds(`portrait`, [])), true);
+test(`un personnage n a pas de menu de reglages : seulement la transformation en traits`, () => {
   const el = portraitElement(DEFAULT_PORTRAIT, [100, 100], 100, ink, `p1`);
-  assert.equal(sectionShown(`portrait`, panelKinds(`select`, [el])), true);
-  assert.equal(sectionShown(`portraitsize`, panelKinds(`select`, [el])), false);
-  assert.equal(sectionShown(`figure`, panelKinds(`select`, [el])), false);
+  const kinds = panelKinds(`select`, [el]);
+  assert.equal(sectionShown(`icon`, kinds), true, `le bouton Transformer en traits`);
+  for (const name of [`colour`, `transparency`, `effects`, `width`, `look`, `fill`, `figure`, `figuresize`] as const) assert.equal(sectionShown(name, kinds), false, name);
 });
 
-test(`le bouton du personnage est dans l ordre habituel et une ancienne barre le recoit`, () => {
+test(`le bouton du personnage ouvre une fenetre, est dans l ordre habituel et une ancienne barre le recoit`, () => {
   assert.ok(DEFAULT_ORDER.includes(`portrait`));
-  assert.ok(drawFunctions().some((f) => f.id === `portrait` && f.tools[0] === `portrait`));
+  const fn = drawFunctions().find((f) => f.id === `portrait`);
+  assert.ok(fn && fn.opens === `portrait` && fn.tools.length === 0 && fn.sections.length === 0);
   const old = DEFAULT_ORDER.filter((id) => id !== `portrait`);
   assert.deepEqual(readOrder(old, drawFunctions().map((f) => f.id as string)), DEFAULT_ORDER);
+});
+
+test(`en transformant un personnage en traits, la peau et les cheveux gardent leur couleur`, () => {
+  const el = portraitElement({ ...DEFAULT_PORTRAIT, skin: `s5`, haircolor: `red` }, [100, 100], 100, ink, `p1`);
+  const data = iconData(el);
+  assert.ok(data);
+  if (!data) return;
+  const made = iconToElements(el, data, []);
+  assert.equal(made.elements.length, data.shapes.length, `un trait pour chaque forme`);
+  const fills = made.elements.map((e) => (`fill` in e ? e.fill : undefined)).filter((f): f is string => typeof f === `string`);
+  assert.ok(fills.includes(SKIN_TONES.s5));
+  assert.ok(fills.includes(HAIR_COLORS.red));
+  assert.ok(made.elements.every((e) => e.type === `line` || e.type === `freedraw` || e.type === `ellipse` || e.type === `rect`), `des traits de stylo a retoucher`);
+  assert.ok(made.groupId !== null, `groupes pour se deplacer ensemble`);
 });
 
 test(`chaque choix a un pictogramme dessinable`, () => {

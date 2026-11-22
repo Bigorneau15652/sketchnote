@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.47.0
+
+English
+
+The character now has a window of its own, in place of the tool and its menus. The button Character opens a floating window in the drawing, that can be moved by its top bar (it keeps its place): on its left all the choices as large pictograms (52 pixels), grouped under a title: expression (fifteen), direction of the face, man or woman, skin (six), shape of the face, hair (ten), colour of the hair (fifteen), hat (eight), colour of the hat (eight), beard and moustache (nine), nose, glasses and earrings; on its right the result, drawn as it will be on the page, which changes at once with each choice. The button OK puts the character in the middle of what is shown; Cancel, the cross or Escape close the window without creating anything; Enter is OK. A double click on a character opens the window again with its choices, and OK changes that character (its place, its size and its line are kept). The floating menu of small pictograms next to the button and the choices of the menu of the bottom are removed: a selected character has no menu of settings, only the button Turn into strokes (and the actions on the selection). Turned into strokes, a character becomes ordinary pen strokes, grouped, that can be touched up point by point with the usual menu of the freehand pen; its skin and its hair keep their colours as fills. The character has no key of its own any more (it is not a tool): its button is a command of the palette like the icons, so Obsidian can give it a hotkey.
+
+Français
+
+Le personnage a maintenant une fenêtre à lui, à la place de l'outil et de ses menus. Le bouton Personnage ouvre une fenêtre flottante dans le dessin, qu'on déplace par sa barre du haut (elle garde sa place) : à gauche tous les choix en grands pictogrammes (52 pixels), regroupés sous un titre : expression (quinze), direction du visage, homme ou femme, peau (six), forme du visage, cheveux (dix), couleur des cheveux (quinze), chapeau (huit), couleur du chapeau (huit), barbe et moustache (neuf), nez, lunettes et boucles d'oreilles ; à droite le résultat, dessiné comme il sera sur la page, qui change tout de suite à chaque choix. Le bouton OK pose le personnage au milieu de ce qui est montré ; Annuler, la croix ou Échap ferment la fenêtre sans rien créer ; Entrée vaut OK. Un double clic sur un personnage rouvre la fenêtre avec ses choix, et OK change ce personnage (sa place, sa taille et son trait sont gardés). Le menu flottant de petits pictogrammes à côté du bouton et les choix du menu du bas sont supprimés : un personnage sélectionné n'a pas de menu de réglages, seulement le bouton Transformer en traits (et les actions sur la sélection). Transformé en traits, un personnage devient des traits de stylo ordinaires, groupés, qu'on retouche point par point avec le menu habituel du stylo à main levée ; sa peau et ses cheveux gardent leurs couleurs en remplissage. Le personnage n'a plus de touche à lui (ce n'est plus un outil) : son bouton est une commande de la palette comme les icônes, donc Obsidian peut lui donner un raccourci.
+
 ## 0.46.0
 
 English

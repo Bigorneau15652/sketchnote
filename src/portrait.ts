@@ -70,7 +70,7 @@ export interface PortraitData {
 export const DEFAULT_PORTRAIT: PortraitData = { shape: `round`, sex: `man`, hair: `short`, hat: `none`, beard: `none`, glasses: `none`, earrings: `none`, nose: `small`, face: DEFAULT_FACE, look: DEFAULT_LOOK, skin: `s2`, haircolor: `brown`, hatcolor: `white` };
 export const MIN_PORTRAIT_SIZE = 40;
 export const MAX_PORTRAIT_SIZE = 400;
-export const DEFAULT_PORTRAIT_SIZE = 120;
+export const DEFAULT_PORTRAIT_SIZE = 140;
 
 const KINDS = { shape: SHAPE_IDS, sex: SEX_IDS, hair: HAIR_IDS, hat: HAT_IDS, beard: BEARD_IDS, glasses: GLASSES_IDS, earrings: EARRING_IDS, nose: NOSE_IDS, face: FACE_IDS, look: LOOK_IDS, skin: SKIN_IDS, haircolor: HAIR_COLOR_IDS, hatcolor: HAT_COLOR_IDS } as const;
 export type PortraitKey = keyof PortraitData;
@@ -430,4 +430,24 @@ export function hairColorName(id: HairColorId): string {
 export function hatColorName(id: HatColorId): string {
   const names: Record<HatColorId, string> = { white: t(`Chapeau blanc`), black: t(`Chapeau noir`), red: t(`Chapeau rouge`), blue: t(`Chapeau bleu`), navy: t(`Chapeau bleu marine`), green: t(`Chapeau vert`), yellow: t(`Chapeau jaune`), brown: t(`Chapeau brun`) };
   return names[id];
+}
+
+// The name of a kind of choice (the title of a group of choices of the window).
+export function partLabel(key: PortraitKey): string {
+  const names: Record<PortraitKey, string> = {
+    shape: t(`Forme du visage`),
+    sex: t(`Homme ou femme`),
+    hair: t(`Cheveux`),
+    hat: t(`Chapeau`),
+    beard: t(`Barbe et moustache`),
+    glasses: t(`Lunettes`),
+    earrings: t(`Boucles d'oreilles`),
+    nose: t(`Nez`),
+    face: t(`Expression`),
+    look: t(`Direction du visage`),
+    skin: t(`Peau`),
+    haircolor: t(`Couleur des cheveux`),
+    hatcolor: t(`Couleur du chapeau`),
+  };
+  return names[key];
 }
