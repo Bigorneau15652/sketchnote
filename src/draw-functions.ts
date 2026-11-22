@@ -21,7 +21,7 @@ export interface DrawFunction {
   opens?: `icons` | `images` | `library` | `export`;
 }
 
-const CONTENT: PanelSection[] = [`colour`, `fill`, `brush`, `width`, `dash`, `look`, `regularity`, `border`, `corners`, `bubbleform`, `festoonform`, `edges`, `taper`, `heads`, `text`, `warp`, `icon`, `image`, `effects`];
+const CONTENT: PanelSection[] = [`colour`, `fill`, `transparency`, `brush`, `width`, `dash`, `look`, `regularity`, `border`, `corners`, `bubbleform`, `festoonform`, `edges`, `taper`, `heads`, `text`, `warp`, `icon`, `image`, `effects`];
 
 // Returns the functions in their usual order. The names and the explanations are translated when they are asked for. Each tool has its own button.
 export function drawFunctions(): DrawFunction[] {
@@ -31,7 +31,7 @@ export function drawFunctions(): DrawFunction[] {
     name,
     help: () => [what(), t(`Le menu règle les couleurs, le remplissage, le trait, la bordure et les coins.`)],
     tools: [id],
-    sections: [`colour`, `fill`, `width`, `dash`, `look`, `border`, `corners`],
+    sections: [`colour`, `fill`, `transparency`, `width`, `dash`, `look`, `border`, `corners`],
   });
   return [
     {
@@ -66,7 +66,7 @@ export function drawFunctions(): DrawFunction[] {
         t(`Le menu choisit la forme. Quand la bulle est sélectionnée, la petite poignée ronde au bout de sa queue se tire vers le personnage qui parle.`),
       ],
       tools: [`bubble`],
-      sections: [`bubbleform`, `colour`, `fill`, `width`, `dash`, `look`, `border`],
+      sections: [`bubbleform`, `colour`, `fill`, `transparency`, `width`, `dash`, `look`, `border`],
     },
     {
       id: `festoon`,
@@ -77,7 +77,7 @@ export function drawFunctions(): DrawFunction[] {
         t(`Le menu choisit la forme parmi onze modèles. Un double clic sur le feston permet d'écrire dedans.`),
       ],
       tools: [`festoon`],
-      sections: [`festoonform`, `colour`, `fill`, `width`, `dash`, `look`, `border`],
+      sections: [`festoonform`, `colour`, `fill`, `transparency`, `width`, `dash`, `look`, `border`],
     },
     {
       id: `arrow`,
@@ -88,7 +88,7 @@ export function drawFunctions(): DrawFunction[] {
         t(`Le menu règle la couleur, l'épaisseur, les pointillés, l'imperfection du tracé, les bords, le fuselage et les pointes aux deux bouts.`),
       ],
       tools: [`arrow`],
-      sections: [`colour`, `width`, `dash`, `look`, `edges`, `taper`, `heads`],
+      sections: [`colour`, `transparency`, `width`, `dash`, `look`, `edges`, `taper`, `heads`],
     },
     {
       id: `line`,
@@ -99,7 +99,7 @@ export function drawFunctions(): DrawFunction[] {
         t(`Le menu règle la couleur, l'épaisseur, les pointillés, l'imperfection du tracé, les bords et le fuselage.`),
       ],
       tools: [`line`],
-      sections: [`colour`, `width`, `dash`, `look`, `edges`, `taper`],
+      sections: [`colour`, `transparency`, `width`, `dash`, `look`, `edges`, `taper`],
     },
     {
       id: `pen`,
@@ -154,7 +154,7 @@ export function drawFunctions(): DrawFunction[] {
         t(`Une icône insérée se déplace, se retourne et se colorie comme une forme. Le menu de l'icône permet de la transformer en traits modifiables un par un.`),
       ],
       tools: [],
-      sections: [`icon`, `colour`, `fill`, `width`, `look`],
+      sections: [`icon`, `colour`, `fill`, `transparency`, `width`, `look`],
       opens: `icons`,
     },
     {

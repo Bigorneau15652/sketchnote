@@ -154,10 +154,6 @@ export class SketchdrawView extends DrawEditor<SketchdrawDoc> {
     const others = row.createEl(`button`, { cls: `sketchdraw-chip` });
     setIcon(others, `layers-2`);
     others.setAttribute(`aria-label`, t(`Avec les autres dessins`));
-    if (this.labelsOn()) {
-      own.createSpan({ cls: `sketchdraw-chip-word`, text: t(`Seul`) });
-      others.createSpan({ cls: `sketchdraw-chip-word`, text: t(`Autres`) });
-    }
     (shown.others && available ? others : own).addClass(`is-active`);
     own.addEventListener(`click`, () => {
       SketchdrawView.display = cleanBackdrop({ ...shown, others: false });

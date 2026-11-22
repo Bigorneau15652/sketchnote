@@ -85,14 +85,13 @@ test(`le mot d'un bouton est le dernier mot de son nom`, () => {
 
 test(`les reglages du dessinateur : position du menu, mots, boutons, valeurs fausses remplacees`, () => {
   assert.equal(DEFAULT_SETTINGS.contextPosition, `bottom`);
-  assert.equal(DEFAULT_SETTINGS.contextLabels, false);
   assert.deepEqual(DEFAULT_SETTINGS.drawButtonsOrder, DEFAULT_ORDER);
   assert.notEqual(DEFAULT_SETTINGS.drawButtonsOrder, DEFAULT_ORDER, `une copie : l'ordre habituel ne change pas`);
-  const s = readSettings({ contextPosition: `top`, contextLabels: true, drawButtonsHidden: [`export`], drawButtonsOrder: [`text`, `select`] });
-  assert.deepEqual([s.contextPosition, s.contextLabels, s.drawButtonsHidden], [`top`, true, [`export`]]);
+  const s = readSettings({ contextPosition: `top`, drawButtonsHidden: [`export`], drawButtonsOrder: [`text`, `select`] });
+  assert.deepEqual([s.contextPosition, s.drawButtonsHidden], [`top`, [`export`]]);
   assert.deepEqual(s.drawButtonsOrder.slice(0, 2), [`text`, `select`]);
-  const bad = readSettings({ contextPosition: `left`, contextLabels: `oui`, drawButtonsHidden: 5, drawButtonsOrder: { a: 1 } });
-  assert.deepEqual([bad.contextPosition, bad.contextLabels, bad.drawButtonsHidden], [`bottom`, false, []]);
+  const bad = readSettings({ contextPosition: `left`, drawButtonsHidden: 5, drawButtonsOrder: { a: 1 } });
+  assert.deepEqual([bad.contextPosition, bad.drawButtonsHidden], [`bottom`, []]);
   assert.deepEqual(bad.drawButtonsOrder, DEFAULT_ORDER);
 });
 

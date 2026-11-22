@@ -14,17 +14,15 @@ export interface SketchnoteSettings {
   exportsFolder: string;
   // Folder of the vault that holds the library of drawings: the drawings that were saved from a selection, to be put on a page again.
   libraryFolder: string;
-  // The buttons on the right of a drawing: their order (with the separations), the functions that are hidden, where the menu of the active button is (above or under the drawing) and
-  // whether its buttons show a word next to their pictogram.
+  // The buttons on the right of a drawing: their order (with the separations), the functions that are hidden, where the menu of the active button is (above or under the drawing).
   drawButtonsOrder: string[];
   drawButtonsHidden: string[];
   contextPosition: `top` | `bottom`;
-  contextLabels: boolean;
   // Zen mode: whether the window also goes full screen.
   zenFullscreen: boolean;
 }
 
-export const DEFAULT_SETTINGS: SketchnoteSettings = { drawingsFolder: `Sketchnote dessins`, fontsFolder: `Sketchnote polices`, iconsFolder: `Sketchnote icônes`, imagesFolder: `Sketchnote images`, exportsFolder: `Sketchnote exports`, libraryFolder: `Sketchnote bibliothèque`, drawButtonsOrder: [...DEFAULT_ORDER], drawButtonsHidden: [], contextPosition: `bottom`, contextLabels: false, zenFullscreen: false };
+export const DEFAULT_SETTINGS: SketchnoteSettings = { drawingsFolder: `Sketchnote dessins`, fontsFolder: `Sketchnote polices`, iconsFolder: `Sketchnote icônes`, imagesFolder: `Sketchnote images`, exportsFolder: `Sketchnote exports`, libraryFolder: `Sketchnote bibliothèque`, drawButtonsOrder: [...DEFAULT_ORDER], drawButtonsHidden: [], contextPosition: `bottom`, zenFullscreen: false };
 
 // Returns a folder path of the vault in its clean form (slashes, no slash at the ends), or null when it is not acceptable: empty, with `..`, with a drive
 // letter, or with characters that a file name cannot hold. A leading slash (`/dessin`) is accepted and means the root of the vault.
@@ -46,7 +44,6 @@ export function readSettings(raw: unknown): SketchnoteSettings {
     drawButtonsOrder: readOrder(r.drawButtonsOrder, known),
     drawButtonsHidden: readHidden(r.drawButtonsHidden, known),
     contextPosition: r.contextPosition === `top` ? `top` : `bottom`,
-    contextLabels: r.contextLabels === true,
     zenFullscreen: r.zenFullscreen === true,
   };
 }

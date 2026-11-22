@@ -366,10 +366,6 @@ export class SketchnoteView extends DrawEditor<SketchnoteDoc> {
     const others = row.createEl(`button`, { cls: `sketchdraw-chip` });
     setIcon(others, `layers-2`);
     others.setAttribute(`aria-label`, t(`Avec le reste de la page`));
-    if (this.labelsOn()) {
-      own.createSpan({ cls: `sketchdraw-chip-word`, text: t(`Seule`) });
-      others.createSpan({ cls: `sketchdraw-chip-word`, text: t(`Page`) });
-    }
     (shown.others ? others : own).addClass(`is-active`);
     own.addEventListener(`click`, () => {
       SketchnoteView.display = cleanBackdrop({ ...shown, others: false });
