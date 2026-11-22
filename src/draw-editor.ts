@@ -47,6 +47,7 @@ import { MIN_ERASE_SIZE } from "./erase-data";
 import { effectiveToolKeys, isFunctionKeyId, isKeyTool, KEY_TOOLS, keyTable, ToolKeys } from "./tool-keys";
 import { commandHotkeyText, functionCommandId } from "./hotkeys";
 import { MIN_STAMP_SIZE, STAMP_IDS, stampName, StampId } from "./stamps";
+import { BUILD_IDS, buildName, faceName, FACE_IDS, FaceId, BuildId, figureName, MIN_FIGURE_SIZE, MAX_FIGURE_SIZE, PoseId, POSE_IDS } from "./figure";
 import { BUBBLE_FORMS, BubbleForm, FESTOON_FORMS, FestoonForm, ShapeForm } from "./shape-forms";
 
 // Returns the name of a distortion of the texts in the language of the user.
@@ -211,7 +212,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
 
 
   protected creationTools(): CreationTool[] {
-    return [`rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `arrow`, `line`, `pen`, `point`];
+    return [`rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `arrow`, `line`, `pen`, `point`, `figure`];
   }
 
   // Runs a function of the drawer: the same as a click on its button.
@@ -869,6 +870,8 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
         return { showChoice: true, values: [...FESTOON_FORMS], icon: (v) => bubbleFormIcon(v as ShapeForm), name: (v) => formName(v as ShapeForm), read: (s) => s.festoonForm, write: (v) => ({ festoonForm: v as FestoonForm }) };
       case `point`:
         return { showChoice: true, values: [...STAMP_IDS], icon: (v) => `sketchnote-stamp-${v}`, name: (v) => stampName(v as StampId), read: (s) => s.stamp, write: (v) => ({ stamp: v as StampId }) };
+      case `figure`:
+        return { showChoice: true, values: [...POSE_IDS], icon: (v) => `sketchnote-pose-${v}`, name: (v) => figureName(v as PoseId), read: (s) => s.figure, write: (v) => ({ figure: v as PoseId }) };
       case `eraser`:
         return {
           showChoice: false,
@@ -1022,6 +1025,16 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     const stampSec = this.section(props, `stamp`);
     this.sectionIcon(stampSec, `sketchnote-stamp-star`, t(`Forme du point`));
     this.slider(stampSec, t(`Taille`), t(`Taille de la forme`), MIN_STAMP_SIZE, 120, 1, (st) => st.stampSize, (v) => ({ stampSize: v }));
+
+    // The articulated figure: its face (a menu of fifteen), its build (stick or thick), then its size. The pose is chosen in the floating menu of its button.
+    const figureSec = this.section(props, `figure`);
+    this.sectionIcon(figureSec, `sketchnote-pose-stand`, t(`Bonhomme`));
+    const faces = figureSec.createDiv({ cls: `sketchdraw-row` });
+    this.dropdown<FaceId>(faces, t(`Visage`), [...FACE_IDS], (v) => `sketchnote-face-${v}`, faceName, (st) => st.figureFace, (v) => ({ figureFace: v }), true);
+    for (const build of BUILD_IDS) this.panelButton(faces, `sketchnote-build-${build}`, buildName(build), (st) => st.figureBuild === build, () => this.change({ figureBuild: build as BuildId }));
+    const figureSizeSec = this.section(props, `figuresize`);
+    this.sectionIcon(figureSizeSec, `ruler`, t(`Taille`));
+    this.slider(figureSizeSec, t(`Taille`), t(`Taille du bonhomme`), MIN_FIGURE_SIZE, MAX_FIGURE_SIZE, 10, (st) => st.figureSize, (v) => ({ figureSize: v }));
 
     const eraserSec = this.section(props, `eraser`);
     this.sectionIcon(eraserSec, `sketchnote-eraser`, t(`Gomme`));
@@ -1460,7 +1473,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
   // Tells whether a section of the panel can be used before anything is drawn: the settings of a text, and the settings of the pen (its brush and its regularity, and with the pen
   // tool its colour and its thickness too), which are kept for the next strokes.
   protected usableBeforeDrawing(name: PanelSection): boolean {
-    if (name === `text` || name === `regularity` || name === `brush` || name === `display` || name === `shortcuts` || name === `bubbleform` || name === `festoonform` || name === `eraser` || name === `stamp`) return true;
+    if (name === `text` || name === `regularity` || name === `brush` || name === `display` || name === `shortcuts` || name === `bubbleform` || name === `festoonform` || name === `eraser` || name === `stamp` || name === `figure` || name === `figuresize`) return true;
     return this.tool === `pen` && (name === `colour` || name === `width`);
   }
 
@@ -1557,7 +1570,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     for (const el of this.selectedElements()) {
       const s = styleOf(el);
       // The settings of the eraser belong to the tool, not to the element that is selected.
-      if (s) return { ...s, eraseShape: base.eraseShape, eraseSize: base.eraseSize, eraseDensity: base.eraseDensity, stamp: base.stamp, stampSize: base.stampSize };
+      if (s) return { ...s, eraseShape: base.eraseShape, eraseSize: base.eraseSize, eraseDensity: base.eraseDensity, stamp: base.stamp, stampSize: base.stampSize, figure: base.figure, figureSize: base.figureSize };
     }
     return this.tool === `pen` ? { ...base, ...this.penLook } : base;
   }
@@ -1580,6 +1593,10 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       }
       if (clean.stamp !== undefined) keep.stamp = clean.stamp;
       if (clean.stampSize !== undefined) keep.stampSize = clean.stampSize;
+      if (clean.figure !== undefined) keep.figure = clean.figure;
+      if (clean.figureSize !== undefined) keep.figureSize = clean.figureSize;
+      if (clean.figureFace !== undefined) keep.figureFace = clean.figureFace;
+      if (clean.figureBuild !== undefined) keep.figureBuild = clean.figureBuild;
       if (clean.eraseShape !== undefined) keep.eraseShape = clean.eraseShape;
       if (clean.eraseSize !== undefined) keep.eraseSize = clean.eraseSize;
       if (clean.eraseDensity !== undefined) keep.eraseDensity = clean.eraseDensity;

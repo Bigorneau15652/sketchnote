@@ -4,7 +4,7 @@
 import { t } from "./i18n";
 import type { PanelSection } from "./panel-kinds";
 
-export type DrawFunctionId = `select` | `hand` | `rect` | `diamond` | `ellipse` | `triangle` | `bubble` | `festoon` | `arrow` | `line` | `pen` | `point` | `eraser` | `text` | `icons` | `images` | `library` | `display` | `export`;
+export type DrawFunctionId = `select` | `hand` | `rect` | `diamond` | `ellipse` | `triangle` | `bubble` | `festoon` | `arrow` | `line` | `pen` | `point` | `figure` | `eraser` | `text` | `icons` | `images` | `library` | `display` | `export`;
 
 export interface DrawFunction {
   id: DrawFunctionId;
@@ -124,6 +124,17 @@ export function drawFunctions(): DrawFunction[] {
       sections: [`stamp`, `colour`, `width`, `look`],
     },
     {
+      id: `figure`,
+      icon: `sketchnote-pose-stand`,
+      name: () => t(`Bonhomme`),
+      help: () => [
+        t(`Pose un bonhomme articulé d'un clic : en bâtons ou avec un corps épais, dans une pose au choix (debout, marche, court, assis, bras levés, salue, montre du doigt, réfléchit) et avec un visage au choix (quinze expressions).`),
+        t(`Quand il est sélectionné, les petits ronds sur son corps plient ses membres : tirer une main tourne l'avant-bras autour du coude, tirer un coude tourne le bras autour de l'épaule. Le menu change son visage, son corps et sa taille, et ses couleurs comme pour une icône.`),
+      ],
+      tools: [`figure`],
+      sections: [`figure`, `figuresize`, `colour`, `fill`, `transparency`, `width`, `look`],
+    },
+    {
       id: `eraser`,
       icon: `sketchnote-eraser`,
       name: () => t(`Gomme`),
@@ -218,8 +229,9 @@ export const isSeparator = (id: string): boolean => /^sep:\d+$/.test(id);
 
 // The usual order: the tools (each one its own button), then the windows, then what acts on the drawing. The colours, the line and the effects have no button: they are in the menu of
 // the tool, or of the selected element.
-export const DEFAULT_ORDER: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `sep:2`, `arrow`, `line`, `pen`, `point`, `eraser`, `text`, `sep:3`, `icons`, `images`, `library`, `sep:4`, `display`, `export`];
+export const DEFAULT_ORDER: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `sep:2`, `arrow`, `line`, `pen`, `point`, `figure`, `eraser`, `text`, `sep:3`, `icons`, `images`, `library`, `sep:4`, `display`, `export`];
 
+const BEFORE_FIGURE: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `sep:2`, `arrow`, `line`, `pen`, `point`, `eraser`, `text`, `sep:3`, `icons`, `images`, `library`, `sep:4`, `display`, `export`];
 const BEFORE_BUBBLES: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `sep:2`, `arrow`, `line`, `pen`, `point`, `text`, `sep:3`, `icons`, `images`, `sep:4`, `display`, `export`];
 const BEFORE_ERASER: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `sep:2`, `arrow`, `line`, `pen`, `point`, `text`, `sep:3`, `icons`, `images`, `sep:4`, `display`, `export`];
 const BEFORE_LIBRARY: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `sep:2`, `arrow`, `line`, `pen`, `point`, `eraser`, `text`, `sep:3`, `icons`, `images`, `sep:4`, `display`, `export`];
@@ -233,7 +245,7 @@ export function isOrderEntry(value: unknown, known: string[]): value is string {
 export function readOrder(value: unknown, known: string[]): string[] {
   if (!Array.isArray(value)) return [...DEFAULT_ORDER];
   // The usual order of the versions before the bubbles and the festoons: it takes the new buttons at their place.
-  if (value.join(`,`) === BEFORE_BUBBLES.join(`,`) || value.join(`,`) === BEFORE_ERASER.join(`,`) || value.join(`,`) === BEFORE_LIBRARY.join(`,`)) return [...DEFAULT_ORDER];
+  if (value.join(`,`) === BEFORE_BUBBLES.join(`,`) || value.join(`,`) === BEFORE_ERASER.join(`,`) || value.join(`,`) === BEFORE_LIBRARY.join(`,`) || value.join(`,`) === BEFORE_FIGURE.join(`,`)) return [...DEFAULT_ORDER];
   // An order saved when the tools were grouped (Draw, Shapes, Lines and arrows) has nothing to keep: each tool has its own button now, so the usual order is used.
   if (value.some((id) => id === `draw` || id === `shapes` || id === `lines` || id === `organise`)) return [...DEFAULT_ORDER];
   const out: string[] = [];

@@ -7,6 +7,7 @@ import { DEFAULT_WARP_AMOUNT, isWarpKind, MAX_WARP_AMOUNT, WarpKind } from "./te
 import { isSafePath } from "./svg-path";
 import { isShapeForm, readTail, ShapeForm, Tail } from "./shape-forms";
 import { EraseStroke, readErase } from "./erase-data";
+import { FIGURE_VB, FigureData, figureShapes, readFigure } from "./figure";
 
 export type Point = [number, number];
 // How a fill is drawn: solid, with hatching lines, with dots or with a grid (crossed hatching).
@@ -256,6 +257,8 @@ export interface IconElement extends BaseElement, Strokes, Fills {
   name?: string;
   vb?: [number, number, number, number];
   shapes?: IconShapeData[];
+  // For an articulated figure: its joints, its face and its build. The shapes are drawn from them.
+  figure?: FigureData;
 }
 
 // A shape of an icon that is kept in an element: the data of its path, whether it is filled, whether it has a line and whether it is closed.
@@ -607,8 +610,13 @@ function readElement(value: unknown): SketchElement | null {
     const lucide = value.icon === undefined ? undefined : typeof value.icon === `string` && /^[a-z0-9][a-z0-9-]{0,80}$/.test(value.icon) ? value.icon : null;
     if (lucide === null) return null;
     if (value.name !== undefined && (typeof value.name !== `string` || value.name.length > 120 || /[\u0000-\u001f]/.test(value.name))) return null;
-    let customFields: { vb?: [number, number, number, number]; shapes?: IconShapeData[] } = {};
-    if (value.shapes !== undefined) {
+    let customFields: { vb?: [number, number, number, number]; shapes?: IconShapeData[]; figure?: FigureData } = {};
+    if (value.figure !== undefined) {
+      // A figure keeps its joints: its shapes are drawn again from them, so that the two can never disagree.
+      const figure = readFigure(value.figure);
+      if (figure === null) return null;
+      customFields = { vb: [...FIGURE_VB], shapes: figureShapes(figure), figure };
+    } else if (value.shapes !== undefined) {
       const list = value.shapes;
       if (!Array.isArray(list) || list.length === 0 || list.length > MAX_ICON_SHAPES_STORED) return null;
       const shapes: IconShapeData[] = [];

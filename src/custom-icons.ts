@@ -3,6 +3,8 @@
 import { addIcon } from "obsidian";
 import { BUBBLE_FORMS, FESTOON_FORMS, formPath } from "./shape-forms";
 import { STAMP_IDS, stampShapes } from "./stamps";
+import { BUILD_IDS, buildIconShapes, FACE_IDS, faceIconShapes, POSE_IDS, poseIconShapes } from "./figure";
+import type { IconShapeData } from "./elements";
 
 const Q = String.fromCharCode(34);
 
@@ -100,6 +102,12 @@ export function registerIcons(): void {
     const inner = stampShapes(id).map((sh) => (sh.fill ? tag(`path`, { d: sh.d, fill: `currentColor`, stroke: `none` }) : tag(`path`, { d: sh.d, fill: `none`, stroke: `currentColor`, "stroke-width": 8, "stroke-linecap": `round`, "stroke-linejoin": `round` }))).join(``);
     addIcon(`sketchnote-stamp-${id}`, inner);
   }
+  // The pictograms of the figure: each pose (a stick man), each face (a head with its expression) and each build, drawn from the same shapes as the figure on the page.
+  const figureIcon = (shapes: IconShapeData[], width: number): string =>
+    shapes.map((sh) => (sh.fill ? tag(`path`, { d: sh.d, fill: `currentColor`, stroke: `none` }) : tag(`path`, { d: sh.d, fill: `none`, stroke: `currentColor`, "stroke-width": width, "stroke-linecap": `round`, "stroke-linejoin": `round` }))).join(``);
+  for (const id of POSE_IDS) addIcon(`sketchnote-pose-${id}`, figureIcon(poseIconShapes(id), 6));
+  for (const id of FACE_IDS) addIcon(`sketchnote-face-${id}`, figureIcon(faceIconShapes(id), 6));
+  for (const id of BUILD_IDS) addIcon(`sketchnote-build-${id}`, figureIcon(buildIconShapes(id), 5));
   // The pictogram of each form of a bubble or of a festoon is the form itself, drawn from the same data as the shape on the page.
   for (const form of [...BUBBLE_FORMS, ...FESTOON_FORMS]) {
     const d = formPath(form, 12, 14, 76, 50, undefined, 0);

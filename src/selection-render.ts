@@ -5,6 +5,9 @@ import { blockBox, Box, boxCorners, boxOf, centerOf, hasRotateHandle, ROTATE_OFF
 import { isBubbleForm } from "./shape-forms";
 import { svgEl } from "./svg";
 import { visibleMidpoints } from "./linear";
+import { jointPositions } from "./figure-edit";
+import type { FigureData } from "./figure";
+import type { IconElement } from "./elements";
 
 export interface UiState {
   selected: SketchElement[];
@@ -91,6 +94,10 @@ export function drawUi(ui: Element, st: UiState): void {
     if (el.type === `rect` && isBubbleForm(el.form)) {
       const tip = tailPagePoint(el);
       svgEl(`circle`, { class: `sketchnote-handle sketchnote-tail-handle`, cx: tip[0], cy: tip[1], r: 7 / z }, ui);
+    }
+    // The joints of an articulated figure: round handles that bend its limbs.
+    if (el.type === `icon` && el.figure) {
+      for (const j of jointPositions(el as IconElement & { figure: FigureData })) svgEl(`circle`, { class: `sketchnote-handle sketchnote-joint-handle`, cx: j.at[0], cy: j.at[1], r: 5 / z, "data-joint": j.id }, ui);
     }
     const s = 10 / z;
     for (const i of visibleCorners(el)) svgEl(`rect`, { class: `sketchnote-handle`, x: corners[i][0] - s / 2, y: corners[i][1] - s / 2, width: s, height: s }, ui);
