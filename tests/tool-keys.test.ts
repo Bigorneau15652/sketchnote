@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cleanKey, DEFAULT_TOOL_KEYS, KEY_TOOLS, keyTable, readToolKeys, setToolKey } from "../src/tool-keys";
+import { cleanKey, DEFAULT_TOOL_KEYS, effectiveToolKeys, ENGLISH_TOOL_KEYS, KEY_TOOLS, keyTable, readToolKeys, setToolKey } from "../src/tool-keys";
 
 test(`les touches par defaut sont uniques et valides`, () => {
   const keys = KEY_TOOLS.map((t) => DEFAULT_TOOL_KEYS[t]);
@@ -57,4 +57,27 @@ test(`la table du clavier donne l outil de chaque touche`, () => {
   assert.equal(table[`g`], `eraser`);
   assert.equal(table[`.`], `point`);
   assert.equal(Object.keys(table).length, KEY_TOOLS.length);
+});
+
+test(`les touches anglaises sont uniques et valides`, () => {
+  const keys = KEY_TOOLS.map((t) => ENGLISH_TOOL_KEYS[t]);
+  assert.equal(new Set(keys).size, KEY_TOOLS.length);
+  for (const k of keys) assert.equal(cleanKey(k), k);
+  assert.equal(ENGLISH_TOOL_KEYS.eraser, `e`);
+  assert.equal(ENGLISH_TOOL_KEYS.pen, `p`);
+  assert.equal(ENGLISH_TOOL_KEYS.rect, `r`);
+});
+
+test(`la version anglaise prend ses touches sauf celles que l utilisateur a changees`, () => {
+  assert.deepEqual(effectiveToolKeys(DEFAULT_TOOL_KEYS, `fr`), DEFAULT_TOOL_KEYS);
+  assert.deepEqual(effectiveToolKeys(DEFAULT_TOOL_KEYS, `en`), ENGLISH_TOOL_KEYS);
+  const mine = effectiveToolKeys({ ...DEFAULT_TOOL_KEYS, pen: `k` }, `en`);
+  assert.equal(mine.pen, `k`);
+  assert.equal(mine.eraser, `e`);
+  assert.equal(new Set(KEY_TOOLS.map((t) => mine[t])).size, KEY_TOOLS.length);
+  // a changed key that is an English default of another tool takes it: the other tool gets a free key
+  const clash = effectiveToolKeys({ ...DEFAULT_TOOL_KEYS, pen: `e` }, `en`);
+  assert.equal(clash.pen, `e`);
+  assert.notEqual(clash.eraser, `e`);
+  assert.equal(new Set(KEY_TOOLS.map((t) => clash[t])).size, KEY_TOOLS.length);
 });

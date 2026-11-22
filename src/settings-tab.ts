@@ -8,8 +8,8 @@ import { renderDrawButtonList } from "./draw-buttons-list";
 import { importImages } from "./image-import";
 import { importFonts } from "./font-import";
 import { DEFAULT_SETTINGS, normalizeFolder } from "./settings";
-import { drawFunctions } from "./draw-functions";
-import { DEFAULT_TOOL_KEYS, KEY_TOOLS, setToolKey } from "./tool-keys";
+import { currentLang } from "./i18n";
+import { effectiveToolKeys } from "./tool-keys";
 
 // Suggests the folders of the vault under a text field.
 class FolderSuggest extends AbstractInputSuggest<TFolder> {
@@ -247,43 +247,14 @@ export class SketchnoteSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settingsData.contextPosition)
           .onChange((value) => void this.plugin.changeSettings({ contextPosition: value === `top` ? `top` : `bottom` })),
       );
-    new Setting(containerEl).setName(t(`Boutons à droite du dessin`)).setDesc(t(`Cochez les boutons à afficher, glissez la poignée d'une ligne pour changer l'ordre et ajoutez des séparations entre les groupes. Le même réglage est dans la fenêtre du premier bouton de la colonne.`));
+    new Setting(containerEl).setName(t(`Boutons à droite du dessin`)).setDesc(t(`Cochez les boutons à afficher, glissez la poignée d'une ligne pour changer l'ordre, ajoutez des séparations entre les groupes et tapez une lettre dans le champ d'un outil pour changer sa touche au clavier. Le même réglage est dans la fenêtre du premier bouton de la colonne.`));
     renderDrawButtonList(containerEl, {
       app: this.app,
       order: () => this.plugin.settingsData.drawButtonsOrder,
       hidden: () => this.plugin.settingsData.drawButtonsHidden,
       save: (order, hidden) => this.plugin.changeSettings({ drawButtonsOrder: order, drawButtonsHidden: hidden }),
+      keys: () => effectiveToolKeys(this.plugin.settingsData.toolKeys, currentLang()),
+      saveKeys: (keys) => this.plugin.changeSettings({ toolKeys: keys }),
     });
-
-    // The keys that choose a tool: one character each, never the same key for two tools.
-    new Setting(containerEl).setName(t(`Raccourcis clavier des outils`)).setHeading();
-    new Setting(containerEl)
-      .setName(t(`Une touche par outil`))
-      .setDesc(t(`Tapez la lettre qui choisit l'outil dans le dessin. Une touche déjà prise par un autre outil est refusée. Le bouton Raccourcis clavier du menu de l'œil montre la liste dans un petit menu flottant.`))
-      .addButton((b) => b.setButtonText(t(`Remettre les touches d'origine`)).onClick(() => void this.plugin.changeSettings({ toolKeys: { ...DEFAULT_TOOL_KEYS } }).then(() => this.display())));
-    const functions = drawFunctions();
-    for (const tool of KEY_TOOLS) {
-      const fn = functions.find((f) => f.tools[0] === tool);
-      if (!fn) continue;
-      new Setting(containerEl).setName(fn.name()).addText((text) => {
-        text.inputEl.maxLength = 1;
-        text.inputEl.addClass(`sketchnote-key-field`);
-        text.setValue(this.plugin.settingsData.toolKeys[tool].toUpperCase()).onChange((value) => {
-          if (value.trim() === ``) return;
-          const result = setToolKey(this.plugin.settingsData.toolKeys, tool, value);
-          if (`keys` in result) {
-            text.inputEl.removeClass(`mod-error`);
-            void this.plugin.changeSettings({ toolKeys: result.keys });
-            return;
-          }
-          text.inputEl.addClass(`mod-error`);
-          if (`taken` in result) {
-            const other = functions.find((f) => f.tools[0] === result.taken);
-            new Notice(t(`La touche {0} est déjà prise par l'outil {1}.`, value.toUpperCase(), other ? other.name() : ``));
-          }
-          text.setValue(this.plugin.settingsData.toolKeys[tool].toUpperCase());
-        });
-      });
-    }
   }
 }

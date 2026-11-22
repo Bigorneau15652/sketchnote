@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.41.1
+
+English
+
+The keys of the tools are changed in the list of the buttons of the drawer (the window of the first button of the column and the settings of Sketchnote): each tool has a field with its key, a letter typed there replaces it, a key that another tool already has is refused with a message, and a button gives the original keys back. The separate section of the keys in the settings is removed. The window that explains a function also gives its key, and the tooltip of each button of the column gives it too. The English version takes the first letter of the English name of the tool (S select, H hand, R rectangle, D diamond, O ellipse, G triangle, B bubble, F festoon, A arrow, L line, P pen, E eraser, T text, the dot for the point), and a key that the user changed stays. A separation of the column has more room around it, to set the groups apart.
+
+Français
+
+Les touches des outils se changent dans la liste des boutons du dessinateur (la fenêtre du premier bouton de la colonne et les réglages de Sketchnote) : chaque outil a un champ avec sa touche, une lettre tapée dans le champ la remplace, une touche déjà prise par un autre outil est refusée avec un message, et un bouton remet les touches d'origine. La section à part des touches dans les réglages est supprimée. La fenêtre qui explique une fonction donne aussi sa touche, et l'infobulle de chaque bouton de la colonne également. La version anglaise prend la première lettre du nom anglais de l'outil (S select, H hand, R rectangle, D diamond, O ellipse, G triangle, B bubble, F festoon, A arrow, L line, P pen, E eraser, T text, le point pour l'outil Point), et une touche que l'utilisateur a changée reste. Une séparation de la colonne a plus de place autour d'elle, pour bien séparer les groupes.
+
 ## 0.41.0
 
 English

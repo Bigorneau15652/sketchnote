@@ -356,7 +356,7 @@ const PAIRS: [string, string][] = [
   [`Afficher ce bouton`, `Show this button`],
   [`Ajouter une séparation`, `Add a separation`],
   [`Boutons du dessinateur`, `Buttons of the drawing`],
-  [`Cochez les boutons à afficher à droite du dessin. Glissez la poignée d'une ligne pour changer l'ordre, ajoutez des séparations entre les groupes, et ouvrez le point d'interrogation pour savoir ce que fait une fonction.`, `Check the buttons to show on the right of the drawing. Drag the handle of a row to change the order, add separations between the groups, and open the question mark to know what a function does.`],
+  [`Cochez les boutons à afficher à droite du dessin. Glissez la poignée d'une ligne pour changer l'ordre, ajoutez des séparations entre les groupes, tapez une lettre dans le champ d'un outil pour changer sa touche au clavier, et ouvrez le point d'interrogation pour savoir ce que fait une fonction.`, `Check the buttons to show on the right of the drawing. Drag the handle of a row to change the order, add separations between the groups, type a letter in the field of a tool to change its key on the keyboard, and open the question mark to know what a function does.`],
   [`Choisit les éléments du dessin pour les déplacer, les redimensionner, les tourner ou changer leur aspect.`, `Chooses the elements of the drawing to move them, resize them, turn them or change their look.`],
   [`Le menu règle la couleur, l'épaisseur, les pointillés, l'imperfection du tracé, les bords, le fuselage et les pointes aux deux bouts.`, `The menu sets the colour, the thickness, the dashes, the imperfection of the stroke, the edges, the taper and the heads at both ends.`],
   [`Écrit un texte : un clic pour une ligne, un glissement pour une zone où le texte passe à la ligne.`, `Writes a text: a click for a line, a drag for a zone where the text wraps.`],
@@ -379,7 +379,7 @@ const PAIRS: [string, string][] = [
   [`En bas`, `At the bottom`],
   [`En haut`, `At the top`],
   [`Boutons à droite du dessin`, `Buttons on the right of the drawing`],
-  [`Cochez les boutons à afficher, glissez la poignée d'une ligne pour changer l'ordre et ajoutez des séparations entre les groupes. Le même réglage est dans la fenêtre du premier bouton de la colonne.`, `Check the buttons to show, drag the handle of a row to change the order and add separations between the groups. The same setting is in the window of the first button of the column.`],
+  [`Cochez les boutons à afficher, glissez la poignée d'une ligne pour changer l'ordre, ajoutez des séparations entre les groupes et tapez une lettre dans le champ d'un outil pour changer sa touche au clavier. Le même réglage est dans la fenêtre du premier bouton de la colonne.`, `Check the buttons to show, drag the handle of a row to change the order, add separations between the groups and type a letter in the field of a tool to change its key on the keyboard. The same setting is in the window of the first button of the column.`],
   [`Enregistrer et copier le lien`, `Save and copy the link`],
   [`Lien copié : {0}`, `Link copied: {0}`],
   [`Transparence`, `Transparency`],
@@ -500,12 +500,10 @@ const PAIRS: [string, string][] = [
   [`Afficher plus de dessins`, `Show more drawings`],
   [`Aucun dessin dans la bibliothèque. Sélectionnez des éléments sur une page, puis utilisez le bouton Enregistrer dans la bibliothèque.`, `No drawing in the library. Select elements on a page, then use the button Save in the library.`],
   [`Raccourcis clavier`, `Keyboard shortcuts`],
-  [`Raccourcis clavier des outils`, `Keyboard shortcuts of the tools`],
-  [`Une touche par outil`, `One key for each tool`],
-  [`Tapez la lettre qui choisit l'outil dans le dessin. Une touche déjà prise par un autre outil est refusée. Le bouton Raccourcis clavier du menu de l'œil montre la liste dans un petit menu flottant.`, `Type the letter that chooses the tool in the drawing. A key that another tool already has is refused. The button Keyboard shortcuts of the eye menu shows the list in a small floating menu.`],
   [`Remettre les touches d'origine`, `Reset the keys`],
   [`La touche {0} est déjà prise par l'outil {1}.`, `The key {0} is already used by the tool {1}.`],
   [`Le bouton Raccourcis clavier montre ou cache un petit menu flottant qui donne la touche de chaque outil. Les touches se changent dans les réglages de Sketchnote.`, `The button Keyboard shortcuts shows or hides a small floating menu that gives the key of each tool. The keys are changed in the settings of Sketchnote.`],
+  [`Touche du clavier : {0}.`, `Keyboard key: {0}.`],
 ];
 
 export const EN: Record<string, string> = Object.fromEntries(PAIRS);
