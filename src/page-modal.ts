@@ -3,6 +3,7 @@ import { App, Modal, Setting } from "obsidian";
 import { ConfirmModal } from "./confirm-modal";
 import { MAX_PAGE_SIZE, MIN_PAGE_SIZE, PageSettings, Pattern } from "./file-format";
 import { t } from "./i18n";
+import { isPathDirection, isPathShape, PATH_DIRECTIONS, PATH_SHAPES, PathDirection, PathShape } from "./path-route";
 import { defaultLayout, LAYOUT_LIMITS, LAYOUT_TYPES, LayoutSettings, LayoutType, normalizeLayout, ROW_LIMITS } from "./layout";
 import { addColorSwatch } from "./color-modal";
 import { changeBackground, changeInk, changeOrientation, changePalette, changePreset, changeSize, changeStyle, detectPreset, PresetId } from "./page-settings";
@@ -164,6 +165,37 @@ export class PageModal extends Modal {
     new Setting(el)
       .setName(labels[layout.type])
       .addSlider((s) => s.setLimits(limits.min, limits.max, 1).setValue(layout.count).setDynamicTooltip().onChange((v) => this.apply(this.page, normalizeLayout({ ...layout, count: v }))));
+    if (layout.type === `path`) {
+      // The route of the arrow: its form, and the side of the page where it starts and the one where it arrives.
+      const shapes: Record<PathShape, string> = { snake: t(`Serpent`), zigzag: t(`Zigzag`), steps: t(`Marches`), diagonal: t(`Ligne droite`) };
+      const directions: Record<PathDirection, string> = {
+        down: t(`De haut en bas`),
+        up: t(`De bas en haut`),
+        right: t(`De gauche à droite`),
+        left: t(`De droite à gauche`),
+        "down-right": t(`En diagonale, du haut à gauche vers le bas à droite`),
+        "down-left": t(`En diagonale, du haut à droite vers le bas à gauche`),
+        "up-right": t(`En diagonale, du bas à gauche vers le haut à droite`),
+        "up-left": t(`En diagonale, du bas à droite vers le haut à gauche`),
+      };
+      new Setting(el)
+        .setName(t(`Forme de la flèche`))
+        .setDesc(t(`La flèche traverse la page. Les points qui marquent les étapes sont sur la flèche, et la zone de chaque étape est à côté de son point.`))
+        .addDropdown((d) => {
+          for (const shape of PATH_SHAPES) d.addOption(shape, shapes[shape]);
+          d.setValue(layout.shape ?? `snake`).onChange((v) => {
+            if (isPathShape(v)) this.apply(this.page, normalizeLayout({ ...layout, shape: v }));
+          });
+        });
+      new Setting(el)
+        .setName(t(`Sens de la flèche`))
+        .addDropdown((d) => {
+          for (const direction of PATH_DIRECTIONS) d.addOption(direction, directions[direction]);
+          d.setValue(layout.direction ?? `down`).onChange((v) => {
+            if (isPathDirection(v)) this.apply(this.page, normalizeLayout({ ...layout, direction: v }));
+          });
+        });
+    }
     if (layout.type === `modular`) {
       new Setting(el)
         .setName(t(`Nombre de lignes`))
