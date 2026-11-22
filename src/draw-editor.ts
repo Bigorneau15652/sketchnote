@@ -47,7 +47,7 @@ import { MIN_ERASE_SIZE } from "./erase-data";
 import { effectiveToolKeys, isFunctionKeyId, isKeyTool, KEY_TOOLS, keyTable, ToolKeys } from "./tool-keys";
 import { commandHotkeyText, functionCommandId } from "./hotkeys";
 import { MIN_STAMP_SIZE, STAMP_IDS, stampName, StampId } from "./stamps";
-import { DEFAULT_PORTRAIT, DEFAULT_PORTRAIT_SIZE, PortraitData, portraitElement, withPortrait } from "./portrait";
+import { DEFAULT_PORTRAIT, DEFAULT_PORTRAIT_LOOK, DEFAULT_PORTRAIT_SIZE, PortraitData, portraitElement, withPortrait } from "./portrait";
 import { PortraitWindow } from "./portrait-window";
 import { BUILD_IDS, buildName, LOOK_IDS, LookId, lookName, faceName, FACE_IDS, FaceId, BuildId, figureName, MIN_FIGURE_SIZE, MAX_FIGURE_SIZE, PoseId, POSE_IDS } from "./figure";
 import { BUBBLE_FORMS, BubbleForm, FESTOON_FORMS, FestoonForm, ShapeForm } from "./shape-forms";
@@ -580,6 +580,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
   // remembered for the next character while the application runs.
   protected portraitWindow: PortraitWindow | null = null;
   private static lastPortrait: PortraitData = { ...DEFAULT_PORTRAIT };
+  private static lastPortraitLine = { ...DEFAULT_PORTRAIT_LOOK };
 
   protected openPortrait(edit: IconElement | null): void {
     this.portraitWindow?.close();
@@ -592,10 +593,13 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       editing: edit !== null,
       ink,
       seed,
-      onOk: (data) => {
+      roughness: edit ? edit.roughness ?? 0 : DrawEditor.lastPortraitLine.roughness,
+      strokeWidth: edit ? edit.strokeWidth : DrawEditor.lastPortraitLine.strokeWidth,
+      onOk: (data, line) => {
         DrawEditor.lastPortrait = data;
-        if (edit) this.changePortrait(edit.id, data);
-        else this.putPortrait(data, seed);
+        DrawEditor.lastPortraitLine = line;
+        if (edit) this.changePortrait(edit.id, data, line);
+        else this.putPortrait(data, seed, line);
       },
       onClose: () => {
         this.portraitWindow = null;
@@ -607,7 +611,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
   }
 
   // Puts a new character in the middle of what is shown, as one change that can be undone, and selects it.
-  protected putPortrait(data: PortraitData, seed: number): void {
+  protected putPortrait(data: PortraitData, seed: number, line: { roughness: number; strokeWidth: number }): void {
     if (!this.style) return;
     const elements = this.elementsOf(this.doc);
     let cx = 200;
@@ -618,16 +622,16 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       cx = ((Math.max(sr.left, r.left) + Math.min(sr.right, r.right)) / 2 - r.left) / this.zoom;
       cy = ((Math.max(sr.top, r.top) + Math.min(sr.bottom, r.bottom)) / 2 - r.top) / this.zoom;
     }
-    const made = portraitElement(data, [cx, cy], DEFAULT_PORTRAIT_SIZE, { stroke: this.style.stroke, strokeWidth: this.style.strokeWidth, roughness: this.style.roughness, seed }, newId(elements));
+    const made = portraitElement(data, [cx, cy], DEFAULT_PORTRAIT_SIZE, { stroke: this.style.stroke, strokeWidth: line.strokeWidth, roughness: line.roughness, seed }, newId(elements));
     this.selected = new Set([made.id]);
     this.tool = `select`;
     this.commitElements([...elements, made]);
   }
 
   // Changes the choices of a character that is on the page, as one change that can be undone.
-  protected changePortrait(id: string, data: PortraitData): void {
+  protected changePortrait(id: string, data: PortraitData, line: { roughness: number; strokeWidth: number }): void {
     const elements = this.elementsOf(this.doc);
-    const next = elements.map((e) => (e.id === id && e.type === `icon` && !isLocked(e) ? withPortrait(e, data) : e));
+    const next = elements.map((e) => (e.id === id && e.type === `icon` && !isLocked(e) ? { ...withPortrait(e, data), roughness: line.roughness, strokeWidth: line.strokeWidth } : e));
     if (next.some((e, i) => e !== elements[i])) this.commitElements(next);
   }
 

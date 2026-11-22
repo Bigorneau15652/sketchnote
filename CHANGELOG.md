@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.47.2
+
+English
+
+The window of the character has two fields under the result: the imperfection of the line (from 0 for a clean line to 50) and its thickness, each with a minus and a plus. A new character starts with an imperfection of 3 and a thin line of 2, and the line is cleaner: a light imperfection now draws each line once instead of twice, and a double line only appears with a strong imperfection. A character that is changed with a double click keeps its own line and shows it in the fields. The parts of the face turn with it when the face looks to the left or to the right (three quarters view): the beard and the goatee follow the jaw, the moustache, the glasses, the eyebrows and the lashes follow the features, the nose sticks out toward the side (small, long or round), the hair line moves a little, the peak of a cap points where the face looks and a ponytail hangs behind the head, on the other side.
+
+Français
+
+La fenêtre du personnage a deux champs sous le résultat : l'imperfection du trait (de 0 pour un trait net à 50) et son épaisseur, chacun avec un moins et un plus. Un nouveau personnage commence avec une imperfection de 3 et un trait fin de 2, et le trait est plus net : une imperfection légère dessine maintenant chaque trait une fois au lieu de deux, et un double trait n'apparaît qu'avec une forte imperfection. Un personnage modifié par un double clic garde son trait et le montre dans les champs. Les éléments du visage tournent avec lui quand il regarde à gauche ou à droite (vue de trois quarts) : la barbe et le bouc suivent la mâchoire, la moustache, les lunettes, les sourcils et les cils suivent les traits, le nez sort du côté où il regarde (petit, long ou rond), la ligne des cheveux bouge un peu, la visière d'une casquette pointe là où le visage regarde et une queue de cheval pend derrière la tête, de l'autre côté.
+
 ## 0.47.1
 
 English

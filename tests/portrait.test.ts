@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { BEARD_IDS, DEFAULT_PORTRAIT, EARRING_IDS, GLASSES_IDS, HAIR_COLORS, HAIR_COLOR_IDS, HAIR_IDS, HAT_COLORS, HAT_IDS, mergePortrait, NOSE_IDS, partIconShapes, PARTS, portraitElement, portraitShapes, readPortrait, SEX_IDS, SHAPE_IDS, SKIN_IDS, SKIN_TONES, withPortrait } from "../src/portrait";
+import { BEARD_IDS, DEFAULT_PORTRAIT, DEFAULT_PORTRAIT_LOOK, EARRING_IDS, GLASSES_IDS, HAIR_COLORS, HAIR_COLOR_IDS, HAIR_IDS, HAT_COLORS, HAT_IDS, mergePortrait, NOSE_IDS, partIconShapes, PARTS, portraitElement, portraitShapes, readPortrait, SEX_IDS, SHAPE_IDS, SKIN_IDS, SKIN_TONES, withPortrait } from "../src/portrait";
 import { FACE_IDS, LOOK_IDS } from "../src/figure";
 import { iconToElements } from "../src/icon-strokes";
 import { iconData } from "../src/icon-registry";
@@ -146,4 +146,35 @@ test(`en transformant un personnage en traits, la peau et les cheveux gardent le
 
 test(`chaque choix a un pictogramme dessinable`, () => {
   for (const part of PARTS) for (const id of part.ids) assert.ok(partIconShapes(part.key, id).length >= 2, `${part.key} ${id}`);
+});
+
+test(`tout ce qui est sur le visage tourne avec lui : barbe, moustache, lunettes, nez, sourcils`, () => {
+  const centre = (shapes: { d: string }[]): number => {
+    const xs: number[] = [];
+    for (const sh of shapes) for (const m of sh.d.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)) xs.push(Number(m[1]));
+    return xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);
+  };
+  const part = (look: `front` | `left` | `right`, o: Record<string, string>) => portraitShapes({ ...DEFAULT_PORTRAIT, hair: `bald`, face: `blank`, nose: `small`, look, ...o } as never);
+  const nothing = (look: `front` | `left` | `right`) => centre(part(look, {}));
+  for (const [key, id] of [[`beard`, `moustache`], [`beard`, `handlebar`], [`beard`, `thin`], [`beard`, `goatee`], [`beard`, `short`], [`glasses`, `round`], [`glasses`, `square`]] as [string, string][]) {
+    const left = centre(part(`left`, { [key]: id })) - nothing(`left`);
+    const front = centre(part(`front`, { [key]: id })) - nothing(`front`);
+    const right = centre(part(`right`, { [key]: id })) - nothing(`right`);
+    assert.ok(left <= front + 0.01 && right >= front - 0.01, `${key} ${id} suit le visage : ${left.toFixed(2)} ${front.toFixed(2)} ${right.toFixed(2)}`);
+  }
+  // a nose seen from the side sticks out toward where the face looks, as far as its kind
+  assert.notDeepEqual(portraitShapes({ ...DEFAULT_PORTRAIT, look: `left`, nose: `long` }).map((sh) => sh.d), portraitShapes({ ...DEFAULT_PORTRAIT, look: `right`, nose: `long` }).map((sh) => sh.d));
+  // the peak of a cap points where the face looks, a ponytail hangs behind
+  const peak = (look: `front` | `left` | `right`): number => centre(portraitShapes({ ...DEFAULT_PORTRAIT, hair: `bald`, hat: `cap`, look }).slice(-2, -1));
+  // from the front the peak points to the right, as when the face looks right; it turns to the left when the face does
+  assert.ok(peak(`left`) < peak(`front`) && peak(`right`) >= peak(`front`));
+  const tail = (look: `front` | `left` | `right`): number => centre(portraitShapes({ ...DEFAULT_PORTRAIT, hair: `ponytail`, look }).slice(0, 2));
+  assert.ok(tail(`right`) < tail(`front`) && tail(`left`) >= tail(`front`));
+});
+
+test(`le trait d un nouveau personnage est net : une imperfection de 3 et un trait fin`, () => {
+  assert.equal(DEFAULT_PORTRAIT_LOOK.roughness, 0.3);
+  assert.equal(DEFAULT_PORTRAIT_LOOK.strokeWidth, 2);
+  const el = portraitElement(DEFAULT_PORTRAIT, [100, 100], 140, { stroke: `#000000`, strokeWidth: 5, roughness: 0.3, seed: 1 }, `p`);
+  assert.equal(el.strokeWidth, 5, `la largeur choisie est gardee`);
 });
