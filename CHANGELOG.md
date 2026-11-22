@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.43.1
+
+English
+
+Audit of the performance and of the security. Security: nothing to correct. The plugin builds no HTML from the content of a file, uses no eval, loads no code and makes no network call; every value read from a note, from the settings or from an imported file is checked (colours, paths of the vault, identifiers of fonts, sizes, numbers of elements, points and passes of the eraser, size of the files and of the archives of fonts), and the links to sites of free images and fonts open with noopener. Performance: during a gesture (moving, resizing or turning elements, drawing with the pen, the line or the arrow, passing the eraser) the whole page was drawn again at each move of the pointer. On a page of more than 400 elements it is now drawn once per frame of the screen, whatever the number of moves (a smaller page is drawn at once, as before), and the boxes used by the magnetism are measured once per gesture. Measured with 3 000 elements, one move of the pointer costs 3 ms instead of 73 ms, and with 8 000 elements 12 ms instead of 203 ms.
+
+Français
+
+Audit de la performance et de la sécurité. Sécurité : rien à corriger. Le plugin ne construit aucun HTML à partir du contenu d'un fichier, n'utilise pas eval, ne charge aucun code et ne fait aucun appel réseau ; toute valeur lue dans une note, dans les réglages ou dans un fichier importé est vérifiée (couleurs, chemins du coffre, identifiants de polices, tailles, nombres d'éléments, de points et de passages de la gomme, taille des fichiers et des archives de polices), et les liens vers les sites d'images et de polices libres s'ouvrent avec noopener. Performance : pendant un geste (déplacer, redimensionner ou tourner des éléments, dessiner au stylo, au trait ou à la flèche, passer la gomme) toute la page était redessinée à chaque mouvement du pointeur. Sur une page de plus de 400 éléments, elle est maintenant redessinée une fois par image de l'écran, quel que soit le nombre de mouvements (une page plus petite est redessinée tout de suite, comme avant), et les boîtes utilisées par l'aimantation sont mesurées une fois par geste. Mesuré avec 3 000 éléments, un mouvement du pointeur coûte 3 ms au lieu de 73 ms, et avec 8 000 éléments 12 ms au lieu de 203 ms.
+
 ## 0.43.0
 
 English

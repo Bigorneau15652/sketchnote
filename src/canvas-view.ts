@@ -614,9 +614,33 @@ export abstract class CanvasView<D> extends TextFileView {
 
   // Draws the elements again, without touching the surface.
   protected renderContent(): void {
+    this.cancelPendingContent();
     if (!this.content) return;
     while (this.content.firstChild) this.content.removeChild(this.content.firstChild);
     this.drawContent(this.content);
+  }
+
+  // On a page with many elements the content is not drawn again for each move of the pointer during a gesture: it is drawn once per frame of the screen, whatever the number of moves,
+  // so that the drawing keeps up with the hand. A small page is drawn at once. A call of renderContent draws at once and cancels the frame that was waiting.
+  private pendingFrame = 0;
+  private static readonly SLOW_PAGE = 400;
+
+  protected requestContent(): void {
+    if (this.elementsOf(this.doc).length <= CanvasView.SLOW_PAGE || typeof window.requestAnimationFrame !== `function`) {
+      this.renderContent();
+      return;
+    }
+    if (this.pendingFrame !== 0) return;
+    this.pendingFrame = window.requestAnimationFrame(() => {
+      this.pendingFrame = 0;
+      this.renderContent();
+    });
+  }
+
+  protected cancelPendingContent(): void {
+    if (this.pendingFrame === 0) return;
+    window.cancelAnimationFrame(this.pendingFrame);
+    this.pendingFrame = 0;
   }
 
   // Draws the editor overlay: selection frames and handles, selection rectangle, magnetism guide lines.
@@ -942,7 +966,7 @@ export abstract class CanvasView<D> extends TextFileView {
     }
     g.made = made;
     this.doc = this.withElements(this.baseDoc, made ? [...base, made] : base);
-    this.renderContent();
+    this.requestContent();
     this.renderUi();
   }
 
@@ -1032,7 +1056,7 @@ export abstract class CanvasView<D> extends TextFileView {
     if (g.touched.size === 0) return;
     g.moved = true;
     this.doc = this.withElements(this.baseDoc, base.map((el) => (g.touched.has(el.id) ? withErase(el, eraseFromPage(el, g.points, g.size, g.shape, g.density)) : el)));
-    this.renderContent();
+    this.requestContent();
   }
 
   // Starts the dragging of the tip of the tail of a bubble that is selected alone, when the pointer is on it: it points the tail at the speaker. Returns true when it started.
@@ -1117,7 +1141,7 @@ export abstract class CanvasView<D> extends TextFileView {
     const pts = cursor ? [...m.committed, cursor] : m.committed;
     const base = this.elementsOf(m.base);
     this.doc = this.withElements(m.base, pts.length >= 2 ? [...base, linearElement(m.tool, pts, this.style, m.id, m.seed)] : base);
-    this.renderContent();
+    this.requestContent();
     this.renderUi();
   }
 
@@ -1336,6 +1360,8 @@ export abstract class CanvasView<D> extends TextFileView {
   }
 
   // Moves the selected elements with the pointer, with magnetism on the extra targets, the surface and the other elements (the Alt key switches it off).
+  private snapCache: { doc: D; ids: Set<string>; boxes: Box[] } | null = null;
+
   private dragMove(g: Extract<Gesture, { kind: `move` }>, p: Point, e: PointerEvent): void {
     if (!this.baseDoc) return;
     if (!g.moved && Math.hypot(e.clientX - g.startClient[0], e.clientY - g.startClient[1]) < 3) return;
@@ -1346,7 +1372,9 @@ export abstract class CanvasView<D> extends TextFileView {
     this.guideY = [];
     const base = this.elementsOf(this.baseDoc);
     if (!e.altKey) {
-      const others = base.filter((el) => !g.ids.has(el.id)).map(elementBounds);
+      // The boxes of the other elements do not change during the gesture: they are measured once.
+      if (this.snapCache === null || this.snapCache.doc !== this.baseDoc || this.snapCache.ids !== g.ids) this.snapCache = { doc: this.baseDoc, ids: g.ids, boxes: base.filter((el) => !g.ids.has(el.id)).map(elementBounds) };
+      const others = this.snapCache.boxes;
       const size = this.surfaceSize();
       const moving: Box = { x: g.box.x + dx, y: g.box.y + dy, w: g.box.w, h: g.box.h };
       const snap = snapBox(moving, [...others, ...this.extraSnapTargets(), { x: 0, y: 0, w: size.w, h: size.h }], 6 / this.zoom);
@@ -1356,7 +1384,7 @@ export abstract class CanvasView<D> extends TextFileView {
       this.guideY = snap.guideY;
     }
     this.doc = this.withElements(this.baseDoc, base.map((el) => (g.ids.has(el.id) ? translate(el, dx, dy) : el)));
-    this.renderContent();
+    this.requestContent();
     this.renderUi();
   }
 
@@ -1376,7 +1404,7 @@ export abstract class CanvasView<D> extends TextFileView {
       const o = orig.get(el.id);
       return o ? change(o) : el;
     }));
-    this.renderContent();
+    this.requestContent();
     this.renderUi();
   }
 
@@ -1386,7 +1414,7 @@ export abstract class CanvasView<D> extends TextFileView {
     // A text zone has the height of its lines: it is measured again when its width or its letters change.
     const fitted = next.type === `text` && next.zone === true ? refitText(next, measureLine) : next;
     this.doc = this.withElements(this.baseDoc, this.elementsOf(this.baseDoc).map((el) => (el.id === fitted.id ? fitted : el)));
-    this.renderContent();
+    this.requestContent();
     this.renderUi();
   }
 
@@ -1461,6 +1489,7 @@ export abstract class CanvasView<D> extends TextFileView {
     if (this.baseDoc && this.gesture && this.gesture.kind !== `pan` && this.gesture.kind !== `marquee`) this.doc = this.baseDoc;
     this.gesture = null;
     this.baseDoc = null;
+    this.snapCache = null;
     this.guideX = [];
     this.guideY = [];
     this.marquee = null;
