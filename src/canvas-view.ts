@@ -479,10 +479,39 @@ export abstract class CanvasView<D> extends TextFileView {
     return over && !isLocked(over) ? `grab` : ``;
   }
 
+  // Called for a double click on an element before anything else: a view that handles it returns true.
+  protected activateFirst(_el: SketchElement): boolean {
+    void _el;
+    return false;
+  }
+
+  // Called when Escape is pressed with nothing to end. A view can leave a mode.
+  protected onEscapeIdle(): void {}
+
+  // Called for a double click on the empty surface (not on an element), with its position on the page.
+  protected onBlankDoubleClick(_p: Point): void {
+    void _p;
+  }
+
+  // The last click on the empty surface, to tell a double click.
+  private lastBlank: { time: number; x: number; y: number } | null = null;
+
+  // Tells whether an element can be selected, touched by the eraser and moved: a view can keep some elements out of reach (the page, while a zone is drawn, only lets the elements of that
+  // zone be touched).
+  protected isSelectable(_el: SketchElement): boolean {
+    void _el;
+    return true;
+  }
+
+  // Widens a set of selected ids to what is selected with them: the whole groups of the elements. A view can widen it more (a click on a drawing of a zone selects the whole zone).
+  protected expandSelection(ids: Set<string>, doc: D = this.doc): Set<string> {
+    return expandToGroups(this.elementsOf(doc), ids, this.editingGroup);
+  }
+
   // Returns the element under a point: the one on top that is touched on its line (or inside, when it has a fill), or else the shape that is selected when the point is
   // inside it, so that a shape without a fill can be written in and moved by its inside once it is selected.
   private hitAt(p: Point, touch: boolean): SketchElement | null {
-    const hit = hitTop(this.elementsOf(this.doc), p, this.reach(touch));
+    const hit = hitTop(this.elementsOf(this.doc).filter((e) => this.isSelectable(e)), p, this.reach(touch));
     if (hit) return hit;
     const only = this.selected.size === 1 ? this.selectedElements()[0] : undefined;
     return only && insideShape(only, p) ? only : null;
@@ -753,7 +782,7 @@ export abstract class CanvasView<D> extends TextFileView {
     else if (mod && key === `d`) void this.duplicateSelection();
     else if (mod && key === `l`) this.toggleLock();
     else if (mod && key === `a`) {
-      this.selected = new Set(this.elementsOf(this.doc).map((x) => x.id));
+      this.selected = new Set(this.elementsOf(this.doc).filter((x) => this.isSelectable(x)).map((x) => x.id));
       this.renderUi();
       this.updateBar();
     } else if (mod && key === `]`) this.reorderSelection(`front`);
@@ -762,12 +791,15 @@ export abstract class CanvasView<D> extends TextFileView {
       if (!this.deleteActivePoint()) this.deleteSelection();
     }
     else if (key === `escape`) {
+      // Escape with nothing to end (no tool, no selection, no group) lets the view leave what it is in (the page leaves the zone that is being drawn).
+      const idle = this.selected.size === 0 && this.tool === `select` && this.gesture === null && this.editingGroup === null;
       this.cancelGesture();
       this.selected.clear();
       this.editingGroup = null;
       this.tool = `select`;
       this.renderUi();
       this.updateBar();
+      if (idle) this.onEscapeIdle();
     } else if (flipKey) this.flipSelection(flipKey);
     else if (letter) this.setTool(letter);
     else if (key === `arrowleft`) this.nudge(-step, 0);
@@ -930,7 +962,7 @@ export abstract class CanvasView<D> extends TextFileView {
       this.leaveGroupIfOutside(hit);
       if (e.shiftKey || e.ctrlKey || e.metaKey) {
         // Shift or Ctrl (Cmd on a Mac) adds or removes an element, or a whole group, from the selection.
-        const unit = expandToGroups(this.elementsOf(this.doc), new Set([hit.id]), this.editingGroup);
+        const unit = this.expandSelection(new Set([hit.id]));
         const adding = !this.selected.has(hit.id);
         for (const id of unit) {
           if (adding) this.selected.add(id);
@@ -940,7 +972,7 @@ export abstract class CanvasView<D> extends TextFileView {
         this.updateBar();
         return;
       }
-      if (!this.selected.has(hit.id)) this.selected = expandToGroups(this.elementsOf(this.doc), new Set([hit.id]), this.editingGroup);
+      if (!this.selected.has(hit.id)) this.selected = this.expandSelection(new Set([hit.id]));
       // Only the free elements follow the pointer: when everything selected is locked, the click only selects.
       const movable = freeIds(this.elementsOf(this.doc), this.selected);
       const box = unionBox(this.selectedElements().filter((x) => movable.has(x.id)).map(elementBounds));
@@ -949,6 +981,16 @@ export abstract class CanvasView<D> extends TextFileView {
       this.updateBar();
       return;
     }
+    // A double click on the empty surface is for the view (the page enters the zone that is under it).
+    const nowBlank = Date.now();
+    const lastBlank = this.lastBlank;
+    if (!touch && lastBlank !== null && nowBlank - lastBlank.time < 400 && Math.hypot(e.clientX - lastBlank.x, e.clientY - lastBlank.y) < 10) {
+      this.lastBlank = null;
+      this.baseDoc = null;
+      this.onBlankDoubleClick(p);
+      return;
+    }
+    this.lastBlank = { time: nowBlank, x: e.clientX, y: e.clientY };
     const additive = e.shiftKey || e.ctrlKey || e.metaKey;
     const base = additive ? new Set(this.selected) : new Set<string>();
     if (!additive) {
@@ -975,7 +1017,7 @@ export abstract class CanvasView<D> extends TextFileView {
     if (!this.baseDoc) return;
     const base = this.elementsOf(this.baseDoc);
     const piece = from ? [from, to] : [to];
-    for (const el of base) if (!g.touched.has(el.id) && eraseTouches(el, piece, g.size)) g.touched.add(el.id);
+    for (const el of base) if (this.isSelectable(el) && !g.touched.has(el.id) && eraseTouches(el, piece, g.size)) g.touched.add(el.id);
     if (g.touched.size === 0) return;
     g.moved = true;
     this.doc = this.withElements(this.baseDoc, base.map((el) => (g.touched.has(el.id) ? withErase(el, eraseFromPage(el, g.points, g.size, g.shape, g.density)) : el)));
@@ -1175,6 +1217,8 @@ export abstract class CanvasView<D> extends TextFileView {
     const same = last !== null && last.id === el.id && now - last.time < 400 && Math.hypot(e.clientX - last.x, e.clientY - last.y) < 10;
     this.lastClick = same ? null : { id: el.id, time: now, x: e.clientX, y: e.clientY };
     if (!same) return;
+    // The view can take the double click before the groups do (the page enters the zone of the element).
+    if (this.activateFirst(el)) return;
     // A double click on a line or an arrow writes a text in the middle of it (a point is added by dragging the small round handle in the middle of a segment).
     if ((el.type === `line` || el.type === `arrow`) && topGroupId(el, this.editingGroup) === null) {
       this.selected = new Set([el.id]);
@@ -1273,8 +1317,8 @@ export abstract class CanvasView<D> extends TextFileView {
     } else if (g.kind === `marquee`) {
       g.current = p;
       this.marquee = { x: Math.min(g.start[0], p[0]), y: Math.min(g.start[1], p[1]), w: Math.abs(p[0] - g.start[0]), h: Math.abs(p[1] - g.start[1]) };
-      const inside = this.elementsOf(this.baseDoc).filter((el) => this.marquee && boxesIntersect(this.marquee, elementBounds(el))).map((el) => el.id);
-      this.selected = expandToGroups(this.elementsOf(this.baseDoc), new Set([...g.base, ...inside]), this.editingGroup);
+      const inside = this.elementsOf(this.baseDoc).filter((el) => this.isSelectable(el) && this.marquee && boxesIntersect(this.marquee, elementBounds(el))).map((el) => el.id);
+      this.selected = this.expandSelection(new Set([...g.base, ...inside]), this.baseDoc);
       this.renderUi();
       this.updateBar();
     }

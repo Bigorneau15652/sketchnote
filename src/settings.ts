@@ -18,33 +18,11 @@ export interface SketchnoteSettings {
   drawButtonsHidden: string[];
   contextPosition: `top` | `bottom`;
   contextLabels: boolean;
-  // Zen mode: whether the main window also goes full screen, and the place and size of the floating window of the page (kept from one time to the next, null for the usual ones).
+  // Zen mode: whether the window also goes full screen.
   zenFullscreen: boolean;
-  zenWindow: ZenWindow | null;
 }
 
-export interface ZenWindow {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-// The size of the floating window of the page the first time, and the smallest and the largest that is accepted when it is read.
-export const ZEN_DEFAULT_SIZE = { width: 640, height: 460 };
-export const ZEN_MIN_SIZE = { width: 320, height: 240 };
-export const ZEN_MAX_SIZE = { width: 6000, height: 4000 };
-
-// Reads the saved place of the floating window: four numbers in a sensible range, or null.
-export function readZenWindow(value: unknown): ZenWindow | null {
-  if (typeof value !== `object` || value === null || Array.isArray(value)) return null;
-  const v = value as Record<string, unknown>;
-  const num = (n: unknown, min: number, max: number): n is number => typeof n === `number` && Number.isFinite(n) && n >= min && n <= max;
-  if (!num(v.x, -20000, 20000) || !num(v.y, -20000, 20000) || !num(v.width, ZEN_MIN_SIZE.width, ZEN_MAX_SIZE.width) || !num(v.height, ZEN_MIN_SIZE.height, ZEN_MAX_SIZE.height)) return null;
-  return { x: Math.round(v.x), y: Math.round(v.y), width: Math.round(v.width), height: Math.round(v.height) };
-}
-
-export const DEFAULT_SETTINGS: SketchnoteSettings = { drawingsFolder: `Sketchnote dessins`, fontsFolder: `Sketchnote polices`, iconsFolder: `Sketchnote icônes`, imagesFolder: `Sketchnote images`, exportsFolder: `Sketchnote exports`, drawButtonsOrder: [...DEFAULT_ORDER], drawButtonsHidden: [], contextPosition: `bottom`, contextLabels: false, zenFullscreen: false, zenWindow: null };
+export const DEFAULT_SETTINGS: SketchnoteSettings = { drawingsFolder: `Sketchnote dessins`, fontsFolder: `Sketchnote polices`, iconsFolder: `Sketchnote icônes`, imagesFolder: `Sketchnote images`, exportsFolder: `Sketchnote exports`, drawButtonsOrder: [...DEFAULT_ORDER], drawButtonsHidden: [], contextPosition: `bottom`, contextLabels: false, zenFullscreen: false };
 
 // Returns a folder path of the vault in its clean form (slashes, no slash at the ends), or null when it is not acceptable: empty, with `..`, with a drive
 // letter, or with characters that a file name cannot hold. A leading slash (`/dessin`) is accepted and means the root of the vault.
@@ -68,7 +46,6 @@ export function readSettings(raw: unknown): SketchnoteSettings {
     contextPosition: r.contextPosition === `top` ? `top` : `bottom`,
     contextLabels: r.contextLabels === true,
     zenFullscreen: r.zenFullscreen === true,
-    zenWindow: readZenWindow(r.zenWindow),
   };
 }
 

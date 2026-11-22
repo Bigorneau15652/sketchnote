@@ -94,11 +94,8 @@ test(`les reglages invalides reprennent la valeur par defaut`, () => {
   assert.deepEqual(readSettings({ imagesFolder: `Mes images` }), { ...DEFAULT_SETTINGS, imagesFolder: `Mes images` });
   assert.deepEqual(readSettings({ imagesFolder: `../x` }), DEFAULT_SETTINGS);
   assert.equal(DEFAULT_SETTINGS.imagesFolder, `Sketchnote images`);
-  // Zen mode: the full screen is off by default, and the place of the floating window is read with its limits.
+  // Zen mode: the full screen is off by default.
   assert.equal(DEFAULT_SETTINGS.zenFullscreen, false);
-  assert.equal(DEFAULT_SETTINGS.zenWindow, null);
-  assert.deepEqual(readSettings({ zenWindow: { x: 100.4, y: -50, width: 700, height: 500 } }).zenWindow, { x: 100, y: -50, width: 700, height: 500 });
-  for (const bad of [{ x: 0, y: 0, width: 10, height: 500 }, { x: 0, y: 0, width: 700, height: 99999 }, { x: `a`, y: 0, width: 700, height: 500 }, { x: 0, y: 0, width: 700 }, [], 5, null]) assert.equal(readSettings({ zenWindow: bad }).zenWindow, null);
   assert.equal(readSettings({ zenFullscreen: true }).zenFullscreen, true);
   assert.equal(readSettings({ zenFullscreen: `oui` }).zenFullscreen, false);
 });

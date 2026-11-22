@@ -208,7 +208,7 @@ export class SketchnoteSettingTab extends PluginSettingTab {
     new Setting(containerEl).setName(t(`Mode zen`)).setHeading();
     new Setting(containerEl)
       .setName(t(`Plein écran en mode zen`))
-      .setDesc(t(`La fenêtre principale passe aussi en plein écran. La fenêtre flottante de la page peut alors se retrouver derrière : laissez cette case décochée si cela arrive. Le mode zen se lance avec le bouton Mode zen ou avec la commande du même nom de la palette de commandes (donnez-lui un raccourci dans les réglages d'Obsidian).`))
+      .setDesc(t(`La fenêtre passe aussi en plein écran. Le mode zen se lance avec le bouton Mode zen de la page ou avec la commande du même nom de la palette de commandes (donnez-lui un raccourci dans les réglages d'Obsidian).`))
       .addToggle((toggle) => toggle.setValue(this.plugin.settingsData.zenFullscreen).onChange((value) => void this.plugin.changeSettings({ zenFullscreen: value })));
 
     new Setting(containerEl).setName(t(`Dessinateur`)).setHeading();

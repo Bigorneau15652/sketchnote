@@ -47,6 +47,8 @@ export type Border = `none` | `double` | `double-reverse` | `frame` | `mat`;
 export const BORDERS: Border[] = [`none`, `double`, `double-reverse`, `frame`, `mat`];
 export const MAX_RADIUS = 1000;
 export const MIN_OPACITY = 0.05;
+// The highest number of a zone of the structure (see zone-content.ts).
+export const MAX_ZONE = 63;
 
 interface BaseElement {
   id: string;
@@ -58,6 +60,8 @@ interface BaseElement {
   flipY?: boolean;
   // A faded copy of the element, upside down, under it.
   reflection?: boolean;
+  // The number of the zone (the slot of the structure) that the element is drawn in (see zone-content.ts). Absent for an element that belongs to no zone.
+  slot?: number;
   // The passes of the eraser on the element (see erase.ts): the element is drawn through a mask that they cut out, and it is whole again without them.
   erase?: EraseStroke[];
   // How tall the reflection is, as a part of the height of the element (0.1 to 1, 0.6 when absent), and how much it fades away (0 for no fade, 1 for a fade to nothing, which is
@@ -423,11 +427,15 @@ function readFill(value: Record<string, unknown>): { fill?: string; fillStyle?: 
 }
 
 // Reads the optional effects shared by every element (opacity, shadow, mirror, reflection). Returns null when a field is present and wrong, otherwise the fields present.
-function readEffects(value: Record<string, unknown>): Pick<BaseElement, `opacity` | `shadow` | `flipX` | `flipY` | `reflection` | `reflectDepth` | `reflectFade` | `reflectGap` | `erase`> | null {
-  const out: Pick<BaseElement, `opacity` | `shadow` | `flipX` | `flipY` | `reflection` | `reflectDepth` | `reflectFade` | `reflectGap` | `erase`> = {};
+function readEffects(value: Record<string, unknown>): Pick<BaseElement, `opacity` | `shadow` | `flipX` | `flipY` | `reflection` | `reflectDepth` | `reflectFade` | `reflectGap` | `erase` | `slot`> | null {
+  const out: Pick<BaseElement, `opacity` | `shadow` | `flipX` | `flipY` | `reflection` | `reflectDepth` | `reflectFade` | `reflectGap` | `erase` | `slot`> = {};
   const erase = readErase(value.erase);
   if (erase === null) return null;
   if (erase !== undefined && erase.length > 0) out.erase = erase;
+  if (value.slot !== undefined) {
+    if (typeof value.slot !== `number` || !Number.isInteger(value.slot) || value.slot < 0 || value.slot > MAX_ZONE) return null;
+    out.slot = value.slot;
+  }
   if (value.reflectGap !== undefined) {
     if (typeof value.reflectGap !== `number` || !Number.isFinite(value.reflectGap) || value.reflectGap < 0 || value.reflectGap > 1) return null;
     if (value.reflectGap !== 0) out.reflectGap = value.reflectGap;

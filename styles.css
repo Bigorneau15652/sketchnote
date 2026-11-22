@@ -1113,44 +1113,14 @@ textarea.sketchnote-text-editor.is-label {
   height: 32px;
 }
 
-/* Zen mode: the menus of Obsidian are hidden, in the main window and in the floating window of the page. The title bar stays (it holds the buttons of the window). */
+/* Zen mode: the menus of Obsidian are hidden. The title bar stays (it holds the buttons of the window). */
 body.sketchnote-zen .workspace-ribbon,
 body.sketchnote-zen .status-bar,
 body.sketchnote-zen .workspace-split.mod-left-split,
 body.sketchnote-zen .workspace-split.mod-right-split,
 body.sketchnote-zen .view-header,
-body.sketchnote-zen:not(.is-popout-window) .workspace-tab-header-container {
+body.sketchnote-zen .workspace-tab-header-container {
   display: none !important;
-}
-
-/* In the floating window the bar of the tabs becomes a thin empty strip that moves the window when it is dragged (and keeps the buttons of the window clear of the page). */
-body.sketchnote-zen.is-popout-window .workspace-tab-header-container {
-  display: flex !important;
-  height: 32px;
-  min-height: 32px;
-  padding: 0;
-  margin: 0;
-  border: 0;
-  -webkit-app-region: drag;
-}
-
-body.sketchnote-zen.is-popout-window .workspace-tab-header-container > * {
-  display: none !important;
-}
-
-/* In the floating window there is no frame around the page: the page takes all the room. */
-body.sketchnote-zen.is-popout-window .workspace,
-body.sketchnote-zen.is-popout-window .workspace-split.mod-root,
-body.sketchnote-zen.is-popout-window .workspace-tabs,
-body.sketchnote-zen.is-popout-window .workspace-leaf,
-body.sketchnote-zen.is-popout-window .view-content {
-  margin: 0 !important;
-  padding: 0 !important;
-  border-radius: 0 !important;
-}
-
-body.sketchnote-zen.is-popout-window .sketchnote-scroller {
-  padding: 4px;
 }
 
 /* The tip of the tail of a selected comic bubble: a round handle that is dragged towards the speaker. */
@@ -1158,4 +1128,22 @@ body.sketchnote-zen.is-popout-window .sketchnote-scroller {
   fill: var(--interactive-accent);
   stroke: var(--background-primary);
   stroke-width: 2;
+}
+
+/* The two modes of the page. The buttons of the drawing (the column on the right, the back button) belong to the drawing mode; the buttons of the page (settings, zones, zen, export) belong
+   to the structure mode. The wrappers do not count in the layout of the bar. */
+.sketchnote-structure-buttons,
+.sketchnote-draw-buttons {
+  display: contents;
+}
+
+.sketchnote-mode-structure .sketchdraw-rail,
+.sketchnote-mode-structure .sketchnote-draw-buttons,
+.sketchnote-mode-draw .sketchnote-structure-buttons {
+  display: none;
+}
+
+/* The rest of the page, faded, while a zone is drawn. */
+.sketchnote-faded {
+  pointer-events: none;
 }
