@@ -63,10 +63,10 @@ export function drawFunctions(): DrawFunction[] {
       name: () => t(`Bulle de bande dessinée`),
       help: () => [
         t(`Trace une bulle en tirant sur le dessin : bulle de dialogue ovale ou rectangulaire, nuage de pensée ou bulle de cri. Un double clic sur la bulle permet d'écrire dedans.`),
-        t(`Le menu choisit la forme. Quand la bulle est sélectionnée, la petite poignée ronde au bout de sa queue se tire vers le personnage qui parle.`),
+        t(`Le menu flottant à côté du bouton choisit la forme. Quand la bulle est sélectionnée, la petite poignée ronde au bout de sa queue se tire vers le personnage qui parle.`),
       ],
       tools: [`bubble`],
-      sections: [`bubbleform`, `colour`, `fill`, `transparency`, `width`, `dash`, `look`, `border`],
+      sections: [`colour`, `fill`, `transparency`, `width`, `dash`, `look`, `border`],
     },
     {
       id: `festoon`,
@@ -74,10 +74,10 @@ export function drawFunctions(): DrawFunction[] {
       name: () => t(`Feston`),
       help: () => [
         t(`Trace un feston en tirant sur le dessin : un bandeau, une banderole, un fanion ou une étiquette dans lequel on peut écrire un titre.`),
-        t(`Le menu choisit la forme parmi onze modèles. Un double clic sur le feston permet d'écrire dedans.`),
+        t(`Le menu flottant à côté du bouton choisit la forme parmi onze modèles. Un double clic sur le feston permet d'écrire dedans.`),
       ],
       tools: [`festoon`],
-      sections: [`festoonform`, `colour`, `fill`, `transparency`, `width`, `dash`, `look`, `border`],
+      sections: [`colour`, `fill`, `transparency`, `width`, `dash`, `look`, `border`],
     },
     {
       id: `arrow`,
@@ -117,7 +117,7 @@ export function drawFunctions(): DrawFunction[] {
       icon: `dot`,
       name: () => t(`Point`),
       help: () => [
-        t(`Pose une petite forme d'un clic : un disque, une croix, une étoile, un cœur, une note de musique, un soleil et bien d'autres. Le menu choisit la forme et sa taille.`),
+        t(`Pose une petite forme d'un clic : un disque, une croix, une étoile, un cœur, une note de musique, un soleil et bien d'autres. Le menu flottant à côté du bouton choisit la forme, le menu du bas sa taille.`),
         t(`La forme se déplace, se redimensionne, se tourne et se colore ensuite comme une icône.`),
       ],
       tools: [`point`],
@@ -129,7 +129,7 @@ export function drawFunctions(): DrawFunction[] {
       name: () => t(`Gomme`),
       help: () => [
         t(`Efface en passant sur le dessin, comme avec une gomme : traits, formes remplies, icônes, images et textes sont effacés là où la gomme passe. Rien n'est détruit : les éléments gardent leur forme complète dessous.`),
-        t(`Le menu choisit la pointe (douce, ronde ou carrée), la taille et la densité. Le bouton Retirer les effacements des éléments sélectionnés les rend entiers.`),
+        t(`Le menu flottant à côté du bouton choisit la pointe (douce, ronde ou carrée), le menu du bas la taille et la densité. Le bouton Retirer les effacements des éléments sélectionnés les rend entiers.`),
       ],
       tools: [`eraser`],
       sections: [`eraser`],

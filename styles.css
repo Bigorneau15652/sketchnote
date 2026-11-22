@@ -1475,3 +1475,67 @@ body.sketchnote-zen .workspace-tab-header-container {
 .sketchdraw-context .sketchdraw-hidden {
   display: none;
 }
+
+/* The floating menu of the forms of a button (bubble, festoon, point, eraser): beside the button, on its left, a bar to move it and the forms from top to bottom. */
+.sketchdraw-has-flyout {
+  position: relative;
+}
+
+.sketchdraw-flyout {
+  position: absolute;
+  z-index: 30;
+  box-sizing: border-box;
+  padding: 0 3px 3px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.sketchdraw-flyout-handle {
+  height: 12px;
+  margin: 0 -3px 3px;
+  cursor: grab;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sketchdraw-flyout-handle::before {
+  content: ``;
+  width: 28px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--background-modifier-border-hover);
+}
+
+.sketchdraw-flyout-list {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 30px;
+  gap: 2px;
+}
+
+.sketchdraw-flyout .sketchdraw-flyout-button {
+  width: 30px;
+  height: 30px;
+  min-height: 0;
+  padding: 0;
+  justify-content: center;
+}
+
+.sketchnote-mode-structure .sketchdraw-flyout {
+  display: none;
+}
+
+/* The bottom row: the bar of the undo and the zoom on the left, the menu on the right. */
+.sketchdraw-footer .sketchnote-bar {
+  order: -1;
+  margin-left: 0;
+  margin-right: 8px;
+}
+
+.sketchdraw-context > :first-child {
+  margin-left: auto;
+}

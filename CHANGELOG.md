@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.40.0
+
+English
+
+Floating menus for the forms. A button that has several forms (the bubble, the festoon, the point and the eraser) turns active when it is chosen, shows the form that is chosen as its own pictogram, and opens a floating menu on its left with the other forms from top to bottom (four bubbles, eleven festoons, twenty-two shapes of the point on two columns, three tips of the eraser). A click on a form chooses it; the bar at the top of the floating menu moves it, and it stays where it was put. The menu stays open while the tool is active; a second click on the button closes it and a third opens it again. The choices of the forms are no longer in the menu of the bottom, which keeps the sizes and the colours. In the bottom row, the bar of the undo and of the zoom is now on the left and the menu on the right.
+
+Français
+
+Des menus flottants pour les formes. Un bouton qui a plusieurs formes (la bulle, le feston, le point et la gomme) change de couleur quand il est choisi, montre la forme choisie comme pictogramme et ouvre à sa gauche un menu flottant avec les autres formes de haut en bas (quatre bulles, onze festons, vingt-deux formes du point sur deux colonnes, trois pointes de gomme). Un clic sur une forme la choisit ; la barre du haut du menu flottant le déplace, et il reste où on l'a mis. Le menu reste ouvert tant que l'outil est actif ; un deuxième clic sur le bouton le ferme et un troisième le rouvre. Les choix de formes ne sont plus dans le menu du bas, qui garde les tailles et les couleurs. Dans la rangée du bas, la barre d'annulation et de zoom est maintenant à gauche et le menu à droite.
+
 ## 0.39.0
 
 English
