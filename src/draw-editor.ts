@@ -782,7 +782,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       const button = rail.createEl(`button`, { cls: `sketchnote-bar-button sketchdraw-rail-button` });
       button.dataset.fn = fn.id;
       const variants = this.variantsOf(fn.id);
-      const icon = variants ? variants.icon(variants.read(this.toolStyle())) : fn.icon;
+      const icon = variants && variants.showChoice ? variants.icon(variants.read(this.toolStyle())) : fn.icon;
       button.dataset.icon = icon;
       setIcon(button, icon);
       const toolKey = isKeyTool(fn.tools[0]) ? this.toolKeyList()[fn.tools[0]] : ``;
@@ -829,7 +829,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       row.dataset.tool = tool;
       const variants = this.variantsOf(fn.id);
       const icon = row.createSpan({ cls: `sketchdraw-shortcut-icon` });
-      setIcon(icon, variants ? variants.icon(variants.read(this.toolStyle())) : fn.icon);
+      setIcon(icon, variants && variants.showChoice ? variants.icon(variants.read(this.toolStyle())) : fn.icon);
       row.createSpan({ cls: `sketchdraw-shortcut-key`, text: keys[tool].toUpperCase() });
       row.setAttribute(`aria-label`, `${fn.name()} : ${keys[tool].toUpperCase()}`);
       row.toggleClass(`is-active`, this.tool === tool);
@@ -858,13 +858,14 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
   protected variantsOf(id: DrawFunctionId): Variants | null {
     switch (id) {
       case `bubble`:
-        return { values: [...BUBBLE_FORMS], icon: (v) => bubbleFormIcon(v as ShapeForm), name: (v) => formName(v as ShapeForm), read: (s) => s.bubbleForm, write: (v) => ({ bubbleForm: v as BubbleForm }) };
+        return { showChoice: true, values: [...BUBBLE_FORMS], icon: (v) => bubbleFormIcon(v as ShapeForm), name: (v) => formName(v as ShapeForm), read: (s) => s.bubbleForm, write: (v) => ({ bubbleForm: v as BubbleForm }) };
       case `festoon`:
-        return { values: [...FESTOON_FORMS], icon: (v) => bubbleFormIcon(v as ShapeForm), name: (v) => formName(v as ShapeForm), read: (s) => s.festoonForm, write: (v) => ({ festoonForm: v as FestoonForm }) };
+        return { showChoice: true, values: [...FESTOON_FORMS], icon: (v) => bubbleFormIcon(v as ShapeForm), name: (v) => formName(v as ShapeForm), read: (s) => s.festoonForm, write: (v) => ({ festoonForm: v as FestoonForm }) };
       case `point`:
-        return { values: [...STAMP_IDS], icon: (v) => `sketchnote-stamp-${v}`, name: (v) => stampName(v as StampId), read: (s) => s.stamp, write: (v) => ({ stamp: v as StampId }) };
+        return { showChoice: true, values: [...STAMP_IDS], icon: (v) => `sketchnote-stamp-${v}`, name: (v) => stampName(v as StampId), read: (s) => s.stamp, write: (v) => ({ stamp: v as StampId }) };
       case `eraser`:
         return {
+          showChoice: false,
           values: [`soft`, `round`, `square`],
           icon: (v) => `sketchnote-erase-${v}`,
           name: (v) => (v === `soft` ? t(`Pointe douce`) : v === `round` ? t(`Pointe ronde`) : t(`Pointe carrée`)),
@@ -963,6 +964,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       const id = b.dataset.fn as DrawFunctionId | undefined;
       const variants = id ? this.variantsOf(id) : null;
       if (!variants) continue;
+      if (!variants.showChoice) continue;
       const icon = variants.icon(variants.read(this.toolStyle()));
       if (b.dataset.icon !== icon) {
         b.dataset.icon = icon;
@@ -1669,6 +1671,8 @@ function formName(form: ShapeForm): string {
 // The forms that a function offers in its floating menu.
 interface Variants {
   values: string[];
+  // Whether the button of the function shows the pictogram of the choice that is made (the eraser keeps its own, the tips are only in the floating menu).
+  showChoice: boolean;
   icon: (value: string) => string;
   name: (value: string) => string;
   read: (s: ToolStyle) => string;

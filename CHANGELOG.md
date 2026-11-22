@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.41.2
+
+English
+
+The button of the eraser keeps its own pictogram (the tilted block on a line). It showed the tip that was chosen, a faded disc, which did not look like an eraser. The tips are only in the floating menu now. The bubble, the festoon and the point keep showing the form that is chosen.
+
+Français
+
+Le bouton de la gomme garde son propre pictogramme (le bloc incliné sur un trait). Il montrait la pointe choisie, un rond estompé, qui ne ressemblait pas à une gomme. Les pointes sont seulement dans le menu flottant. La bulle, le feston et le point continuent de montrer la forme choisie.
+
 ## 0.41.1
 
 English
