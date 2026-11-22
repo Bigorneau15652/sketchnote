@@ -104,5 +104,5 @@ export function eraseCaps(shape: EraseShape): { cap: `round` | `square`; join: `
 }
 
 // How much a soft tip is blurred, as a part of its size, and how wide its line is so that the blur does not make it wider than the tip.
-export const SOFT_BLUR = 0.2;
-export const SOFT_WIDTH = 0.75;
+export const SOFT_BLUR = 0.07;
+export const SOFT_WIDTH = 0.85;

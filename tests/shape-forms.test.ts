@@ -5,7 +5,7 @@ import { elementBounds, tailFromPage, tailPagePoint } from "../src/geometry";
 import { labelBox } from "../src/labels";
 import { elementPaths } from "../src/shape-paths";
 import { applyStyle, defaultStyle, styleOf } from "../src/style";
-import { BUBBLE_FORMS, DEFAULT_TAIL, FESTOON_FORMS, formPath, formRoom, isShapeForm, readTail } from "../src/shape-forms";
+import { BUBBLE_FORMS, DEFAULT_TAIL, FESTOON_FORMS, formPath, formRoom, isFestoonForm, isShapeForm, readTail } from "../src/shape-forms";
 import { elementFromDrag } from "../src/tools";
 import { panelKinds, sectionShown } from "../src/panel-kinds";
 
@@ -157,4 +157,19 @@ test(`la bulle rectangulaire a de petits coins ronds et une queue fine, courbe d
   // the corners are small
   const corner = points(formPath(`rounded`, 100, 50, 200, 100, [-0.28, 0.78])).filter((p) => p[1] < 50.5 && p[0] < 110);
   assert.ok(corner.length > 0 && Math.min(...corner.map((p) => p[0])) > 100);
+});
+
+test(`le feston en nuage irregulier tient dans sa boite, a des bosses de tailles differentes et est le meme a chaque fois`, () => {
+  assert.ok(FESTOON_FORMS.includes(`cloud`));
+  assert.equal(isFestoonForm(`cloud`), true);
+  const a = formPath(`cloud`, 10, 20, 200, 100);
+  assert.equal(a, formPath(`cloud`, 10, 20, 200, 100));
+  const nums = [...a.matchAll(/(-?\d+(?:\.\d+)?)[ ,](-?\d+(?:\.\d+)?)/g)].map((m) => [Number(m[1]), Number(m[2])]);
+  assert.ok(nums.length > 100, `assez de points`);
+  for (const [x, y] of nums) assert.ok(x >= 9 && x <= 211 && y >= 19 && y <= 121, `dans la boite : ${x},${y}`);
+  // The radius of the bumps changes along the cloud.
+  const radii = nums.map(([x, y]) => Math.hypot((x - 110) / 100, (y - 70) / 50));
+  assert.ok(Math.max(...radii) - Math.min(...radii) > 0.15);
+  const room = formRoom(`cloud`);
+  assert.ok(room.w > 0.5 && room.h > 0.5);
 });

@@ -26,7 +26,7 @@ import { brightness } from "./page-background";
 import { currentLang, t } from "./i18n";
 import { panelKinds, PanelSection, sectionShown } from "./panel-kinds";
 import { BRUSH_DEFS, BRUSH_KINDS, BrushKind, BrushParam, brushMake, paramsOf, previewPoints } from "./brushes";
-import { eraserCursor, penCursor } from "./cursors";
+import { penCursor } from "./cursors";
 import { allLocked, isLocked } from "./lock";
 import { MAX_REGULARITY } from "./tidy";
 import { WARP_KINDS, WarpKind } from "./text-warp";
@@ -922,7 +922,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       button.toggleClass(`is-active`, this.activeFn === fn.id);
       button.addEventListener(`click`, () => {
         // A second click on the active button of a function that has forms closes or opens its floating menu.
-        if (variants && this.activeFn === fn.id && this.tool === fn.tools[0]) {
+        if ((variants || fn.id === `pen`) && this.activeFn === fn.id && this.tool === fn.tools[0]) {
           this.flyoutHidden = !this.flyoutHidden;
           this.syncFlyout();
           this.contentEl.focus({ preventScroll: true });
@@ -1024,6 +1024,10 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     }
     this.flyout?.remove();
     this.flyout = null;
+    if (this.activeFn === `pen`) {
+      this.syncBrushFlyout();
+      return;
+    }
     const variants = this.variantsOf(this.activeFn);
     const fn = drawFunctions().find((f) => f.id === this.activeFn);
     const rail = this.rail;
@@ -1054,6 +1058,48 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     const pos = this.flyoutPos ?? { left: rail.getBoundingClientRect().left - host.left - width - 4, top: a.top - host.top - 4 };
     this.placeFlyout(box, pos.left, pos.top);
     this.dragFlyout(handle, box);
+  }
+
+  // Shows the floating menu of the brushes while the pen is the tool: each brush as a stroke drawn with it, in the colour that is chosen, with its name; the brush in use is lit. It can be
+  // moved by its top bar, and a second click on the button of the pen closes it.
+  protected syncBrushFlyout(): void {
+    const fn = drawFunctions().find((f) => f.id === `pen`);
+    const rail = this.rail;
+    if (!fn || this.flyoutHidden || !rail || this.tool !== `pen`) return;
+    const anchor = Array.from(rail.querySelectorAll<HTMLElement>(`.sketchdraw-rail-button`)).find((b) => b.dataset.fn === `pen`);
+    if (!anchor || anchor.offsetParent === null) return;
+    const box = this.contentEl.createDiv({ cls: `sketchdraw-flyout sketchdraw-brush-flyout` });
+    this.flyout = box;
+    const handle = box.createDiv({ cls: `sketchdraw-flyout-handle` });
+    handle.setAttribute(`aria-label`, t(`Pinceau`));
+    const list = box.createDiv({ cls: `sketchdraw-brush-flyout-list` });
+    for (const brush of BRUSH_KINDS) {
+      const row = list.createEl(`button`, { cls: `sketchdraw-brush-row` });
+      row.dataset.brush = brush;
+      this.brushPreview(row, brush);
+      row.createSpan({ cls: `sketchdraw-brush-name`, text: brushName(brush) });
+      row.setAttribute(`aria-label`, brushName(brush));
+      row.addEventListener(`click`, () => {
+        this.change({ brush });
+        this.contentEl.focus({ preventScroll: true });
+      });
+    }
+    this.refreshBrushFlyout();
+    const host = this.contentEl.getBoundingClientRect();
+    const a = anchor.getBoundingClientRect();
+    const pos = this.flyoutPos ?? { left: rail.getBoundingClientRect().left - host.left - box.offsetWidth - 4, top: a.top - host.top - 4 };
+    this.placeFlyout(box, pos.left, pos.top);
+    this.dragFlyout(handle, box);
+  }
+
+  // Lights the brush in use in the floating menu of the brushes, and gives the strokes the colour that is chosen.
+  protected refreshBrushFlyout(): void {
+    if (!this.flyout || !this.flyout.classList.contains(`sketchdraw-brush-flyout`)) return;
+    const s = this.currentStyle();
+    for (const row of Array.from(this.flyout.querySelectorAll<HTMLElement>(`.sketchdraw-brush-row`))) {
+      row.toggleClass(`is-active`, row.dataset.brush === s.brush);
+      row.style.color = s.stroke;
+    }
   }
 
   // Puts the floating menu at a place, kept inside the view.
@@ -1106,6 +1152,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     }
     const variants = this.variantsOf(this.activeFn);
     if (this.flyout && variants) for (const b of Array.from(this.flyout.querySelectorAll<HTMLElement>(`.sketchdraw-flyout-button`))) b.toggleClass(`is-active`, variants.read(this.toolStyle()) === b.dataset.value);
+    this.refreshBrushFlyout();
     void s;
   }
 
@@ -1192,7 +1239,6 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     // The brush of the pen: one menu, then how much paint it puts and, for the nib, its angle. The thickness is the one of every line.
     const brushSec = this.section(props, `brush`);
     this.sectionIcon(brushSec, `paintbrush`, t(`Pinceau`));
-    this.brushPicker(brushSec);
     for (const def of BRUSH_SLIDERS) {
       this.slider(brushSec, brushSliderShort(def.param), brushSliderLabel(def.param), def.min, def.max, def.step, (s) => Math.round(s[def.field] * def.scale), (v) => ({ [def.field]: v / def.scale }), (s) => BRUSH_DEFS[s.brush].params.includes(def.param));
     }
@@ -1434,103 +1480,39 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     }, read });
   }
 
-  // Adds the choice of the brush: a button that shows the pictogram of the brush (a stroke drawn with it, wide) and its name, which opens the list of the brushes, each with a stroke
-  // drawn with it. The pictograms are drawn with the same code as the brushes themselves, so that they look like what the brush makes.
-  protected brushPicker(parent: HTMLElement): void {
-    const wrap = parent.createDiv({ cls: `sketchdraw-brushes` });
-    const button = wrap.createEl(`button`, { cls: `sketchdraw-brush-current` });
-    button.setAttribute(`aria-label`, t(`Pinceau`));
-    const list = wrap.createDiv({ cls: `sketchdraw-brush-list` });
-    const rows: { brush: BrushKind; el: HTMLElement }[] = [];
-    // Draws a stroke made with a brush in a small picture, in the colour of the text.
-    const preview = (host: HTMLElement, brush: BrushKind): void => {
-      const svg = svgEl(`svg`, { viewBox: `0 0 100 40`, class: `sketchdraw-brush-preview`, preserveAspectRatio: `xMidYMid meet` }, host);
-      const params = paramsOf(brush, {});
-      if (brush === `round`) {
-        const pts = previewPoints();
-        svgEl(`path`, { d: `M${pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(` L`)}`, fill: `none`, stroke: `currentColor`, "stroke-width": 3.2, "stroke-linecap": `round`, "stroke-linejoin": `round` }, svg);
-        return;
-      }
-      const made = brushMake({ brush, points: previewPoints(), width: BRUSH_DEFS[brush].previewWidth, color: `currentColor`, seed: 7, params, dynamic: true });
-      // The gaps of a brush with little paint on it, as in the drawing.
-      let masked: Element = svg;
-      if (made.holes !== ``) {
-        previewCount++;
-        const mid = `skpm${previewCount}`;
-        const mask = svgEl(`mask`, { id: mid, maskUnits: `userSpaceOnUse`, x: -10, y: -10, width: 120, height: 60 }, svgEl(`defs`, {}, svg));
-        svgEl(`rect`, { x: -10, y: -10, width: 120, height: 60, fill: `#ffffff` }, mask);
-        svgEl(`path`, { d: made.holes, fill: `#000000`, stroke: `none` }, mask);
-        masked = svgEl(`g`, { mask: `url(#${mid})` }, svg);
-      }
-      for (const piece of made.pieces) {
-        let into: Element = masked;
-        if (piece.blur) {
-          // A brush with a soft edge is drawn with its blur in the picture too.
-          previewCount++;
-          const id = `skpv${previewCount}`;
-          const filter = svgEl(`filter`, { id, filterUnits: `userSpaceOnUse`, x: -10, y: -10, width: 120, height: 60 }, svgEl(`defs`, {}, svg));
-          svgEl(`feGaussianBlur`, { stdDeviation: piece.blur }, filter);
-          into = svgEl(`g`, { filter: `url(#${id})` }, masked);
-        }
-        svgEl(`path`, { d: piece.d, stroke: piece.stroke, "stroke-width": piece.strokeWidth, fill: piece.fill, opacity: piece.opacity, "stroke-linecap": `round` }, into);
-      }
-    };
-    for (const brush of BRUSH_KINDS) {
-      const row = list.createEl(`button`, { cls: `sketchdraw-brush-row` });
-      preview(row, brush);
-      row.createSpan({ cls: `sketchdraw-brush-name`, text: brushName(brush) });
-      row.setAttribute(`aria-label`, brushName(brush));
-      row.addEventListener(`click`, () => {
-        close();
-        this.change({ brush });
-        this.contentEl.focus({ preventScroll: true });
-      });
-      rows.push({ brush, el: row });
+  // Draws a stroke made with a brush in a small picture, in the colour of the text. The pictograms are drawn with the same code as the brushes themselves, so that they look
+  // like what the brush makes.
+  protected brushPreview(host: HTMLElement, brush: BrushKind): void {
+    const svg = svgEl(`svg`, { viewBox: `0 0 100 40`, class: `sketchdraw-brush-preview`, preserveAspectRatio: `xMidYMid meet` }, host);
+    const params = paramsOf(brush, {});
+    if (brush === `round`) {
+      const pts = previewPoints();
+      svgEl(`path`, { d: `M${pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(` L`)}`, fill: `none`, stroke: `currentColor`, "stroke-width": 3.2, "stroke-linecap": `round`, "stroke-linejoin": `round` }, svg);
+      return;
     }
-    // The list opens over the menu (fixed, next to the button), and closes with a click elsewhere or Escape.
-    let stop: (() => void) | null = null;
-    const close = (): void => {
-      list.removeClass(`is-open`);
-      stop?.();
-      stop = null;
-    };
-    button.addEventListener(`click`, () => {
-      if (list.classList.contains(`is-open`)) {
-        close();
-        return;
+    const made = brushMake({ brush, points: previewPoints(), width: BRUSH_DEFS[brush].previewWidth, color: `currentColor`, seed: 7, params, dynamic: true });
+    // The gaps of a brush with little paint on it, as in the drawing.
+    let masked: Element = svg;
+    if (made.holes !== ``) {
+      previewCount++;
+      const mid = `skpm${previewCount}`;
+      const mask = svgEl(`mask`, { id: mid, maskUnits: `userSpaceOnUse`, x: -10, y: -10, width: 120, height: 60 }, svgEl(`defs`, {}, svg));
+      svgEl(`rect`, { x: -10, y: -10, width: 120, height: 60, fill: `#ffffff` }, mask);
+      svgEl(`path`, { d: made.holes, fill: `#000000`, stroke: `none` }, mask);
+      masked = svgEl(`g`, { mask: `url(#${mid})` }, svg);
+    }
+    for (const piece of made.pieces) {
+      let into: Element = masked;
+      if (piece.blur) {
+        // A brush with a soft edge is drawn with its blur in the picture too.
+        previewCount++;
+        const id = `skpv${previewCount}`;
+        const filter = svgEl(`filter`, { id, filterUnits: `userSpaceOnUse`, x: -10, y: -10, width: 120, height: 60 }, svgEl(`defs`, {}, svg));
+        svgEl(`feGaussianBlur`, { stdDeviation: piece.blur }, filter);
+        into = svgEl(`g`, { filter: `url(#${id})` }, masked);
       }
-      const at = button.getBoundingClientRect();
-      const view = this.contentEl.ownerDocument.defaultView ?? window;
-      list.style.left = `${Math.max(4, Math.min(at.left, view.innerWidth - 330))}px`;
-      if (at.top > view.innerHeight / 2) {
-        list.style.bottom = `${view.innerHeight - at.top + 4}px`;
-        list.style.top = ``;
-      } else {
-        list.style.top = `${at.bottom + 4}px`;
-        list.style.bottom = ``;
-      }
-      list.addClass(`is-open`);
-      const away = (e: Event): void => {
-        if (e.target instanceof Node && (list.contains(e.target) || button.contains(e.target))) return;
-        close();
-      };
-      const key = (e: KeyboardEvent): void => {
-        if (e.key === `Escape`) close();
-      };
-      const doc = this.contentEl.ownerDocument;
-      doc.addEventListener(`pointerdown`, away, true);
-      doc.addEventListener(`keydown`, key, true);
-      stop = () => {
-        doc.removeEventListener(`pointerdown`, away, true);
-        doc.removeEventListener(`keydown`, key, true);
-      };
-    });
-    this.syncers.push((s) => {
-      button.empty();
-      preview(button, s.brush);
-      button.setAttribute(`aria-label`, `${t(`Pinceau`)} : ${brushName(s.brush)}`);
-      for (const r of rows) r.el.toggleClass(`is-active`, r.brush === s.brush);
-    });
+      svgEl(`path`, { d: piece.d, stroke: piece.stroke, "stroke-width": piece.strokeWidth, fill: piece.fill, opacity: piece.opacity, "stroke-linecap": `round` }, into);
+    }
   }
 
   // Adds a drop-down menu: a button that shows the choice that is made (its pictogram, its name as the tooltip) and opens the list of choices, each with its pictogram. The
@@ -1676,9 +1658,14 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     return this.style && tool === `pen` ? { ...this.style, ...this.penLook } : this.style;
   }
 
+  protected eraserTip(): { size: number; square: boolean } | null {
+    return this.tool === `eraser` && this.style ? { size: this.style.eraseSize, square: this.style.eraseShape === `square` } : null;
+  }
+
   // The cursor of the pen: a ring as large as the stroke, or a small target when the stroke is small (see cursors.ts).
   protected creationCursor(): string | null {
-    if (this.tool === `eraser` && this.style) return eraserCursor(this.style.eraseSize * this.zoom, this.style.eraseShape === `square`);
+    // The tip of the eraser is shown over the page at its true size (eraserTip): the cursor is only the small target.
+    if (this.tool === `eraser` && this.style) return penCursor(0);
     const style = this.styleFor(`pen`);
     if (this.tool !== `pen` || !style) return null;
     const def = BRUSH_DEFS[style.brush];
@@ -1810,6 +1797,7 @@ function formName(form: ShapeForm): string {
     hexagon: t(`Hexagone`),
     flag: t(`Drapeau à queue d'aronde`),
     seal: t(`Sceau`),
+    cloud: t(`Nuage irrégulier`),
   };
   return names[form];
 }

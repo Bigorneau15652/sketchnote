@@ -452,6 +452,39 @@ export abstract class CanvasView<D> extends TextFileView {
     return null;
   }
 
+  // The tip of the eraser to show over the page (its size in units of the page, and whether it is square), or null when there is none. A view can give one.
+  protected eraserTip(): { size: number; square: boolean } | null {
+    return null;
+  }
+
+  // Shows the tip of the eraser as an outline that follows the pointer, at its true size on the page whatever the zoom (a cursor picture cannot be larger than 128 pixels). Null removes it.
+  private moveTip(e: PointerEvent | null): void {
+    const tip = e && e.pointerType !== `touch` ? this.eraserTip() : null;
+    const svg = this.svg;
+    if (!tip || !e || !svg || this.tool !== `eraser`) {
+      svg?.querySelector(`.sketchnote-tip`)?.remove();
+      return;
+    }
+    const p = this.pagePoint(e);
+    let group = svg.querySelector(`.sketchnote-tip`);
+    if (!group) {
+      group = svgEl(`g`, { class: `sketchnote-tip`, "pointer-events": `none` }, svg);
+      for (const [colour, width] of [[`#ffffff`, 3.6], [`#111111`, 1.4]] as [string, number][]) svgEl(tip.square ? `rect` : `circle`, { fill: `none`, stroke: colour, "stroke-width": width, "vector-effect": `non-scaling-stroke` }, group);
+    }
+    for (const shape of Array.from(group.children)) {
+      if (tip.square) {
+        shape.setAttribute(`x`, String(p[0] - tip.size / 2));
+        shape.setAttribute(`y`, String(p[1] - tip.size / 2));
+        shape.setAttribute(`width`, String(tip.size));
+        shape.setAttribute(`height`, String(tip.size));
+      } else {
+        shape.setAttribute(`cx`, String(p[0]));
+        shape.setAttribute(`cy`, String(p[1]));
+        shape.setAttribute(`r`, String(tip.size / 2));
+      }
+    }
+  }
+
   // The style that a new element of a tool is made with. A view can add what it keeps for a tool (the pen keeps its colour and its thickness).
   protected styleFor(_tool: CreationTool): ToolStyle | null {
     void _tool;
@@ -868,12 +901,16 @@ export abstract class CanvasView<D> extends TextFileView {
   // Binds the pointer: mouse, finger and pen. One pointer acts on the elements or drags the surface; two fingers pinch to zoom; Ctrl or Cmd with the wheel zooms.
   private bindPointer(scroller: HTMLElement): void {
     this.registerDomEvent(scroller, `pointerdown`, (e: PointerEvent) => this.onPointerDown(e));
-    this.registerDomEvent(scroller, `pointermove`, (e: PointerEvent) => this.onPointerMove(e));
+    this.registerDomEvent(scroller, `pointermove`, (e: PointerEvent) => {
+      this.moveTip(e);
+      this.onPointerMove(e);
+    });
     this.registerDomEvent(scroller, `pointerup`, (e: PointerEvent) => {
       this.onPointerUp(e);
       this.hoverCursor(e);
     });
     this.registerDomEvent(scroller, `pointerleave`, () => {
+      this.moveTip(null);
       if (!this.gesture) scroller.style.cursor = ``;
     });
     this.registerDomEvent(scroller, `pointercancel`, (e: PointerEvent) => {
