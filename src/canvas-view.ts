@@ -28,7 +28,9 @@ import { MAX_FREEDRAW_POINTS } from "./elements";
 import { isBubbleForm } from "./shape-forms";
 import { eraseFromPage, eraseTouches, withErase, withoutErase } from "./erase";
 import type { EraseShape } from "./erase-data";
-import { clampZoom, fitZoom, pinchZoom, sliderToZoom, stepZoom, zoomToSlider } from "./viewport";
+import { clampZoom, fitZoom, MAX_ZOOM, MIN_ZOOM, pinchZoom, stepZoom } from "./viewport";
+import { ZOOM_PRESETS } from "./field-values";
+import { valueField, ValueField } from "./value-field";
 
 export type Tool = `select` | `hand` | `text` | `eraser` | CreationTool;
 export type Point = [number, number];
@@ -87,8 +89,7 @@ export abstract class CanvasView<D> extends TextFileView {
   protected svg: SVGElement | null = null;
   protected content: SVGElement | null = null;
   protected ui: SVGElement | null = null;
-  private zoomLabel: HTMLElement | null = null;
-  private zoomSlider: HTMLInputElement | null = null;
+  private zoomField: ValueField | null = null;
   protected readonly toolButtons = new Map<Tool, HTMLElement[]>();
   private undoButton: HTMLButtonElement | null = null;
   private redoButton: HTMLButtonElement | null = null;
@@ -225,8 +226,7 @@ export abstract class CanvasView<D> extends TextFileView {
     this.content = null;
     this.ui = null;
     this.scroller = null;
-    this.zoomLabel = null;
-    this.zoomSlider = null;
+    this.zoomField = null;
     this.toolButtons.clear();
     this.selected.clear();
     this.history.clear();
@@ -285,17 +285,11 @@ export abstract class CanvasView<D> extends TextFileView {
     this.redoButton = this.button(bar, `redo-2`, t(`Rétablir`), () => this.redo());
 
     this.button(bar, `zoom-out`, t(`Zoom arrière`), () => this.setZoom(stepZoom(this.zoom, -1)));
-    const slider = bar.createEl(`input`, { cls: `sketchnote-zoom-slider`, type: `range` });
-    slider.min = `0`;
-    slider.max = `100`;
-    slider.step = `0.5`;
-    slider.setAttribute(`aria-label`, t(`Zoom`));
-    slider.addEventListener(`input`, () => this.setZoom(sliderToZoom(Number(slider.value))));
-    this.zoomSlider = slider;
+    // The zoom is a field: the level in percent, a list of usual levels, and a double click to type one.
+    this.zoomField = valueField({ parent: bar, icon: ``, tooltip: t(`Zoom`), min: Math.round(MIN_ZOOM * 100), max: Math.round(MAX_ZOOM * 100), step: 1, unit: ` %`, presets: ZOOM_PRESETS, className: `sketchnote-zoom-field`, onChange: (v) => this.setZoom(v / 100) });
     this.button(bar, `zoom-in`, t(`Zoom avant`), () => this.setZoom(stepZoom(this.zoom, 1)));
     this.button(bar, `maximize`, t(`Ajuster à la fenêtre`), () => this.fitView());
     if (this.exportInBar()) this.button(bar, `download`, t(`Exporter`), () => this.openExport());
-    this.zoomLabel = bar.createSpan({ cls: `sketchnote-zoom-text` });
 
     if (this.selectionActionsInBar()) this.buildSelectionActions(bar);
     this.updateBar();
@@ -1534,7 +1528,6 @@ export abstract class CanvasView<D> extends TextFileView {
 
   // Shows the zoom level in the bottom bar and moves the slider.
   private showZoom(): void {
-    if (this.zoomLabel) this.zoomLabel.setText(`${Math.round(this.zoom * 100)} %`);
-    if (this.zoomSlider) this.zoomSlider.value = String(zoomToSlider(this.zoom));
+    this.zoomField?.set(Math.round(this.zoom * 100));
   }
 }

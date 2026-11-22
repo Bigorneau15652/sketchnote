@@ -9,7 +9,7 @@ const none = { shift: false, alt: false };
 const rect: SketchElement = { id: `r`, type: `rect`, x: 0, y: 0, width: 10, height: 10, stroke: `#000000`, strokeWidth: 3 };
 
 test(`le style par defaut est un trait fin noir a main levee sans remplissage`, () => {
-  assert.deepEqual(style, { stroke: `#000000`, fill: null, fillStyle: `solid`, fillOpacity: 1, strokeWidth: STROKE_WIDTHS.thin, roughness: 1, rounded: false, startHead: `none`, endHead: `arrow`, font: `caveat`, fontSize: 32, align: `left`, opacity: 1, shadow: false, shadowDistance: 10, shadowBlur: 10, shadowOpacity: 0.4, shadowColor: `#000000`, reflection: false, reflectionDepth: 0.6, reflectionFade: 1, reflectionGap: 0, regularity: 0, brush: `round`, flow: 1, hardness: 1, spacing: 0.15, form: 1, brushAngle: 45, grain: 0, dynamics: 0, warp: `none`, warpAmount: 0.5, vertical: false, taper: 0, lineStyle: `solid`, border: `simple`, radius: 0, bubbleForm: `oval`, festoonForm: `ribbon`, eraseShape: `soft`, eraseSize: 30, eraseDensity: 1, stamp: `disc`, stampSize: 20 });
+  assert.deepEqual(style, { transparency: 0, stroke: `#000000`, fill: null, fillStyle: `solid`, fillOpacity: 1, strokeWidth: STROKE_WIDTHS.thin, roughness: 1, rounded: false, startHead: `none`, endHead: `arrow`, font: `caveat`, fontSize: 32, align: `left`, opacity: 1, shadow: false, shadowDistance: 10, shadowBlur: 10, shadowOpacity: 0.4, shadowColor: `#000000`, reflection: false, reflectionDepth: 0.6, reflectionFade: 1, reflectionGap: 0, regularity: 0, brush: `round`, flow: 1, hardness: 1, spacing: 0.15, form: 1, brushAngle: 45, grain: 0, dynamics: 0, warp: `none`, warpAmount: 0.5, vertical: false, taper: 0, lineStyle: `solid`, border: `simple`, radius: 0, bubbleForm: `oval`, festoonForm: `ribbon`, eraseShape: `soft`, eraseSize: 30, eraseDensity: 1, stamp: `disc`, stampSize: 20 });
   assert.equal(defaultStyle(`#ffffff`).stroke, `#ffffff`);
   assert.equal(defaultStyle(`red`).stroke, `#000000`);
 });
@@ -49,7 +49,7 @@ test(`une ligne ne prend pas de remplissage et un cadre de dessin n'a pas de sty
 
 test(`le style d'un element est relu tel qu'il est`, () => {
   const s = styleOf({ ...rect, fill: `#abc`, fillStyle: `hachure`, roughness: 1 } as SketchElement);
-  assert.deepEqual(s, { stroke: `#000000`, fill: `#abc`, fillStyle: `hachure`, fillOpacity: 1, strokeWidth: 3, roughness: 1, rounded: false, startHead: `none`, endHead: `none`, font: `caveat`, fontSize: 32, align: `left`, opacity: 1, shadow: false, shadowDistance: 10, shadowBlur: 10, shadowOpacity: 0.4, shadowColor: `#000000`, reflection: false, reflectionDepth: 0.6, reflectionFade: 1, reflectionGap: 0, regularity: 0, brush: `round`, flow: 1, hardness: 1, spacing: 0.15, form: 1, brushAngle: 45, grain: 0, dynamics: 0, warp: `none`, warpAmount: 0.5, vertical: false, taper: 0, lineStyle: `solid`, border: `simple`, radius: 0, bubbleForm: `oval`, festoonForm: `ribbon`, eraseShape: `soft`, eraseSize: 30, eraseDensity: 1, stamp: `disc`, stampSize: 20 });
+  assert.deepEqual(s, { transparency: 0, stroke: `#000000`, fill: `#abc`, fillStyle: `hachure`, fillOpacity: 1, strokeWidth: 3, roughness: 1, rounded: false, startHead: `none`, endHead: `none`, font: `caveat`, fontSize: 32, align: `left`, opacity: 1, shadow: false, shadowDistance: 10, shadowBlur: 10, shadowOpacity: 0.4, shadowColor: `#000000`, reflection: false, reflectionDepth: 0.6, reflectionFade: 1, reflectionGap: 0, regularity: 0, brush: `round`, flow: 1, hardness: 1, spacing: 0.15, form: 1, brushAngle: 45, grain: 0, dynamics: 0, warp: `none`, warpAmount: 0.5, vertical: false, taper: 0, lineStyle: `solid`, border: `simple`, radius: 0, bubbleForm: `oval`, festoonForm: `ribbon`, eraseShape: `soft`, eraseSize: 30, eraseDensity: 1, stamp: `disc`, stampSize: 20 });
   assert.equal(styleOf(rect)?.fill, null);
 });
 
@@ -234,4 +234,24 @@ test(`la police et la taille du panneau s'appliquent aussi au texte d'un trait`,
   assert.deepEqual([styleOf(line)?.font, styleOf(line)?.fontSize, styleOf(line)?.align], [`caveat`, 32, `center`]);
   const plain = { id: `p`, type: `line`, points: [[0, 0], [100, 0]], stroke: `#000000`, strokeWidth: 3 } as SketchElement;
   assert.equal(`label` in applyStyle(plain, { fontSize: 52 }), false);
+});
+
+test(`la transparence d une forme est celle de son remplissage, celle d un trait est celle de tout l element`, () => {
+  const shape: SketchElement = { id: `r`, type: `rect`, x: 0, y: 0, width: 10, height: 10, stroke: `#000000`, strokeWidth: 3, fill: `#abcdef` };
+  const half = applyStyle(shape, { transparency: 0.5 }) as { fillOpacity?: number; opacity?: number };
+  assert.equal(half.fillOpacity, 0.5);
+  assert.equal(half.opacity, undefined, `la bordure reste nette`);
+  assert.equal(styleOf(applyStyle(shape, { transparency: 0.5 }))?.transparency, 0.5);
+  // Fully transparent is the least that a file allows, and 0 gives the fill back at full strength.
+  assert.equal((applyStyle(shape, { transparency: 1 }) as { fillOpacity?: number }).fillOpacity, 0.05);
+  assert.equal((applyStyle(applyStyle(shape, { transparency: 0.5 }), { transparency: 0 }) as { fillOpacity?: number }).fillOpacity, undefined);
+  const line: SketchElement = { id: `l`, type: `line`, points: [[0, 0], [10, 10]], stroke: `#000000`, strokeWidth: 3 };
+  const faded = applyStyle(line, { transparency: 0.4 }) as { opacity?: number };
+  assert.equal(faded.opacity, 0.6);
+  assert.equal(styleOf(applyStyle(line, { transparency: 0.4 }))?.transparency, 0.4);
+  assert.equal((applyStyle(applyStyle(line, { transparency: 0.4 }), { transparency: 0 }) as { opacity?: number }).opacity, undefined);
+  // A wrong value is left out of the patch.
+  assert.deepEqual(cleanPatch({ transparency: NaN }), {});
+  assert.equal(cleanPatch({ transparency: 5 }).transparency, 1);
+  assert.equal(cleanPatch({ transparency: -2 }).transparency, 0);
 });

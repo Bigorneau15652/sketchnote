@@ -13,7 +13,7 @@ import { iconToElements, strokeCount } from "./icon-strokes";
 import type { IconData } from "./icon-svg";
 import type { IconEntry } from "./icon-themes";
 import { DrawButtonsModal } from "./draw-buttons-list";
-import { DrawFunction, drawFunctions, DrawFunctionId, functionOfTool, railItems, shortWord } from "./draw-functions";
+import { DrawFunction, drawFunctions, DrawFunctionId, functionOfTool, railItems } from "./draw-functions";
 import { swatchBackground } from "./swatches";
 import { toHex6 } from "./page-background";
 import { BORDER_KINDS, BorderKind, CORNER_RADII, SHADOW_MAX_BLUR, SHADOW_MAX_DISTANCE } from "./effects";
@@ -31,6 +31,8 @@ import { allLocked, isLocked } from "./lock";
 import { MAX_REGULARITY } from "./tidy";
 import { WARP_KINDS, WarpKind } from "./text-warp";
 import { PluginApi } from "./plugin-api";
+import { presetValues } from "./field-values";
+import { valueField } from "./value-field";
 import { firstFreePath } from "./free-path";
 import { LibraryModal, SaveDrawingModal } from "./library-modal";
 import { drawingFromSelection, libraryElements, libraryName, libraryPath, PLACE_SHARE, placeDrawing } from "./library-file";
@@ -128,6 +130,25 @@ function brushSliderLabel(param: BrushParam): string {
       return t(`Dynamique : le trait s'amincit quand la souris va vite`);
   }
 }
+
+// The pictogram and the unit of each field of the menu, from its short name.
+const FIELD_KINDS: Record<string, { icon: string; unit: string }> = {
+  [`Épaisseur`]: { icon: `sketchnote-width-medium`, unit: ` px` },
+  [`Imperfection`]: { icon: `brush`, unit: `` },
+  [`Régularité`]: { icon: `pencil-ruler`, unit: `` },
+  [`Opacité`]: { icon: `sketchnote-opacity`, unit: ` %` },
+  [`Opacité de l'élément`]: { icon: `sketchnote-opacity`, unit: ` %` },
+  [`Taille`]: { icon: `ruler`, unit: `` },
+  [`Densité`]: { icon: `sketchnote-opacity`, unit: ` %` },
+  [`Fuselage`]: { icon: `sketchnote-taper`, unit: ` %` },
+  [`Intensité`]: { icon: `activity`, unit: ` %` },
+  [`Éloignement de l'ombre`]: { icon: `sketchnote-shadow-offset`, unit: ` px` },
+  [`Flou de l'ombre`]: { icon: `sketchnote-shadow-soft`, unit: ` px` },
+  [`Densité de l'ombre`]: { icon: `sketchnote-shadow-strong`, unit: ` %` },
+  [`Profondeur du reflet`]: { icon: `sketchnote-reflection`, unit: ` %` },
+  [`Dégradé du reflet`]: { icon: `sketchnote-reflection`, unit: ` %` },
+  [`Éloignement du reflet`]: { icon: `sketchnote-reflection`, unit: ` %` },
+};
 
 export abstract class DrawEditor<D> extends CanvasView<D> {
   protected readonly api: PluginApi;
@@ -629,11 +650,6 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
   protected lastTool: Tool = `select`;
   protected unsubscribeSettings: (() => void) | null = null;
 
-  // Tells whether the buttons of the menu show a word next to their pictogram (a setting).
-  protected labelsOn(): boolean {
-    return this.api.settings().contextLabels === true;
-  }
-
   protected selectionActionsInBar(): boolean {
     return false;
   }
@@ -684,8 +700,6 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     this.unsubscribeSettings = this.api.onSettings(() => {
       if (this.rail && this.context) {
         this.placeContext(this.mainEl ?? main);
-        // The words of the buttons are written when the menu is built: a change of that setting builds it again.
-        if (this.builtWithWords !== this.labelsOn()) this.buildContext();
         this.renderRail();
         this.syncPanel();
       }
@@ -713,8 +727,6 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     return this.footer ?? host;
   }
 
-  protected builtWithWords = false;
-
   // Builds the content of the menu: the tools of each function, the pin that keeps the tool active, then the sections of the properties. It is built again when the setting of the words
   // changes (the words are written into the buttons).
   protected buildContext(): void {
@@ -730,8 +742,6 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     this.folds.length = 0;
     this.sliders.length = 0;
     this.syncers.length = 0;
-    this.builtWithWords = this.labelsOn();
-    context.toggleClass(`has-words`, this.builtWithWords);
     const props = context.createDiv({ cls: `sketchdraw-props` });
     this.buildProps(props);
     this.lastPanel = ``;
@@ -797,6 +807,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
   protected buildProps(props: HTMLElement): void {
     this.panelButtons.length = 0;
     this.sections.length = 0;
+    this.compartments.length = 0;
 
     // The Point tool: the shape that a click puts (a menu of the shapes, each with its pictogram) and its size.
     const stampSec = this.section(props, `stamp`);
@@ -825,16 +836,31 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     const festoons = festoonSec.createDiv({ cls: `sketchdraw-row` });
     this.dropdown<FestoonForm>(festoons, t(`Forme du feston`), [...FESTOON_FORMS], bubbleFormIcon, formName, (st) => st.festoonForm, (v) => ({ festoonForm: v }), true);
 
-    // One round swatch for the border and one for the fill: each one opens the window of the colours.
-    const colour = this.section(props, `colour`);
+    // The compartment of the colours: on its first row the round swatch of the border, the one of the fill and the three types of line (a click on the type that is on takes the border
+    // away from a shape); under it, one thin slider of transparency. Each swatch opens the window of the colours.
+    const compartment = props.createDiv({ cls: `sketchdraw-compartment` });
+    this.compartments.push({ el: compartment, names: [`colour`, `fill`, `dash`, `transparency`] });
+    const topRow = compartment.createDiv({ cls: `sketchdraw-compartment-row` });
+    const bottomRow = compartment.createDiv({ cls: `sketchdraw-compartment-row` });
+    const colour = this.section(topRow, `colour`);
     this.sectionIcon(colour, `pencil-line`, t(`Couleur de la bordure`));
     this.strokePastille = this.pastille(colour, t(`Couleur de la bordure`), () => this.openStrokeColor());
 
-    const fillSec = this.section(props, `fill`);
+    const fillSec = this.section(topRow, `fill`);
     this.sectionIcon(fillSec, `paint-bucket`, t(`Remplissage`));
     this.fillPastille = this.pastille(fillSec, t(`Couleur du remplissage`), () => this.openFillColor());
-    // The transparency of the fill: 0 is opaque, the line keeps its colour and stays opaque.
-    this.slider(fillSec, t(`Transparence`), t(`Transparence du remplissage`), 0, 95, 5, (s) => Math.round(((1 - s.fillOpacity) * 100) / 5) * 5, (v) => ({ fillOpacity: 1 - v / 100 }));
+
+    const dashSec = this.section(topRow, `dash`);
+    this.sectionIcon(dashSec, `sketchnote-line-dashed`, t(`Type de trait`));
+    const dashes = dashSec.createDiv({ cls: `sketchdraw-row` });
+    this.panelButton(dashes, `sketchnote-line-solid`, t(`Trait continu`), (s) => s.border !== `none` && s.lineStyle === `solid`, () => this.chooseLine(`solid`));
+    this.panelButton(dashes, `sketchnote-line-dashed`, t(`Tirets`), (s) => s.border !== `none` && s.lineStyle === `dashed`, () => this.chooseLine(`dashed`));
+    this.panelButton(dashes, `sketchnote-line-dotted`, t(`Pointillés`), (s) => s.border !== `none` && s.lineStyle === `dotted`, () => this.chooseLine(`dotted`));
+
+    const transparencySec = this.section(bottomRow, `transparency`);
+    this.sectionIcon(transparencySec, `sketchnote-opacity`, t(`Transparence`));
+    // 0 is opaque. For a shape it is the transparency of the fill (the border stays sharp), for anything else the transparency of the whole element.
+    this.thinSlider(transparencySec, t(`Transparence`), 0, 100, 5, (s) => Math.round((s.transparency * 100) / 5) * 5, (v) => ({ transparency: v / 100 }));
 
     // The brush of the pen: one menu, then how much paint it puts and, for the nib, its angle. The thickness is the one of every line.
     const brushSec = this.section(props, `brush`);
@@ -852,13 +878,6 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     const widthSec = this.section(props, `width`);
     this.sectionIcon(widthSec, `sketchnote-width-medium`, t(`Épaisseur`));
     this.slider(widthSec, t(`Épaisseur`), t(`Épaisseur`), MIN_WIDTH, MAX_WIDTH, 1, (s) => Math.round(s.strokeWidth), (v) => ({ strokeWidth: v }));
-
-    const dashSec = this.section(props, `dash`);
-    this.sectionIcon(dashSec, `sketchnote-line-dashed`, t(`Type de trait`));
-    const dashes = dashSec.createDiv({ cls: `sketchdraw-row` });
-    this.panelButton(dashes, `sketchnote-line-solid`, t(`Trait continu`), (s) => s.lineStyle === `solid`, () => this.change({ lineStyle: `solid` }));
-    this.panelButton(dashes, `sketchnote-line-dashed`, t(`Tirets`), (s) => s.lineStyle === `dashed`, () => this.change({ lineStyle: `dashed` }));
-    this.panelButton(dashes, `sketchnote-line-dotted`, t(`Pointillés`), (s) => s.lineStyle === `dotted`, () => this.change({ lineStyle: `dotted` }));
 
     const lookSec = this.section(props, `look`);
     this.sectionIcon(lookSec, `brush`, t(`Style à main levée`));
@@ -922,29 +941,19 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     const iconSec = this.section(props, `icon`);
     this.sectionIcon(iconSec, `shapes`, t(`Icône`));
     this.iconName = iconSec.createDiv({ cls: `sketchdraw-slider-label` });
-    // A box to check rather than a button: checking it opens the warning, and the box is cleared again when the user cancels (and when the icon is gone, so is the box).
-    const strokes = iconSec.createEl(`label`, { cls: `sketchdraw-check` });
-    const strokesBox = strokes.createEl(`input`, { type: `checkbox` });
-    strokes.createSpan({ text: t(`Transformer en traits`) });
-    strokes.setAttribute(`aria-label`, t(`Transformer en traits`));
-    strokesBox.addEventListener(`change`, () => {
-      if (strokesBox.checked) this.strokesFromIcons(() => (strokesBox.checked = false));
-    });
-    this.checks.push({ input: strokesBox, read: () => false });
+    // A button that turns the icon into strokes: it opens the warning first, and does nothing when the user cancels.
+    this.panelButton(iconSec, `pen-line`, t(`Transformer en traits`), () => false, () => this.strokesFromIcons(() => undefined));
 
     // A picture: its file name, the crop mode (the handles cut the sides instead of stretching), the crop to undo and another file for the same picture.
     const imageSec = this.section(props, `image`);
     this.sectionIcon(imageSec, `image`, t(`Image`));
     this.imageName = imageSec.createDiv({ cls: `sketchdraw-slider-label` });
-    const cropBox = imageSec.createEl(`label`, { cls: `sketchdraw-check` });
-    const cropInput = cropBox.createEl(`input`, { type: `checkbox` });
-    cropBox.createSpan({ text: t(`Rogner`) });
-    cropBox.setAttribute(`title`, t(`Rogner : les poignées coupent les bords de l'image au lieu de l'étirer`));
-    cropInput.addEventListener(`change`, () => {
-      this.cropMode = cropInput.checked;
+    this.panelButton(imageSec, `crop`, t(`Rogner : les poignées coupent les bords de l'image au lieu de l'étirer`), () => this.isCropping(), () => {
+      this.cropMode = !this.cropMode;
+      this.lastPanel = ``;
       this.renderUi();
+      this.syncPanel();
     });
-    this.checks.push({ input: cropInput, read: () => this.isCropping() });
     const imageRow = imageSec.createDiv({ cls: `sketchdraw-row` });
     const whole = this.button(imageRow, `rotate-ccw`, t(`Rétablir l'image entière`), () => this.editPictures((el) => {
       const { crop: _c, ...rest } = el;
@@ -963,7 +972,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     const warpRow = warpSec.createDiv({ cls: `sketchdraw-row` });
     this.dropdown(warpRow, t(`Déformation du texte`), [`none`, ...WARP_KINDS] as (WarpKind | `none`)[], (v) => `sketchnote-warp-${v}`, warpName, (s) => s.warp, (v) => ({ warp: v }), true);
     this.slider(warpSec, t(`Intensité`), t(`Intensité de la déformation : d'un sens à l'autre, 0 pour aucune`), -100, 100, 5, (s) => Math.round(s.warpAmount * 100), (v) => ({ warpAmount: v / 100 }), (s) => s.warp !== `none`);
-    this.checkbox(warpSec, t(`Texte vertical`), (s) => s.vertical, (on) => ({ vertical: on }));
+    this.checkbox(warpSec, `align-vertical-space-around`, t(`Texte vertical`), (s) => s.vertical, (on) => ({ vertical: on }));
 
     // The effects of every element: the opacity, then the shadow and the reflection, which are checked to be used and then unfold their settings.
     const effectSec = this.section(props, `effects`);
@@ -974,13 +983,13 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     const reflectBox = effectSec.createDiv({ cls: `sketchdraw-subgroup` });
     this.sectionIcon(effectSec, `sparkles`, t(`Effets`));
     this.slider(opacityBox, t(`Opacité de l'élément`), t(`Opacité de l'élément`), 5, 100, 5, (s) => Math.round(s.opacity * 100), (v) => ({ opacity: v / 100 }));
-    this.checkbox(shadowBox, t(`Ombre`), (s) => s.shadow, (on) => ({ shadow: on }));
+    this.checkbox(shadowBox, `sketchnote-shadow-soft`, t(`Ombre`), (s) => s.shadow, (on) => ({ shadow: on }));
     const shadowOn = (s: ToolStyle): boolean => s.shadow;
     this.slider(shadowBox, t(`Éloignement de l'ombre`), t(`Éloignement de l'ombre`), 0, SHADOW_MAX_DISTANCE, 1, (s) => s.shadowDistance, (v) => ({ shadowDistance: v }), shadowOn);
     this.slider(shadowBox, t(`Flou de l'ombre`), t(`Flou de l'ombre`), 0, SHADOW_MAX_BLUR, 1, (s) => s.shadowBlur, (v) => ({ shadowBlur: v }), shadowOn);
     this.slider(shadowBox, t(`Densité de l'ombre`), t(`Densité de l'ombre : plus ou moins sombre`), 5, 100, 5, (s) => Math.round(s.shadowOpacity * 100), (v) => ({ shadowOpacity: v / 100 }), shadowOn);
     this.shadowColorButton(shadowBox, shadowOn);
-    this.checkbox(reflectBox, t(`Reflet`), (s) => s.reflection, (on) => ({ reflection: on }));
+    this.checkbox(reflectBox, `sketchnote-reflection`, t(`Reflet`), (s) => s.reflection, (on) => ({ reflection: on }));
     const reflectOn = (s: ToolStyle): boolean => s.reflection;
     this.slider(reflectBox, t(`Profondeur du reflet`), t(`Profondeur du reflet : la part de l'élément reflétée`), 10, 100, 5, (s) => Math.round(s.reflectionDepth * 100), (v) => ({ reflectionDepth: v / 100 }), reflectOn);
     this.slider(reflectBox, t(`Dégradé du reflet`), t(`Dégradé du reflet : de pas de dégradé à un reflet qui disparaît`), 0, 100, 5, (s) => Math.round(s.reflectionFade * 100), (v) => ({ reflectionFade: v / 100 }), reflectOn);
@@ -994,6 +1003,26 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     this.sectionIcon(organise, `layers`, t(`Organiser`));
     this.buildSelectionActions(organise).addClass(`sketchdraw-organise`);
     this.refreshPastilles();
+  }
+
+  // The compartments of the menu: a box that holds several sections and is hidden when none of them is shown.
+  protected readonly compartments: { el: HTMLElement; names: PanelSection[] }[] = [];
+
+  // Tells whether the menu is about shapes (a rectangle, an ellipse, a bubble, a picture...), whose border can be taken away.
+  protected shapeContext(): boolean {
+    const kinds = panelKinds(this.tool, this.selectedElements());
+    return [...kinds].some((k) => [`rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `image`].includes(k));
+  }
+
+  // A click on a type of line. For a shape, a click on the type that is on takes the border away, and a click on another type puts the border back; a line or an arrow only changes type.
+  protected chooseLine(style: `solid` | `dashed` | `dotted`): void {
+    const s = this.currentStyle();
+    const shape = this.shapeContext();
+    if (shape && s.border !== `none` && s.lineStyle === style) {
+      this.change({ border: `none` });
+      return;
+    }
+    this.change({ lineStyle: style, ...(shape && s.border === `none` ? { border: `simple` as const } : {}) });
   }
 
   // The sections of the panel, each with the test that tells for which kind of element it is shown.
@@ -1017,19 +1046,14 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
   protected readonly folds: { el: HTMLElement; visible: (s: ToolStyle) => boolean }[] = [];
   protected shadowSwatch: HTMLElement | null = null;
 
-  // Adds a box to check, with its name written next to it.
-  protected checkbox(parent: HTMLElement, label: string, read: (s: ToolStyle) => boolean, write: (on: boolean) => StylePatch): void {
-    const wrap = parent.createEl(`label`, { cls: `sketchdraw-check` });
-    const input = wrap.createEl(`input`, { type: `checkbox` });
-    wrap.createSpan({ text: label });
-    input.addEventListener(`change`, () => this.change(write(input.checked)));
-    this.checks.push({ input, read });
+  // Adds a button that is switched on and off (the shadow, the reflection): a pictogram, lit when it is on; its name is the tooltip.
+  protected checkbox(parent: HTMLElement, icon: string, label: string, read: (s: ToolStyle) => boolean, write: (on: boolean) => StylePatch): void {
+    this.panelButton(parent, icon, label, read, () => this.change(write(!read(this.currentStyle()))));
   }
 
   // Adds the colour of the shadow: a round swatch that shows it. A double click opens the colour window to change it.
   protected shadowColorButton(parent: HTMLElement, visible: (s: ToolStyle) => boolean): void {
     const row = parent.createDiv({ cls: `sketchdraw-row sketchdraw-shadow-colour` });
-    row.createSpan({ cls: `sketchdraw-slider-label`, text: t(`Couleur de l'ombre`) });
     const b = row.createEl(`button`, { cls: `sketchdraw-swatch` });
     b.setAttribute(`aria-label`, `${t(`Couleur de l'ombre`)} : ${t(`double clic pour changer`)}`);
     b.addEventListener(`dblclick`, () => {
@@ -1041,20 +1065,33 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     this.folds.push({ el: row, visible });
   }
 
-  // The sliders of the panel. Each one reads its value from the style that the panel shows, and changes the style when it is moved; it can be hidden when it does not apply.
-  protected readonly sliders: { wrap: HTMLElement; input: HTMLInputElement; read: (s: ToolStyle) => number; visible?: (s: ToolStyle) => boolean }[] = [];
+  // The fields and sliders of the panel. Each one reads its value from the style that the panel shows, and changes the style when it is changed; it can be hidden when it does not apply.
+  protected readonly sliders: { wrap: HTMLElement; set: (v: number) => void; read: (s: ToolStyle) => number; visible?: (s: ToolStyle) => boolean }[] = [];
 
-  // Adds a slider as wide as the panel. `label` is a word above it (empty for none) and `help` its tooltip.
+  // Adds a field, like those of the bar of Affinity: a pictogram, the value with its unit, a list of usual values and the possibility to type a value (double click). `label` tells which
+  // pictogram and which unit the field has; `help` is its tooltip, the only text of the field.
   protected slider(parent: HTMLElement, label: string, help: string, min: number, max: number, step: number, read: (s: ToolStyle) => number, write: (v: number) => StylePatch, visible?: (s: ToolStyle) => boolean): void {
-    const wrap = parent.createDiv({ cls: `sketchdraw-slider` });
-    if (label !== ``) wrap.createSpan({ cls: `sketchdraw-slider-label`, text: label });
+    const kind = FIELD_KINDS[label] ?? { icon: `sliders-horizontal`, unit: `` };
+    const field = valueField({ parent, icon: kind.icon, tooltip: help, min, max, step, unit: kind.unit, presets: presetValues(min, max, step), onChange: (v) => this.change(write(v)) });
+    this.sliders.push({ wrap: field.el, set: (v) => field.set(v), read, visible });
+  }
+
+  // Adds a thin slider (the transparency, under the two colours): the value is also its tooltip.
+  protected thinSlider(parent: HTMLElement, help: string, min: number, max: number, step: number, read: (s: ToolStyle) => number, write: (v: number) => StylePatch): void {
+    const wrap = parent.createDiv({ cls: `sketchdraw-thin` });
     const input = wrap.createEl(`input`, { cls: `sketchdraw-range`, type: `range` });
     input.min = String(min);
     input.max = String(max);
     input.step = String(step);
     input.setAttribute(`aria-label`, help);
-    input.addEventListener(`input`, () => this.change(write(Number(input.value))));
-    this.sliders.push({ wrap, input, read, visible });
+    input.addEventListener(`input`, () => {
+      input.setAttribute(`aria-label`, `${help} : ${input.value} %`);
+      this.change(write(Number(input.value)));
+    });
+    this.sliders.push({ wrap, set: (v) => {
+      input.value = String(v);
+      input.setAttribute(`aria-label`, `${help} : ${v} %`);
+    }, read });
   }
 
   // Adds the choice of the brush: a button that shows the pictogram of the brush (a stroke drawn with it, wide) and its name, which opens the list of the brushes, each with a stroke
@@ -1151,7 +1188,6 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     this.syncers.push((s) => {
       button.empty();
       preview(button, s.brush);
-      button.createSpan({ cls: `sketchdraw-brush-name`, text: brushName(s.brush) });
       button.setAttribute(`aria-label`, `${t(`Pinceau`)} : ${brushName(s.brush)}`);
       for (const r of rows) r.el.toggleClass(`is-active`, r.brush === s.brush);
     });
@@ -1178,8 +1214,8 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       }
       menu.showAtMouseEvent(e);
     });
-    if (showName) button.addClass(`has-name`);
-    this.dropdowns.push({ el: button, label, icon: (s) => icon(read(s)), name: (s) => `${label} : ${name(read(s))}`, shown: showName ? (s) => name(read(s)) : undefined });
+    void showName;
+    this.dropdowns.push({ el: button, label, icon: (s) => icon(read(s)), name: (s) => `${label} : ${name(read(s))}` });
   }
 
   // Fills the list of fonts: the built-in fonts, then the imported ones, each name in its own font.
@@ -1213,6 +1249,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       // With nothing selected the choices of the menu have nothing to apply to (a new shape is always standard): they are dimmed, except the settings of a text.
       sec.el.toggleClass(`sketchdraw-idle`, (this.selected.size === 0 && !this.usableBeforeDrawing(sec.name)) || (sec.name !== `display` && allLocked(this.elementsOf(this.doc), this.selected)));
     }
+    for (const c of this.compartments) c.el.toggleClass(`sketchdraw-hidden`, !this.sections.some((sec) => c.names.includes(sec.name) && !sec.el.classList.contains(`sketchdraw-hidden`)));
     this.context?.toggleClass(`is-empty`, !any);
   }
 
@@ -1225,21 +1262,17 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
 
   // Adds a small pictogram that heads a section of the panel. Its name is the tooltip.
   protected sectionIcon(parent: HTMLElement, icon: string, label: string): HTMLElement {
-    // The name of a group is written under its choices: it goes into the group, after the body.
+    // The menu has no text: the name of a group is only the tooltip of the group.
+    void icon;
     const group = parent.classList.contains(`sketchdraw-group-body`) && parent.parentElement ? parent.parentElement : parent;
-    const head = group.createDiv({ cls: `sketchdraw-title` });
-    setIcon(head, icon);
-    head.createSpan({ cls: `sketchdraw-title-text`, text: label });
-    head.setAttribute(`aria-label`, label);
-    return head;
+    group.setAttribute(`aria-label`, label);
+    return group;
   }
 
   // Adds a pictogram button of the panel that shows as active when its test is true for the current style.
   protected panelButton(parent: HTMLElement, icon: string, label: string, test: (s: ToolStyle) => boolean, onClick: () => void): void {
     const b = parent.createEl(`button`, { cls: `sketchdraw-chip` });
     setIcon(b, icon);
-    // With the setting of the words, one word of its name is written next to the pictogram (the name stays the tooltip).
-    if (this.builtWithWords) b.createSpan({ cls: `sketchdraw-chip-word`, text: shortWord(label) });
     b.setAttribute(`aria-label`, label);
     b.addEventListener(`click`, () => {
       onClick();
@@ -1262,10 +1295,17 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
   // Shows the colours that apply (the selection, or the next elements) in the two swatches.
   protected refreshPastilles(): void {
     const s = this.currentStyle();
-    if (this.strokePastille) this.strokePastille.style.background = toHex6(s.stroke);
+    if (this.strokePastille) {
+      // A shape without a border shows its swatch as a crossed circle.
+      const none = s.border === `none` && this.shapeContext();
+      this.strokePastille.style.background = none ? `` : toHex6(s.stroke);
+      this.strokePastille.toggleClass(`is-none`, none);
+    }
     if (this.fillPastille) {
-      this.fillPastille.style.background = swatchBackground(s.fill === null ? null : { color: s.fill, style: s.fillStyle });
-      this.fillPastille.toggleClass(`is-empty`, s.fill === null);
+      // No fill, or a fill that is fully transparent: a crossed circle.
+      const none = s.fill === null || s.transparency >= 0.95;
+      this.fillPastille.style.background = none || s.fill === null ? `` : swatchBackground({ color: s.fill, style: s.fillStyle });
+      this.fillPastille.toggleClass(`is-none`, none);
     }
   }
 
@@ -1381,8 +1421,6 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     for (const d of this.dropdowns) {
       d.el.empty();
       setIcon(d.el, d.icon(s));
-      // A menu that shows the name of its choice next to its pictogram, as the menu does when it is open.
-      if (d.shown) d.el.createSpan({ cls: `sketchdraw-menu-name`, text: d.shown(s) });
       d.el.setAttribute(`aria-label`, d.name(s));
     }
     for (const f of this.syncers) f(s);
@@ -1392,11 +1430,12 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     }
     if (this.iconName) {
       const icon = this.selectedElements().find((e): e is IconElement => e.type === `icon`);
-      this.iconName.setText(icon ? (icon.icon ? `Lucide : ${icon.icon}` : icon.name ?? ``) : ``);
+      const iconText = icon ? (icon.icon ? `Lucide : ${icon.icon}` : icon.name ?? ``) : ``;
+      this.iconName.setText(iconText);
     }
     this.refreshPastilles();
     for (const sl of this.sliders) {
-      sl.input.value = String(sl.read(s));
+      sl.set(sl.read(s));
       sl.wrap.toggleClass(`sketchdraw-hidden`, sl.visible ? !sl.visible(s) : false);
     }
     for (const c of this.checks) c.input.checked = c.read(s);

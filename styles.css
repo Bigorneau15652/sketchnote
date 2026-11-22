@@ -1168,3 +1168,310 @@ body.sketchnote-zen .workspace-tab-header-container {
   width: 100%;
   margin-bottom: 12px;
 }
+
+/* ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+   The compact look: the buttons of the column and of the bar are as small as the buttons of the ribbon of Obsidian, the menu is one thin line like the bar of Affinity, and its choices are
+   pictograms and small fields (a value, a list of usual values, a double click to type) with no text: the name of each is its tooltip. These rules come after the others and win. */
+.sketchdraw-rail {
+  width: 38px;
+  grid-template-columns: repeat(var(--sketchdraw-rail-columns, 1), 30px);
+  gap: 2px;
+  padding: 4px 3px;
+}
+
+@media (max-height: 860px) {
+  .sketchdraw-rail {
+    --sketchdraw-rail-columns: 2;
+    width: 72px;
+  }
+}
+
+.sketchdraw-rail .sketchdraw-rail-button {
+  width: 30px;
+  height: 30px;
+  min-height: 0;
+  padding: 0;
+}
+
+.sketchnote-bar-button {
+  min-height: 0;
+  height: 28px;
+  padding: 0 6px;
+}
+
+.sketchnote-bar-button .svg-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.sketchnote-bar {
+  gap: 2px;
+  padding: 3px 6px;
+}
+
+.sketchdraw-footer {
+  align-items: center;
+}
+
+.sketchdraw-footer .sketchnote-bar {
+  border-top: 1px solid var(--background-modifier-border);
+  align-self: stretch;
+  align-items: center;
+}
+
+/* The menu: one thin line, its groups side by side with a thin line between two of them. */
+.sketchdraw-context {
+  align-items: center;
+  min-height: 36px;
+  padding: 0 4px;
+}
+
+.sketchdraw-context .sketchdraw-section,
+.sketchdraw-compartment {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 2px 8px;
+  border-right: 1px solid var(--background-modifier-border);
+}
+
+.sketchdraw-compartment {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+}
+
+.sketchdraw-compartment-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.sketchdraw-compartment .sketchdraw-section {
+  padding: 0;
+  border: 0;
+}
+
+.sketchdraw-group-body {
+  flex-flow: row nowrap;
+  align-content: center;
+  align-items: center;
+  gap: 4px;
+  min-height: 0;
+  max-height: none;
+}
+
+.sketchdraw-group-body.is-split,
+.sketchdraw-subgroup {
+  align-items: center;
+}
+
+.sketchdraw-subgroup {
+  flex-flow: row nowrap;
+  max-height: none;
+  gap: 4px;
+  padding: 0 8px;
+}
+
+.sketchdraw-context .sketchdraw-title,
+.sketchdraw-context .sketchdraw-slider-label,
+.sketchdraw-context .sketchdraw-brush-name {
+  display: none;
+}
+
+/* The list of the brushes, when it is open, still shows the names. */
+.sketchdraw-context .sketchdraw-brush-list.is-open .sketchdraw-brush-name {
+  display: block;
+}
+
+.sketchdraw-context .sketchdraw-row {
+  flex-wrap: nowrap;
+  gap: 2px;
+}
+
+.sketchdraw-context .sketchdraw-chip {
+  flex: 0 0 auto;
+  min-height: 24px;
+  height: 24px;
+  min-width: 24px;
+  padding: 0 4px;
+}
+
+.sketchdraw-context .sketchdraw-chip .svg-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.sketchdraw-menu .svg-icon,
+.sketchdraw-context .sketchdraw-menu .svg-icon {
+  width: 22px;
+  height: 16px;
+}
+
+.sketchdraw-swatch {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  min-width: 0;
+  border-width: 1px;
+}
+
+.sketchdraw-swatch.is-active {
+  box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+
+/* A swatch that stands for nothing (no border, or a fill that is fully transparent): a crossed circle. */
+.sketchdraw-swatch.is-none {
+  position: relative;
+  background: #ffffff;
+  border-color: var(--text-muted);
+  overflow: hidden;
+}
+
+.sketchdraw-swatch.is-none::after {
+  content: ``;
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  top: 50%;
+  height: 2px;
+  background: #d6336c;
+  transform: rotate(-45deg);
+}
+
+/* The thin slider of the transparency, under the two swatches. */
+.sketchdraw-thin {
+  width: 62px;
+}
+
+.sketchdraw-context input[type="range"].sketchdraw-range {
+  width: 100%;
+  height: 10px;
+}
+
+.sketchdraw-thin input[type="range"].sketchdraw-range {
+  width: 62px;
+  height: 8px;
+  margin: 0;
+}
+
+/* A field: a pictogram, the value with its unit, and an arrow for the list of usual values. */
+.sketchdraw-field {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 24px;
+  padding: 0 2px 0 4px;
+  box-sizing: border-box;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+}
+
+.sketchdraw-field-icon {
+  display: inline-flex;
+  color: var(--text-muted);
+}
+
+.sketchdraw-field-icon .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.sketchdraw-context .sketchdraw-field-input {
+  width: 44px;
+  height: 20px;
+  min-height: 0;
+  margin: 0;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font-size: 12px;
+  text-align: right;
+  cursor: default;
+}
+
+.sketchdraw-context .sketchdraw-field-input.is-editing {
+  background: var(--background-primary);
+  box-shadow: 0 0 0 1px var(--interactive-accent);
+  cursor: text;
+}
+
+.sketchdraw-context .sketchdraw-field-arrow,
+.sketchnote-bar .sketchdraw-field-arrow {
+  width: 16px;
+  height: 20px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+}
+
+.sketchdraw-field-arrow .svg-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.sketchnote-bar .sketchdraw-field-input {
+  width: 46px;
+  height: 20px;
+  min-height: 0;
+  margin: 0;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font-size: 12px;
+  text-align: right;
+  cursor: default;
+}
+
+.sketchnote-bar .sketchdraw-field-input.is-editing {
+  background: var(--background-primary);
+  box-shadow: 0 0 0 1px var(--interactive-accent);
+  cursor: text;
+}
+
+.sketchdraw-context .sketchdraw-brushes {
+  width: 74px;
+}
+
+.sketchdraw-context .sketchdraw-brush-current {
+  height: 24px;
+  padding: 0 4px;
+  justify-content: center;
+}
+
+.sketchdraw-font {
+  width: 120px;
+  height: 24px;
+  padding: 0 18px 0 6px;
+}
+
+.sketchdraw-display-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sketchdraw-display-slider {
+  width: 80px;
+}
+
+/* A hidden group stays hidden (this rule comes after the rules of the groups above). */
+.sketchdraw-context .sketchdraw-section.sketchdraw-hidden,
+.sketchdraw-compartment.sketchdraw-hidden,
+.sketchdraw-context .sketchdraw-hidden {
+  display: none;
+}
