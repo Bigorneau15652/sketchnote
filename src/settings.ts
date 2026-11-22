@@ -3,8 +3,6 @@ import { DEFAULT_ORDER, drawFunctions, readHidden, readOrder } from "./draw-func
 import { DEFAULT_TOOL_KEYS, readToolKeys, ToolKeys } from "./tool-keys";
 
 export interface SketchnoteSettings {
-  // Folder of the vault that holds every drawing note.
-  drawingsFolder: string;
   // Folder of the vault where the fonts imported by the user are kept (.ttf and .otf files).
   fontsFolder: string;
   // Folder of the vault where the user puts the SVG drawings that are offered with the icons: a sub folder is a theme.
@@ -25,7 +23,7 @@ export interface SketchnoteSettings {
   zenFullscreen: boolean;
 }
 
-export const DEFAULT_SETTINGS: SketchnoteSettings = { drawingsFolder: `Sketchnote dessins`, fontsFolder: `Sketchnote polices`, iconsFolder: `Sketchnote icônes`, imagesFolder: `Sketchnote images`, exportsFolder: `Sketchnote exports`, libraryFolder: `Sketchnote bibliothèque`, drawButtonsOrder: [...DEFAULT_ORDER], drawButtonsHidden: [], contextPosition: `bottom`, toolKeys: { ...DEFAULT_TOOL_KEYS }, zenFullscreen: false };
+export const DEFAULT_SETTINGS: SketchnoteSettings = { fontsFolder: `Sketchnote polices`, iconsFolder: `Sketchnote icônes`, imagesFolder: `Sketchnote images`, exportsFolder: `Sketchnote exports`, libraryFolder: `Sketchnote bibliothèque`, drawButtonsOrder: [...DEFAULT_ORDER], drawButtonsHidden: [], contextPosition: `bottom`, toolKeys: { ...DEFAULT_TOOL_KEYS }, zenFullscreen: false };
 
 // Returns a folder path of the vault in its clean form (slashes, no slash at the ends), or null when it is not acceptable: empty, with `..`, with a drive
 // letter, or with characters that a file name cannot hold. A leading slash (`/dessin`) is accepted and means the root of the vault.
@@ -43,7 +41,7 @@ export function normalizeFolder(value: unknown): string | null {
 export function readSettings(raw: unknown): SketchnoteSettings {
   const r = typeof raw === `object` && raw !== null ? (raw as Record<string, unknown>) : {};
   const known = drawFunctions().map((f) => f.id as string);
-  return { drawingsFolder: normalizeFolder(r.drawingsFolder) ?? DEFAULT_SETTINGS.drawingsFolder, fontsFolder: normalizeFolder(r.fontsFolder) ?? DEFAULT_SETTINGS.fontsFolder, iconsFolder: normalizeFolder(r.iconsFolder) ?? DEFAULT_SETTINGS.iconsFolder, imagesFolder: normalizeFolder(r.imagesFolder) ?? DEFAULT_SETTINGS.imagesFolder, exportsFolder: normalizeFolder(r.exportsFolder) ?? DEFAULT_SETTINGS.exportsFolder, libraryFolder: normalizeFolder(r.libraryFolder) ?? DEFAULT_SETTINGS.libraryFolder,
+  return { fontsFolder: normalizeFolder(r.fontsFolder) ?? DEFAULT_SETTINGS.fontsFolder, iconsFolder: normalizeFolder(r.iconsFolder) ?? DEFAULT_SETTINGS.iconsFolder, imagesFolder: normalizeFolder(r.imagesFolder) ?? DEFAULT_SETTINGS.imagesFolder, exportsFolder: normalizeFolder(r.exportsFolder) ?? DEFAULT_SETTINGS.exportsFolder, libraryFolder: normalizeFolder(r.libraryFolder) ?? DEFAULT_SETTINGS.libraryFolder,
     drawButtonsOrder: readOrder(r.drawButtonsOrder, known),
     drawButtonsHidden: readHidden(r.drawButtonsHidden, known),
     contextPosition: r.contextPosition === `top` ? `top` : `bottom`,
@@ -56,15 +54,4 @@ export function readSettings(raw: unknown): SketchnoteSettings {
 export function cleanName(name: string): string {
   const clean = name.replace(/[\\/:*?"<>|\u0000-\u001f]/g, ``).replace(/\s+/g, ` `).trim();
   return (clean === `` ? `Sketchnote` : clean).slice(0, 60).trim();
-}
-
-// Returns a free path for a new drawing note: the folder, the name of the sketchnote and a number. `existing` holds the paths already used.
-export function uniqueDrawingPath(folder: string, sketchnoteName: string, existing: Set<string>): string {
-  const taken = new Set([...existing].map((p) => p.toLowerCase()));
-  const base = cleanName(sketchnoteName);
-  for (let n = 1; n < 100000; n++) {
-    const path = `${folder}/${base} - dessin ${n}.sketchdraw`;
-    if (!taken.has(path.toLowerCase())) return path;
-  }
-  return `${folder}/${base} - dessin ${Date.now()}.sketchdraw`;
 }

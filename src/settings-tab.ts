@@ -52,13 +52,6 @@ export class SketchnoteSettingTab extends PluginSettingTab {
     this.plugin = plugin;
   }
 
-  // Keeps a folder as the folder of the drawings, then creates it if it does not exist yet.
-  private async keepFolder(folder: string): Promise<void> {
-    this.plugin.settingsData.drawingsFolder = folder;
-    await this.plugin.saveData(this.plugin.settingsData);
-    if (await this.plugin.drawings.ensureFolder(folder)) new Notice(t(`Dossier créé : {0}`, folder));
-  }
-
   // Keeps a folder as the fonts folder, creates it when it does not exist and reads it.
   private async keepFontsFolder(folder: string): Promise<void> {
     this.plugin.settingsData.fontsFolder = folder;
@@ -100,30 +93,6 @@ export class SketchnoteSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    const warning = containerEl.createEl(`p`, { cls: `setting-item-description mod-warning`, text: t(`Dossier non valide : pas de « .. », pas de lettre de lecteur et aucun des caractères interdits dans un nom de fichier.`) });
-    warning.hide();
-    new Setting(containerEl)
-      .setName(t(`Dossier des dessins`))
-      .setDesc(t(`Dossier du coffre qui contient toutes les notes de dessin. Cliquez dans la cellule pour choisir un dossier existant, ou tapez un nouveau nom : il est créé s'il n'existe pas. Les dessins déjà créés ne sont pas déplacés.`))
-      .addText((text) => {
-        text.setPlaceholder(DEFAULT_SETTINGS.drawingsFolder).setValue(this.plugin.settingsData.drawingsFolder);
-        text.onChange((value) => {
-          const folder = normalizeFolder(value);
-          text.inputEl.toggleClass(`mod-error`, folder === null);
-          if (folder === null) warning.show();
-          else warning.hide();
-        });
-        text.inputEl.addEventListener(`change`, () => {
-          const folder = normalizeFolder(text.getValue());
-          if (folder !== null) void this.keepFolder(folder);
-        });
-        new FolderSuggest(this.app, text.inputEl, (path) => {
-          text.inputEl.removeClass(`mod-error`);
-          warning.hide();
-          void this.keepFolder(path);
-        });
-      });
-
     const fontsSetting = new Setting(containerEl)
       .setName(t(`Dossier des polices`))
       .setDesc(t(`Dossier du coffre où sont rangées les polices ajoutées (fichiers .ttf et .otf). Une police déposée dans ce dossier apparaît dans la liste de l'outil Texte. Le bouton Nouvelle police ouvre la fenêtre qui explique où trouver des polices libres et les importe.`));

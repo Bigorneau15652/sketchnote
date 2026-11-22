@@ -1,20 +1,16 @@
-// The drawing notes of the vault: creating, copying, loading and keeping up to date the .sketchdraw files, and following their renaming.
+// The drawing notes of the vault: loading and keeping up to date the .sketchdraw files that the pages still point to (the old frames of a page are read from them), and following their
+// renaming. The notes are not opened in a view of their own any more: the drawings are made on the page.
 import { App, TFile, TAbstractFile } from "obsidian";
-import { createEmptyDrawing, DrawingGuide, parseSketchdraw, renameReferences, serializeSketchdraw, SketchdrawDoc } from "./drawing-file";
-import { firstFreePath } from "./free-path";
-import { uniqueDrawingPath } from "./settings";
+import { parseSketchdraw, renameReferences, SketchdrawDoc } from "./drawing-file";
 
 export class DrawingStore {
   private readonly cache = new Map<string, SketchdrawDoc>();
   private readonly loading = new Set<string>();
   private readonly listeners = new Set<(path: string) => void>();
   private readonly app: App;
-  private readonly folder: () => string;
 
-  // Creates the store. `folder` gives the folder of the drawing notes from the settings, at the time of each creation.
-  constructor(app: App, folder: () => string) {
+  constructor(app: App) {
     this.app = app;
-    this.folder = folder;
   }
 
   // Registers a function called with the path of a drawing each time it is loaded or changed. Returns a function that removes it.
@@ -79,50 +75,6 @@ export class DrawingStore {
       }
     }
     return created;
-  }
-
-  // Returns a free path for a new drawing note named after a sketchnote.
-  private async freePath(sketchnoteName: string): Promise<string> {
-    const used = new Set(this.app.vault.getFiles().map((f) => f.path));
-    // The disk is asked as well as the index of the vault, which does not always know every file of the disk.
-    return firstFreePath((taken) => uniqueDrawingPath(this.folder(), sketchnoteName, new Set([...used, ...taken])), (path) => this.app.vault.adapter.exists(path));
-  }
-
-  // Creates an empty drawing note in the folder of the drawings, with the ink and the palette of the page, and returns its file.
-  async createDrawing(sketchnoteName: string, ink: string, palette: string[], guide: DrawingGuide | null, path?: string): Promise<TFile> {
-    await this.ensureFolder(this.folder());
-    const target = path ?? (await this.freePath(sketchnoteName));
-    const doc = createEmptyDrawing(ink, palette, guide ?? undefined);
-    const file = await this.app.vault.create(target, serializeSketchdraw(doc));
-    this.cache.set(file.path, doc);
-    return file;
-  }
-
-  // Gives a drawing note the guide of its zone (the proportions of the zone of the page), when that changed. The note is only written when the guide is different.
-  async setGuide(path: string, guide: DrawingGuide | null): Promise<void> {
-    const file = this.app.vault.getAbstractFileByPath(path);
-    if (!(file instanceof TFile) || guide === null) return;
-    try {
-      await this.app.vault.process(file, (data) => {
-        const result = parseSketchdraw(data);
-        const old = result.ok ? result.doc.guide : undefined;
-        if (!result.ok || (old && old.shape === guide.shape && old.width === guide.width && old.height === guide.height)) return data;
-        return serializeSketchdraw({ ...result.doc, guide });
-      });
-    } catch {
-      // The note cannot be rewritten now: it keeps its old guide.
-    }
-  }
-
-  // Copies a drawing note to a new note and returns the path of the copy, or null when the original cannot be read.
-  async copyDrawing(path: string, sketchnoteName: string): Promise<string | null> {
-    const source = this.app.vault.getAbstractFileByPath(path);
-    if (!(source instanceof TFile)) return null;
-    const text = await this.app.vault.read(source);
-    if (!parseSketchdraw(text).ok) return null;
-    await this.ensureFolder(this.folder());
-    const copy = await this.app.vault.create(await this.freePath(sketchnoteName), text);
-    return copy.path;
   }
 
   // Follows the vault: a modified drawing is loaded again, a renamed drawing keeps its frames, a deleted drawing is forgotten.
