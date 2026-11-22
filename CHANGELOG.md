@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.40.1
+
+English
+
+The pictogram of the eraser is new: a tilted block with its band, standing on a line.
+
+Français
+
+Le pictogramme de la gomme change : un bloc incliné avec sa bande, posé sur un trait.
+
 ## 0.40.0
 
 English

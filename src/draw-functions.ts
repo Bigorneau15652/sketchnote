@@ -125,7 +125,7 @@ export function drawFunctions(): DrawFunction[] {
     },
     {
       id: `eraser`,
-      icon: `eraser`,
+      icon: `sketchnote-eraser`,
       name: () => t(`Gomme`),
       help: () => [
         t(`Efface en passant sur le dessin, comme avec une gomme : traits, formes remplies, icônes, images et textes sont effacés là où la gomme passe. Rien n'est détruit : les éléments gardent leur forme complète dessous.`),
