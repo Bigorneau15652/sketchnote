@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.36.0
+
+English
+
+The Path structure is redone. Its arrow no longer winds down the middle of the page only: the Page window now has a Form of the arrow (Snake, Zigzag, Steps, Straight line) and a Direction of the arrow (from top to bottom, from bottom to top, from left to right, from right to left, and the four diagonals). The arrow crosses the page from one side to the opposite one. The steps are marked by a point drawn on the arrow, in order along it, and the zone of each step is beside its point, on alternate sides, beyond everything that the arrow can reach on that side, so that a zone never meets the arrow or another zone. The zones become smaller, or go to the other side of the arrow, when they would leave the page, and a drawing that is in a zone follows it when the form or the direction changes. The steps of the zigzag are its corners, and those of the staircase are the middle of its runs. The form and the direction are kept in the file (fields shape and direction of the structure); a page made before this version has the Snake from top to bottom, and the arrow and the zones are redrawn only when the page settings are changed. The number of steps is still from 3 to 10.
+
+Français
+
+La structure Path est refaite. Sa flèche ne serpente plus seulement au milieu de la page : la fenêtre Page propose maintenant une Forme de la flèche (Serpent, Zigzag, Marches, Ligne droite) et un Sens de la flèche (de haut en bas, de bas en haut, de gauche à droite, de droite à gauche et les quatre diagonales). La flèche traverse la page d'un côté à l'autre. Les étapes sont marquées par un point dessiné sur la flèche, dans l'ordre le long de celle-ci, et la zone de chaque étape est à côté de son point, en alternant les côtés, au-delà de tout ce que la flèche peut atteindre de ce côté : une zone ne touche donc jamais la flèche ni une autre zone. Les zones rétrécissent, ou passent de l'autre côté de la flèche, quand elles sortiraient de la page, et un dessin placé dans une zone la suit quand la forme ou le sens changent. Les étapes du zigzag sont ses sommets, et celles des marches sont le milieu de leurs paliers. La forme et le sens sont gardés dans le fichier (champs shape et direction de la structure) ; une page faite avant cette version a le Serpent de haut en bas, et la flèche et les zones ne sont redessinées que lorsqu'on change les réglages de la page. Le nombre d'étapes reste de 3 à 10.
+
 ## 0.35.1
 
 English

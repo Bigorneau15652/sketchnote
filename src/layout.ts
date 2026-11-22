@@ -5,6 +5,7 @@
 import type { PageSettings } from "./file-format";
 import { seedFrom } from "./elements";
 import type { Point, SketchElement } from "./elements";
+import { DEFAULT_PATH_DIRECTION, DEFAULT_PATH_SHAPE, isPathDirection, isPathShape, PathDirection, PathShape, planRoute } from "./path-route";
 
 export type LayoutType = `linear` | `radial` | `vertical` | `path` | `modular` | `skyscraper` | `popcorn`;
 export const LAYOUT_TYPES: LayoutType[] = [`linear`, `radial`, `vertical`, `path`, `modular`, `skyscraper`, `popcorn`];
@@ -15,6 +16,9 @@ export interface LayoutSettings {
   count: number;
   // Number of rows of the modular structure. Ignored by the other structures.
   rows: number;
+  // The route of the path structure (the form of its arrow and where it goes from and to). Ignored by the other structures.
+  shape?: PathShape;
+  direction?: PathDirection;
 }
 
 export const LAYOUT_LIMITS: Record<LayoutType, { min: number; max: number; default: number }> = {
@@ -50,13 +54,14 @@ function clampInt(value: unknown, min: number, max: number, fallback: number): n
 
 // Returns the settings of a structure with its default numbers.
 export function defaultLayout(type: LayoutType): LayoutSettings {
-  return { type, count: LAYOUT_LIMITS[type].default, rows: ROW_LIMITS.default };
+  return { type, count: LAYOUT_LIMITS[type].default, rows: ROW_LIMITS.default, ...(type === `path` ? { shape: DEFAULT_PATH_SHAPE, direction: DEFAULT_PATH_DIRECTION } : {}) };
 }
 
 // Returns the settings with every number whole and inside the limits of the structure.
 export function normalizeLayout(layout: LayoutSettings): LayoutSettings {
   const l = LAYOUT_LIMITS[layout.type];
-  return { type: layout.type, count: clampInt(layout.count, l.min, l.max, l.default), rows: clampInt(layout.rows, ROW_LIMITS.min, ROW_LIMITS.max, ROW_LIMITS.default) };
+  const route = layout.type === `path` ? { shape: isPathShape(layout.shape) ? layout.shape : DEFAULT_PATH_SHAPE, direction: isPathDirection(layout.direction) ? layout.direction : DEFAULT_PATH_DIRECTION } : {};
+  return { type: layout.type, count: clampInt(layout.count, l.min, l.max, l.default), rows: clampInt(layout.rows, ROW_LIMITS.min, ROW_LIMITS.max, ROW_LIMITS.default), ...route };
 }
 
 // Returns the settings with one more zone, or null when the structure is already at its largest. The modular structure adds a column first, then a row.
@@ -88,7 +93,7 @@ export function slotIndexAt(slots: Slot[], p: Point): number {
 // Tells whether two structure settings are the same (both absent counts as the same).
 export function sameLayout(a: LayoutSettings | null, b: LayoutSettings | null): boolean {
   if (a === null || b === null) return a === b;
-  return a.type === b.type && a.count === b.count && (a.type !== `modular` || a.rows === b.rows);
+  return a.type === b.type && a.count === b.count && (a.type !== `modular` || a.rows === b.rows) && (a.type !== `path` || (a.shape === b.shape && a.direction === b.direction));
 }
 
 // Reads the structure of a file. Returns undefined when the type is unknown, so that the file is refused. Numbers outside the limits are brought back inside.
@@ -99,7 +104,7 @@ export function readLayout(value: unknown): LayoutSettings | null | undefined {
   if (typeof raw.type !== `string` || !LAYOUT_TYPES.includes(raw.type as LayoutType)) return undefined;
   const type = raw.type as LayoutType;
   const d = defaultLayout(type);
-  return normalizeLayout({ type, count: typeof raw.count === `number` ? raw.count : d.count, rows: typeof raw.rows === `number` ? raw.rows : d.rows });
+  return normalizeLayout({ type, count: typeof raw.count === `number` ? raw.count : d.count, rows: typeof raw.rows === `number` ? raw.rows : d.rows, shape: isPathShape(raw.shape) ? raw.shape : undefined, direction: isPathDirection(raw.direction) ? raw.direction : undefined });
 }
 
 // Rounds to one decimal.
@@ -177,20 +182,63 @@ export function buildStructure(layout: LayoutSettings, page: PageSettings): Stru
     for (let j = 1; j < rows; j++) link(`line`, [[x0, y0 + j * (cellH + sep) - sep / 2], [x1, y0 + j * (cellH + sep) - sep / 2]]);
     for (let j = 0; j < rows; j++) for (let i = 0; i < n; i++) slot(x0 + i * (cellW + sep), y0 + j * (cellH + sep), cellW, cellH, `rect`);
   } else if (layout.type === `path`) {
-    // A winding road down the middle of the page. The steps alternate on its right and on its left, outside its swing, so it never crosses them.
+    // An arrow that crosses the page (it winds, zigzags, climbs in steps or goes straight, in one of eight directions), a point on it for each step and, beside each point, the
+    // zone of the step, on alternate sides. The arrow is the evolution: the steps are on it, in order.
     titleSlot();
-    const cx = (x0 + x1) / 2;
-    const amp = width * 0.1;
-    const gap = width * 0.04;
-    const xAt = (t: number): number => cx + amp * Math.sin(t * Math.PI * 3);
-    const points: Point[] = [];
-    for (let i = 0; i <= 60; i++) points.push([xAt(i / 60), y0 + (i / 60) * height]);
-    link(`arrow`, points);
-    const sw = width / 2 - amp - gap;
-    const sh = Math.min((height / n) * 0.8, height * 0.2);
-    for (let i = 0; i < n; i++) {
-      const t = (i + 0.5) / n;
-      slot(i % 2 === 0 ? cx + amp + gap : cx - amp - gap - sw, y0 + t * height - sh / 2, sw, sh, `ellipse`);
+    const route = planRoute(layout.shape ?? DEFAULT_PATH_SHAPE, layout.direction ?? DEFAULT_PATH_DIRECTION, n, { x: x0, y: y0, w: width, h: height });
+    link(`arrow`, route.line);
+    const dotR = Math.max(strokeWidth * 2.2, Math.min(W, H) * 0.012);
+    // A zone is as large as its place allows: neighbours on the same side are two steps apart, so it may be nearly twice the advance of the route along an axis, and in a
+    // staircase it is not longer than the run that it is beside.
+    const size = (limit: number, advance: number, cap: number | null): number => Math.min(cap ?? limit, advance > limit * 0.08 ? Math.min(limit, Math.max(limit * 0.4, advance * 1.25)) : limit);
+    const baseW = size(width * 0.28, route.advance[0], route.cap[0]);
+    const baseH = size(height * 0.2, route.advance[1], route.cap[1]);
+    const gap = dotR + G;
+    // The zone of a step is beside the middle line of the route, beyond everything that the arrow can reach on that side, so that it meets neither the arrow nor another zone.
+    const place = (st: (typeof route.steps)[number], side: Point, k: number): { x: number; y: number; w: number; h: number; fits: boolean } => {
+      const [w, h] = [baseW * k, baseH * k];
+      const reach = (Math.abs(side[0]) * w) / 2 + (Math.abs(side[1]) * h) / 2;
+      const cx = st.base[0] + side[0] * (st.clear + gap + reach);
+      const cy = st.base[1] + side[1] * (st.clear + gap + reach);
+      return { x: cx - w / 2, y: cy - h / 2, w, h, fits: cx - w / 2 >= x0 - 0.5 && cx + w / 2 <= x1 + 0.5 && cy - h / 2 >= y0 - 0.5 && cy + h / 2 <= y1 + 0.5 };
+    };
+    const placed: { x: number; y: number; w: number; h: number }[] = [];
+    type Box4 = { x: number; y: number; w: number; h: number };
+    const meets = (a: Box4, b: Box4): boolean => a.x + 1 < b.x + b.w && b.x + 1 < a.x + a.w && a.y + 1 < b.y + b.h && b.y + 1 < a.y + a.h;
+    // Tells whether the arrow goes through the part of a zone that is surely inside its ellipse.
+    const cuts = (z: Box4): boolean => {
+      const inner: Box4 = { x: z.x + z.w * 0.15, y: z.y + z.h * 0.15, w: z.w * 0.7, h: z.h * 0.7 };
+      for (let i = 0; i + 1 < route.line.length; i++) {
+        const [p, q] = [route.line[i], route.line[i + 1]];
+        const parts = Math.max(1, Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / 6));
+        for (let k = 0; k <= parts; k++) {
+          const x = p[0] + ((q[0] - p[0]) * k) / parts;
+          const y = p[1] + ((q[1] - p[1]) * k) / parts;
+          if (x > inner.x && x < inner.x + inner.w && y > inner.y && y < inner.y + inner.h) return true;
+        }
+      }
+      return false;
+    };
+    for (const st of route.steps) {
+      elements.push({ id: `s${elements.length + 1}`, group: `structure`, type: `ellipse`, cx: r1(st.point[0]), cy: r1(st.point[1]), rx: r1(dotR), ry: r1(dotR), stroke, strokeWidth, roughness: 1, seed: seedFrom(elements.length), fill: stroke, fillStyle: `solid` });
+      // The zone is beside the point, on its side of the arrow. It is made smaller (down to half) until it is inside the page, does not cover another zone and does not cross the arrow;
+      // when that is not possible on its side it goes to the other side; at the very edge it is kept inside the page.
+      let chosen: Box4 = place(st, st.side, 0.3);
+      let found = false;
+      for (const side of [st.side, [-st.side[0], -st.side[1]] as Point]) {
+        for (let k = 1; k >= 0.3 - 1e-9 && !found; k -= 0.05) {
+          const c = place(st, side, k);
+          if (c.fits && !cuts(c) && !placed.some((o) => meets(c, o))) {
+            chosen = c;
+            found = true;
+          }
+        }
+        if (found) break;
+      }
+      const zx = Math.min(x1 - chosen.w, Math.max(x0, chosen.x));
+      const zy = Math.min(y1 - chosen.h, Math.max(y0, chosen.y));
+      placed.push({ x: zx, y: zy, w: chosen.w, h: chosen.h });
+      slot(zx, zy, chosen.w, chosen.h, `ellipse`);
     }
   } else {
     // Radial and popcorn: a centre and ellipses around it, joined to the centre by links.

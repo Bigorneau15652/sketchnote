@@ -473,6 +473,21 @@ const PAIRS: [string, string][] = [
   [`Goutte`, `Drop`],
   [`Croissant de lune`, `Crescent moon`],
   [`Étoile filante`, `Shooting star`],
+  [`Serpent`, `Snake`],
+  [`Zigzag`, `Zigzag`],
+  [`Marches`, `Steps`],
+  [`Ligne droite`, `Straight line`],
+  [`De haut en bas`, `From top to bottom`],
+  [`De bas en haut`, `From bottom to top`],
+  [`De gauche à droite`, `From left to right`],
+  [`De droite à gauche`, `From right to left`],
+  [`En diagonale, du haut à gauche vers le bas à droite`, `Diagonal, from top left to bottom right`],
+  [`En diagonale, du haut à droite vers le bas à gauche`, `Diagonal, from top right to bottom left`],
+  [`En diagonale, du bas à gauche vers le haut à droite`, `Diagonal, from bottom left to top right`],
+  [`En diagonale, du bas à droite vers le haut à gauche`, `Diagonal, from bottom right to top left`],
+  [`Forme de la flèche`, `Form of the arrow`],
+  [`Sens de la flèche`, `Direction of the arrow`],
+  [`La flèche traverse la page. Les points qui marquent les étapes sont sur la flèche, et la zone de chaque étape est à côté de son point.`, `The arrow crosses the page. The points that mark the steps are on the arrow, and the zone of each step is beside its point.`],
 ];
 
 export const EN: Record<string, string> = Object.fromEntries(PAIRS);
