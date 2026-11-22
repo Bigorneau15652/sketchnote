@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.47.4
+
+English
+
+The rectangular comic bubble is redrawn after the model that was given: a rectangle with small round corners and a narrow tail with one curved side, whose tip is the tail point, and that comes out of the side the point is on (the bottom, the top, the left or the right, as the handle of the tail is dragged). The tail hangs almost straight under its base, as in the model. A tail point that stays inside the box gives no tail. The text room and the pictogram are the same as before.
+
+Français
+
+La bulle rectangulaire est redessinée d'après le modèle donné : un rectangle aux petits coins arrondis et une queue étroite dont un côté est courbe, dont la pointe est le point de la queue, et qui sort du côté où se trouve le point (le bas, le haut, la gauche ou la droite, selon que l'on tire la poignée de la queue). La queue pend presque droite sous sa base, comme dans le modèle. Un point de queue qui reste dans la boîte ne donne pas de queue. La place du texte et le pictogramme sont les mêmes qu'avant.
+
 ## 0.47.3
 
 English
