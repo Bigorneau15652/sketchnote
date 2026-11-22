@@ -1,6 +1,6 @@
-// Langue du plugin : francais ou anglais, selon la langue d'Obsidian (ou le choix fait dans les reglages).
-// Le texte francais sert de cle : `t("Texte francais")` renvoie la traduction anglaise si la langue est l'anglais, et le
-// texte lui-meme sinon. Les valeurs variables s'ecrivent {0}, {1}... et se passent en arguments.
+// Language of the plugin: French or English, following the language of Obsidian (or the choice made in the settings).
+// The French text is the key: `t("French text")` returns the English translation when the language is English, and the
+// text itself otherwise. Variable values are written {0}, {1}... and passed as arguments.
 import { EN } from "./i18n-en";
 
 export type Lang = `fr` | `en`;
@@ -8,10 +8,10 @@ export type LangSetting = `auto` | Lang;
 
 let current: Lang = `fr`;
 
-// Langue d'Obsidian. Plusieurs sources, de la plus sure a la moins sure : la cle « language » du stockage local (absente quand
-// l'application est en anglais, et absente aussi dans certaines versions), la langue de la bibliotheque de dates de l'application
-// (moment, reglee sur la langue d'Obsidian), l'attribut lang de la page, enfin la langue du navigateur. Sans aucune de ces
-// informations, c'est l'anglais.
+// Language of Obsidian. Several sources, from the most reliable to the least: the key "language" of the local storage (absent when
+// the application is in English, and absent in some versions too), the language of the date library of the application
+// (moment, set to the language of Obsidian), the lang attribute of the page, and last the language of the browser. Without any of
+// this information, the language is English.
 export function detectLang(): Lang {
   try {
     if (typeof window === `undefined`) return `en`;
