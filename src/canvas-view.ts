@@ -23,6 +23,9 @@ import { snapBox } from "./snap";
 import { ToolStyle } from "./style";
 import { addPenPoint, CREATION_TOOLS, CreationTool, elementFromDrag, linearElement, penElement } from "./tools";
 import { stampElement, stampName } from "./stamps";
+import { figureElement } from "./figure";
+import { dragFigureJoint, jointAt } from "./figure-edit";
+import type { JointId } from "./figure";
 import { normalizeAngle, resizeElement, resizeSide, rotateAbout, rotateBy, scaleAbout, translate } from "./transform";
 import { MAX_FREEDRAW_POINTS } from "./elements";
 import { isBubbleForm } from "./shape-forms";
@@ -44,6 +47,8 @@ type Gesture =
   | { kind: `rotate`; pointerId: number; orig: SketchElement; center: Point; startAngle: number; moved: boolean }
   // A point of a line or an arrow dragged anywhere (`point`), or the middle handle of a segment, which creates a new point as soon as it is dragged (`midpoint`).
   | { kind: `tail`; pointerId: number; orig: SketchElement; moved: boolean }
+  // A joint of an articulated figure dragged: the limb turns about its parent.
+  | { kind: `joint`; pointerId: number; orig: SketchElement; joint: JointId; moved: boolean }
   | { kind: `erase`; pointerId: number; points: Point[]; touched: Set<string>; size: number; shape: EraseShape; density: number; moved: boolean }
   | { kind: `point`; pointerId: number; orig: SketchElement; index: number; startClient: Point; moved: boolean }
   | { kind: `midpoint`; pointerId: number; orig: SketchElement; segment: number; startClient: Point; moved: boolean }
@@ -932,6 +937,15 @@ export abstract class CanvasView<D> extends TextFileView {
     }
     // The tip of the tail of the selected bubble can be dragged while a tool is active (the tool of the bubble stays active after one is drawn).
     if (this.tool !== `select` && this.selected.size === 1 && !anyLocked(this.elementsOf(this.doc), this.selected) && this.startTailGesture(e, p)) return;
+    // The joints of the figure that was just put can be dragged while the tool of the figure is active.
+    if (this.tool === `figure` && this.selected.size === 1 && !anyLocked(this.elementsOf(this.doc), this.selected)) {
+      const el = this.selectedElements()[0];
+      const joint = el && el.type === `icon` && el.figure ? jointAt(el, p, (e.pointerType === `touch` ? 18 : 10) / this.zoom) : null;
+      if (el && joint !== null) {
+        this.gesture = { kind: `joint`, pointerId: e.pointerId, orig: el, joint, moved: false };
+        return;
+      }
+    }
     if (this.tool !== `select` && CREATION_TOOLS.includes(this.tool as CreationTool) && this.creationTools().includes(this.tool as CreationTool)) {
       this.startCreation(e, p);
       return;
@@ -959,6 +973,8 @@ export abstract class CanvasView<D> extends TextFileView {
     if (g.tool === `pen`) {
       g.pen = addPenPoint(g.pen, p, 1.5 / this.zoom);
       made = penElement(g.pen, style, id, seed, MAX_FREEDRAW_POINTS);
+    } else if (g.tool === `figure`) {
+      made = figureElement(style.figure, style.figureFace, style.figureBuild, p, style.figureSize, { stroke: style.stroke, strokeWidth: style.strokeWidth, roughness: style.roughness, seed }, id);
     } else if (g.tool === `point`) {
       made = stampElement(style.stamp, p, style.stampSize, stampName(style.stamp), { stroke: style.stroke, strokeWidth: style.strokeWidth, roughness: style.roughness, seed }, id);
     } else {
@@ -1073,6 +1089,14 @@ export abstract class CanvasView<D> extends TextFileView {
   private startPointGesture(e: PointerEvent, p: Point, touch: boolean): boolean {
     const el = this.selectedElements()[0];
     if (this.startTailGesture(e, p)) return true;
+    if (el && el.type === `icon` && el.figure) {
+      const joint = jointAt(el, p, (touch ? 18 : 10) / this.zoom);
+      if (joint !== null) {
+        this.gesture = { kind: `joint`, pointerId: e.pointerId, orig: el, joint, moved: false };
+        return true;
+      }
+      return false;
+    }
     if (!el || (el.type !== `line` && el.type !== `arrow`)) return false;
     const radius = (touch ? 18 : 10) / this.zoom;
     const startClient: Point = [e.clientX, e.clientY];
@@ -1313,7 +1337,7 @@ export abstract class CanvasView<D> extends TextFileView {
       g.lastY = e.clientY;
     } else if (g.kind === `create`) {
       if (Math.hypot(p[0] - g.start[0], p[1] - g.start[1]) * this.zoom > 3) g.dragged = true;
-      if (g.tool !== `point`) this.updateCreation(g, p, e);
+      if (g.tool !== `point` && g.tool !== `figure`) this.updateCreation(g, p, e);
     } else if (g.kind === `move`) {
       this.dragMove(g, p, e);
     } else if (g.kind === `resize`) {
@@ -1336,6 +1360,9 @@ export abstract class CanvasView<D> extends TextFileView {
         g.points.push(p);
         this.extendErase(g, last, p);
       }
+    } else if (g.kind === `joint`) {
+      g.moved = true;
+      if (g.orig.type === `icon`) this.replaceElement(dragFigureJoint(g.orig, g.joint, p));
     } else if (g.kind === `tail`) {
       g.moved = true;
       if (g.orig.type === `rect`) this.replaceElement({ ...g.orig, tail: tailFromPage(g.orig, p) });
@@ -1444,7 +1471,7 @@ export abstract class CanvasView<D> extends TextFileView {
       this.finishCreation(g, base);
       return;
     }
-    if ((g.kind === `move` || g.kind === `resize` || g.kind === `resizeSide` || g.kind === `rotate` || g.kind === `blockResize` || g.kind === `blockRotate` || g.kind === `tail` || g.kind === `erase` || g.kind === `point` || g.kind === `midpoint`) && g.moved && base) {
+    if ((g.kind === `move` || g.kind === `resize` || g.kind === `resizeSide` || g.kind === `rotate` || g.kind === `blockResize` || g.kind === `blockRotate` || g.kind === `tail` || g.kind === `joint` || g.kind === `erase` || g.kind === `point` || g.kind === `midpoint`) && g.moved && base) {
       this.history.push(base);
       this.onElementsChanged();
       this.requestSave();

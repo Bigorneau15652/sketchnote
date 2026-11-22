@@ -7,8 +7,8 @@ import type { ToolStyle } from "./style";
 import { effectFields, lineStyleField } from "./effects";
 import { LINE_HEIGHT, refitText } from "./text-layout";
 
-export type CreationTool = `rect` | `diamond` | `ellipse` | `triangle` | `bubble` | `festoon` | `line` | `arrow` | `pen` | `point`;
-export const CREATION_TOOLS: CreationTool[] = [`rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `line`, `arrow`, `pen`, `point`];
+export type CreationTool = `rect` | `diamond` | `ellipse` | `triangle` | `bubble` | `festoon` | `line` | `arrow` | `pen` | `point` | `figure`;
+export const CREATION_TOOLS: CreationTool[] = [`rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `line`, `arrow`, `pen`, `point`, `figure`];
 
 export interface Modifiers {
   shift: boolean;

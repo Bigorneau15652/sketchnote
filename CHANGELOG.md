@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.45.0
+
+English
+
+A new tool, the articulated figure (the button Figure, key O in French and M in English). A click puts a little man, in a pose chosen in the floating menu of its button: standing, walking, running, sitting, arms up, waving, pointing or thinking. He is a stick man, or has a thick body (two pictograms in the menu), and a face chosen in a menu of fifteen: no face, neutral, happy, laughing, sad, crying, afraid, angry, surprised, thinking, shouting, winking, in love, asleep and explaining. His face, his body and his size can be changed afterwards, and his colours, his line and his fill as for an icon. When he is selected, eleven small circles on his body bend his limbs: dragging a hand turns the forearm about the elbow, dragging an elbow turns the arm about the shoulder (the hand follows), dragging the neck or the hip bends the body at the waist, dragging the head turns it; each limb keeps its length. The joints can be dragged while the tool is still active, so a figure that was just put can be bent at once. A figure is an icon: he moves, is resized, turned, mirrored, grouped, erased, exported and saved in the library like any icon. The file keeps his joints, his face and his build, and the shapes are drawn again from them when it is read.
+
+Français
+
+Un nouvel outil, le bonhomme articulé (le bouton Bonhomme, touche O en français et M en anglais). Un clic pose un petit bonhomme, dans une pose choisie dans le menu flottant de son bouton : debout, marche, court, assis, bras levés, salue, montre du doigt ou réfléchit. C'est un bonhomme en bâtons, ou il a un corps épais (deux pictogrammes dans le menu), et un visage choisi dans un menu de quinze : sans visage, neutre, content, rigole, triste, pleure, peur, en colère, surpris, pense, crie, clin d'œil, amoureux, dort et explique. Son visage, son corps et sa taille se changent ensuite, ainsi que ses couleurs, son trait et son remplissage comme pour une icône. Quand il est sélectionné, onze petits ronds sur son corps plient ses membres : tirer une main tourne l'avant-bras autour du coude, tirer un coude tourne le bras autour de l'épaule (la main suit), tirer le cou ou la hanche plie le corps à la taille, tirer la tête la fait tourner ; chaque membre garde sa longueur. Les articulations se tirent même quand l'outil est encore actif : un bonhomme qu'on vient de poser se plie tout de suite. Un bonhomme est une icône : il se déplace, se redimensionne, se tourne, se retourne, se groupe, s'efface, s'exporte et s'enregistre dans la bibliothèque comme une icône. Le fichier garde ses articulations, son visage et son corps, et les formes sont redessinées depuis elles à la lecture.
+
 ## 0.44.0
 
 English
