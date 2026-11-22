@@ -1332,7 +1332,7 @@ body.sketchnote-zen .workspace-tab-header-container {
 }
 
 .sketchdraw-swatch.is-none::after {
-  content: ``;
+  content: "";
   position: absolute;
   left: -2px;
   right: -2px;
@@ -1503,7 +1503,7 @@ body.sketchnote-zen .workspace-tab-header-container {
 }
 
 .sketchdraw-flyout-handle::before {
-  content: ``;
+  content: "";
   width: 28px;
   height: 3px;
   border-radius: 2px;
@@ -1536,6 +1536,52 @@ body.sketchnote-zen .workspace-tab-header-container {
   margin-right: 8px;
 }
 
-.sketchdraw-context > :first-child {
+.sketchdraw-context::before {
+  content: "";
+  flex: 0 0 0;
   margin-left: auto;
+}
+
+/* The floating menu of the keys of the tools: a pictogram and its key on each line, the active tool lit. */
+.sketchdraw-shortcuts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sketchdraw-shortcut {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 0;
+  height: 28px;
+  padding: 0 8px 0 6px;
+  box-shadow: none;
+  background: transparent;
+  color: var(--text-normal);
+}
+
+.sketchdraw-shortcut.is-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.sketchdraw-shortcut-icon {
+  display: flex;
+  width: 18px;
+  height: 18px;
+}
+
+.sketchdraw-shortcut-key {
+  min-width: 16px;
+  text-align: center;
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+}
+
+.sketchnote-key-field {
+  width: 3em;
+  text-align: center;
+  text-transform: uppercase;
 }

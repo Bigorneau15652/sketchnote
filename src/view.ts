@@ -211,7 +211,9 @@ export class SketchnoteView extends DrawEditor<SketchnoteDoc> {
   }
 
   protected toolKeys(): Record<string, Tool> {
-    return this.drawZone === null ? { v: `select`, h: `hand` } : super.toolKeys();
+    if (this.drawZone !== null) return super.toolKeys();
+    const all = super.toolKeys();
+    return Object.fromEntries(Object.entries(all).filter(([, tool]) => tool === `select` || tool === `hand`));
   }
 
   // In the structure mode the menu holds the actions on the selection only (group, lock, duplicate, mirror, levels, delete).

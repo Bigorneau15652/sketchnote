@@ -44,6 +44,7 @@ import { isLabeledShape, labelBox, labelColor, LabeledShape, pathMiddle } from "
 import { hitTop } from "./geometry";
 import { newId } from "./elements";
 import { MIN_ERASE_SIZE } from "./erase-data";
+import { isKeyTool, KEY_TOOLS, keyTable } from "./tool-keys";
 import { MIN_STAMP_SIZE, STAMP_IDS, stampName, StampId } from "./stamps";
 import { BUBBLE_FORMS, BubbleForm, FESTOON_FORMS, FestoonForm, ShapeForm } from "./shape-forms";
 
@@ -182,6 +183,8 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     this.unsubscribeSettings = null;
     this.flyout?.remove();
     this.flyout = null;
+    this.shortcutsBox?.remove();
+    this.shortcutsBox = null;
     await super.onClose();
   }
 
@@ -228,8 +231,9 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     return [`rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `arrow`, `line`, `pen`, `point`];
   }
 
+  // The keys that choose a tool come from the settings.
   protected toolKeys(): Record<string, Tool> {
-    return { v: `select`, h: `hand`, r: `rect`, d: `diamond`, o: `ellipse`, g: `triangle`, e: `eraser`, b: `bubble`, f: `festoon`, a: `arrow`, l: `line`, p: `pen`, t: `text`, [`.`]: `point` };
+    return keyTable(this.api.settings().toolKeys);
   }
 
   // The Text tool: a click on a text edits it, a click elsewhere starts a text there, and a drag draws a text zone (a box that the text wraps to).
@@ -776,7 +780,8 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       const icon = variants ? variants.icon(variants.read(this.toolStyle())) : fn.icon;
       button.dataset.icon = icon;
       setIcon(button, icon);
-      button.setAttribute(`aria-label`, fn.name());
+      const toolKey = isKeyTool(fn.tools[0]) ? settings.toolKeys[fn.tools[0]] : ``;
+      button.setAttribute(`aria-label`, toolKey === `` ? fn.name() : `${fn.name()} (${toolKey.toUpperCase()})`);
       button.toggleClass(`is-active`, this.activeFn === fn.id);
       button.addEventListener(`click`, () => {
         // A second click on the active button of a function that has forms closes or opens its floating menu.
@@ -790,6 +795,53 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       });
     }
     this.syncFlyout();
+  }
+
+  // Whether the floating menu of the keys is shown (kept while the application runs, shared by the drawings that are open).
+  protected static shortcutsShown = false;
+  protected shortcutsBox: HTMLElement | null = null;
+  protected shortcutsToggle: HTMLElement | null = null;
+  protected shortcutsPos: { left: number; top: number } | null = null;
+
+  // Shows the floating menu of the keys of the tools (a pictogram and the key of each tool, a click chooses the tool), or removes it. It is drawn again when the keys change.
+  protected syncShortcuts(): void {
+    this.shortcutsBox?.remove();
+    this.shortcutsBox = null;
+    this.shortcutsToggle?.toggleClass(`is-active`, DrawEditor.shortcutsShown);
+    const rail = this.rail;
+    if (!DrawEditor.shortcutsShown || !rail || rail.offsetParent === null) return;
+    const keys = this.api.settings().toolKeys;
+    const box = this.contentEl.createDiv({ cls: `sketchdraw-flyout sketchdraw-shortcuts` });
+    this.shortcutsBox = box;
+    const handle = box.createDiv({ cls: `sketchdraw-flyout-handle` });
+    handle.setAttribute(`aria-label`, t(`Raccourcis clavier`));
+    const list = box.createDiv({ cls: `sketchdraw-shortcuts-list` });
+    const functions = drawFunctions();
+    for (const tool of KEY_TOOLS) {
+      const fn = functions.find((f) => f.tools[0] === tool);
+      if (!fn) continue;
+      const row = list.createEl(`button`, { cls: `sketchdraw-shortcut` });
+      row.dataset.tool = tool;
+      const variants = this.variantsOf(fn.id);
+      const icon = row.createSpan({ cls: `sketchdraw-shortcut-icon` });
+      setIcon(icon, variants ? variants.icon(variants.read(this.toolStyle())) : fn.icon);
+      row.createSpan({ cls: `sketchdraw-shortcut-key`, text: keys[tool].toUpperCase() });
+      row.setAttribute(`aria-label`, `${fn.name()} : ${keys[tool].toUpperCase()}`);
+      row.toggleClass(`is-active`, this.tool === tool);
+      row.addEventListener(`click`, () => this.chooseFunction(fn));
+    }
+    const host = this.contentEl.getBoundingClientRect();
+    const pos = this.shortcutsPos ?? { left: host.width - box.offsetWidth - 70, top: 40 };
+    this.placeFlyout(box, pos.left, pos.top);
+    this.dragFlyout(handle, box, (left, top) => {
+      this.shortcutsPos = { left, top };
+    });
+  }
+
+  // Lights the tool that is active in the floating menu of the keys.
+  protected refreshShortcuts(): void {
+    if (!this.shortcutsBox) return;
+    for (const row of Array.from(this.shortcutsBox.querySelectorAll<HTMLElement>(`.sketchdraw-shortcut`))) row.toggleClass(`is-active`, row.dataset.tool === this.tool);
   }
 
   // The style of the tool itself (the one of the next elements), not the one of the selection.
@@ -827,6 +879,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
 
   // Shows the floating menu of the active function (beside its button, on its left), or removes it. It stays while the tool is active; a second click on the button closes it.
   protected syncFlyout(): void {
+    this.syncShortcuts();
     if (this.flyoutFn !== this.activeFn) {
       this.flyoutFn = this.activeFn;
       this.flyoutHidden = false;
@@ -875,7 +928,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
   }
 
   // The top bar of the floating menu moves it.
-  protected dragFlyout(handle: HTMLElement, box: HTMLElement): void {
+  protected dragFlyout(handle: HTMLElement, box: HTMLElement, save?: (left: number, top: number) => void): void {
     handle.addEventListener(`pointerdown`, (e: PointerEvent) => {
       e.preventDefault();
       handle.setPointerCapture(e.pointerId);
@@ -883,7 +936,8 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       const startY = e.clientY - box.offsetTop;
       const move = (m: PointerEvent): void => {
         this.placeFlyout(box, m.clientX - startX, m.clientY - startY);
-        this.flyoutPos = { left: box.offsetLeft, top: box.offsetTop };
+        if (save) save(box.offsetLeft, box.offsetTop);
+        else this.flyoutPos = { left: box.offsetLeft, top: box.offsetTop };
       };
       const stop = (): void => {
         handle.removeEventListener(`pointermove`, move);
@@ -1122,6 +1176,19 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     // something is selected.
     const displaySec = this.section(props, `display`);
     this.buildDisplaySection(displaySec);
+    // The keys of the tools: a button that shows or hides the small floating menu that lists them.
+    const keysSec = this.section(props, `shortcuts`);
+    this.sectionIcon(keysSec, `keyboard`, t(`Raccourcis clavier`));
+    const keysButton = keysSec.createEl(`button`, { cls: `sketchdraw-chip` });
+    setIcon(keysButton, `keyboard`);
+    keysButton.setAttribute(`aria-label`, t(`Raccourcis clavier`));
+    keysButton.toggleClass(`is-active`, DrawEditor.shortcutsShown);
+    keysButton.addEventListener(`click`, () => {
+      DrawEditor.shortcutsShown = !DrawEditor.shortcutsShown;
+      this.syncShortcuts();
+      this.contentEl.focus({ preventScroll: true });
+    });
+    this.shortcutsToggle = keysButton;
     const organise = this.section(props, `organise`);
     this.sectionIcon(organise, `layers`, t(`Organiser`));
     this.buildSelectionActions(organise).addClass(`sketchdraw-organise`);
@@ -1379,7 +1446,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
   // Tells whether a section of the panel can be used before anything is drawn: the settings of a text, and the settings of the pen (its brush and its regularity, and with the pen
   // tool its colour and its thickness too), which are kept for the next strokes.
   protected usableBeforeDrawing(name: PanelSection): boolean {
-    if (name === `text` || name === `regularity` || name === `brush` || name === `display` || name === `bubbleform` || name === `festoonform` || name === `eraser` || name === `stamp`) return true;
+    if (name === `text` || name === `regularity` || name === `brush` || name === `display` || name === `shortcuts` || name === `bubbleform` || name === `festoonform` || name === `eraser` || name === `stamp`) return true;
     return this.tool === `pen` && (name === `colour` || name === `width`);
   }
 
@@ -1530,6 +1597,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
         this.renderRail();
       }
     }
+    this.refreshShortcuts();
     this.syncPanel();
   }
 

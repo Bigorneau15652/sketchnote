@@ -188,9 +188,10 @@ export function drawFunctions(): DrawFunction[] {
       help: () => [
         t(`Montre ce dessin seul, ou avec les dessins des autres zones de la page, estompés derrière lui, pour voir comment ils se placent autour.`),
         t(`Les autres dessins sont sur un autre calque : on ne peut pas les modifier depuis ce dessin.`),
+        t(`Le bouton Raccourcis clavier montre ou cache un petit menu flottant qui donne la touche de chaque outil. Les touches se changent dans les réglages de Sketchnote.`),
       ],
       tools: [],
-      sections: [`display`],
+      sections: [`display`, `shortcuts`],
     },
     {
       id: `export`,

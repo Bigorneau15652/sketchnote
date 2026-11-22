@@ -5,7 +5,7 @@ import { isBubbleForm } from "./shape-forms";
 import type { SketchElement } from "./elements";
 import { isClosedStroke } from "./tidy";
 
-export type PanelSection = `colour` | `fill` | `width` | `dash` | `look` | `border` | `corners` | `edges` | `taper` | `regularity` | `brush` | `warp` | `icon` | `image` | `heads` | `text` | `effects` | `organise` | `display` | `bubbleform` | `festoonform` | `eraser` | `stamp` | `transparency`;
+export type PanelSection = `colour` | `fill` | `width` | `dash` | `look` | `border` | `corners` | `edges` | `taper` | `regularity` | `brush` | `warp` | `icon` | `image` | `heads` | `text` | `effects` | `organise` | `display` | `bubbleform` | `festoonform` | `eraser` | `stamp` | `transparency` | `shortcuts`;
 
 // Returns the kinds of element the panel is about: the types of the selected elements, or the kind that the active tool is going to make when nothing is selected. A line
 // about to be drawn is `new-line`: its heads are not offered (a line becomes an arrow once a head is chosen, after it is drawn). The tools that do not make an element
@@ -96,6 +96,7 @@ export function sectionShown(section: PanelSection, kinds: Set<string>): boolean
     // What acts on the selection and the display do not depend on the kind of element: the function that shows them decides.
     case `organise`:
     case `display`:
+    case `shortcuts`:
       return true;
   }
 }
