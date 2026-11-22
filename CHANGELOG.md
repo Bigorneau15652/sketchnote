@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.47.1
+
+English
+
+The imperfection of the figure and of the character is softened. They are made of many short lines on a small grid, and the imperfection that suits a shape tore them apart (at 44 a sitting figure was no longer recognisable). They now take 30 % of the imperfection that is set: the usual setting (10) looks like the light imperfection of 3 on an ordinary shape, and the strongest one keeps the figure recognisable. The eyes and the other small filled dots stay round. The fields with a number in the menu (the width of the line, the imperfection, the opacity, the sizes...) now have a minus button on the left and a plus button on the right, which take the value down or up by one step (by 1 for the width and the imperfection), inside the limits of the field; the list of usual values and the typed value work as before.
+
+Français
+
+L'imperfection du bonhomme et du personnage est adoucie. Ils sont faits de nombreux petits traits sur une petite grille, et l'imperfection qui convient à une forme les déchirait (à 44, un bonhomme assis ne se reconnaissait plus). Ils prennent maintenant 30 % de l'imperfection réglée : le réglage habituel (10) donne l'aspect léger d'une imperfection de 3 sur une forme ordinaire, et le réglage le plus fort garde le bonhomme reconnaissable. Les yeux et les autres petits points pleins restent ronds. Les champs à nombre du menu (l'épaisseur du trait, l'imperfection, l'opacité, les tailles...) ont maintenant un bouton moins à gauche et un bouton plus à droite, qui baissent ou montent la valeur d'un pas (de 1 pour l'épaisseur et l'imperfection), dans les limites du champ ; la liste des valeurs usuelles et la valeur tapée fonctionnent comme avant.
+
 ## 0.47.0
 
 English

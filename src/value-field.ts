@@ -17,6 +17,8 @@ export interface ValueFieldOptions {
   // Called with the new value when the user chooses one in the list or types one.
   onChange: (value: number) => void;
   className?: string;
+  // Two small buttons, a minus on the left and a plus on the right, that take the value down or up by one step.
+  stepButtons?: boolean;
 }
 
 export interface ValueField {
@@ -29,6 +31,11 @@ export interface ValueField {
 export function valueField(o: ValueFieldOptions): ValueField {
   const el = o.parent.createDiv({ cls: `sketchdraw-field${o.className ? ` ${o.className}` : ``}` });
   el.setAttribute(`aria-label`, o.tooltip);
+  const minus = o.stepButtons ? el.createEl(`button`, { cls: `sketchdraw-field-step` }) : null;
+  if (minus) {
+    setIcon(minus, `minus`);
+    minus.setAttribute(`aria-label`, `${o.tooltip} : -`);
+  }
   if (o.icon !== ``) {
     const icon = el.createSpan({ cls: `sketchdraw-field-icon` });
     setIcon(icon, o.icon);
@@ -39,6 +46,11 @@ export function valueField(o: ValueFieldOptions): ValueField {
   const arrow = el.createEl(`button`, { cls: `sketchdraw-field-arrow` });
   setIcon(arrow, `chevron-down`);
   arrow.setAttribute(`aria-label`, o.tooltip);
+  const plus = o.stepButtons ? el.createEl(`button`, { cls: `sketchdraw-field-step` }) : null;
+  if (plus) {
+    setIcon(plus, `plus`);
+    plus.setAttribute(`aria-label`, `${o.tooltip} : +`);
+  }
   let current = o.min;
   let editing = false;
   const show = (): void => {
@@ -77,6 +89,17 @@ export function valueField(o: ValueFieldOptions): ValueField {
     }
   });
   input.addEventListener(`blur`, () => stopEditing(true));
+  // The buttons take the value down or up by one step, inside its limits.
+  const nudge = (direction: number): void => {
+    if (editing) stopEditing(true);
+    const next = Math.round(Math.min(o.max, Math.max(o.min, current + direction * o.step)) * 10000) / 10000;
+    if (next === current) return;
+    current = next;
+    show();
+    o.onChange(next);
+  };
+  minus?.addEventListener(`click`, () => nudge(-1));
+  plus?.addEventListener(`click`, () => nudge(1));
   arrow.addEventListener(`click`, (e) => {
     const menu = new Menu();
     for (const value of o.presets) {
