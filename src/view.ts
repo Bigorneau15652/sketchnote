@@ -216,6 +216,11 @@ export class SketchnoteView extends DrawEditor<SketchnoteDoc> {
     return Object.fromEntries(Object.entries(all).filter(([, tool]) => tool === `select` || tool === `hand`));
   }
 
+  // The functions of the drawer (windows, display) belong to the drawing mode.
+  protected functionsAvailable(): boolean {
+    return this.drawZone !== null;
+  }
+
   // In the structure mode the menu holds the actions on the selection only (group, lock, duplicate, mirror, levels, delete).
   protected sectionAllowed(name: PanelSection): boolean {
     return this.drawZone !== null || name === `organise`;

@@ -2,6 +2,8 @@
 import { Notice, Plugin, TFile, WorkspaceLeaf, normalizePath } from "obsidian";
 import { CanvasView } from "./canvas-view";
 import { DRAW_VIEW_TYPE, SketchdrawView } from "./draw-view";
+import { drawFunctions } from "./draw-functions";
+import { isFunctionKeyId } from "./tool-keys";
 import { DrawingStore } from "./drawings";
 import { registerIcons } from "./custom-icons";
 import { firstFreePath } from "./free-path";
@@ -82,6 +84,20 @@ export default class SketchnotePlugin extends Plugin {
         return true;
       },
     });
+    // The functions of the drawer that are not tools (the icons, the images, the library, the display, the export) are commands of the palette: Obsidian can give each a hotkey.
+    for (const fn of drawFunctions()) {
+      if (!isFunctionKeyId(fn.id)) continue;
+      this.addCommand({
+        id: `draw-function-${fn.id}`,
+        name: `${t(`Dessinateur`)} : ${fn.name()}`,
+        checkCallback: (checking) => {
+          const view = this.app.workspace.getActiveViewOfType(SketchnoteView) ?? this.app.workspace.getActiveViewOfType(SketchdrawView);
+          if (!(view instanceof CanvasView)) return false;
+          if (checking) return view.canRunFunction();
+          return view.runFunction(fn.id);
+        },
+      });
+    }
     this.addGroupCommand(`group-selection`, t(`Grouper la sélection`), (view) => view.groupSelection());
     this.addGroupCommand(`lock-selection`, t(`Verrouiller ou déverrouiller la sélection`), (view) => view.toggleLock());
     this.addGroupCommand(`ungroup-selection`, t(`Dégrouper la sélection`), (view) => view.ungroupSelection());

@@ -1591,3 +1591,9 @@ body.sketchnote-zen .workspace-tab-header-container {
   font-family: var(--font-monospace);
   font-weight: 600;
 }
+
+.sketchnote-buttons-mod {
+  flex: 0 0 auto;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}

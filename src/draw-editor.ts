@@ -44,7 +44,7 @@ import { isLabeledShape, labelBox, labelColor, LabeledShape, pathMiddle } from "
 import { hitTop } from "./geometry";
 import { newId } from "./elements";
 import { MIN_ERASE_SIZE } from "./erase-data";
-import { effectiveToolKeys, isKeyTool, KEY_TOOLS, keyTable, ToolKeys } from "./tool-keys";
+import { effectiveToolKeys, functionOfKey, isFunctionKeyId, isKeyTool, KEY_TOOLS, keyTable, ToolKeys } from "./tool-keys";
 import { MIN_STAMP_SIZE, STAMP_IDS, stampName, StampId } from "./stamps";
 import { BUBBLE_FORMS, BubbleForm, FESTOON_FORMS, FestoonForm, ShapeForm } from "./shape-forms";
 
@@ -229,6 +229,29 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
 
   protected creationTools(): CreationTool[] {
     return [`rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `arrow`, `line`, `pen`, `point`];
+  }
+
+  // The function that Ctrl+Shift and a key choose (the icons, the images, the library, the display, the export), from the settings.
+  protected functionOfKey(key: string): string | null {
+    return functionOfKey(this.api.settings().functionKeys, key) ?? null;
+  }
+
+  // Runs a function of the drawer: the same as a click on its button.
+  runFunction(id: string): boolean {
+    if (!this.functionsAvailable()) return false;
+    const fn = drawFunctions().find((f) => f.id === id);
+    if (!fn) return false;
+    this.chooseFunction(fn);
+    return true;
+  }
+
+  canRunFunction(): boolean {
+    return this.functionsAvailable();
+  }
+
+  // Tells whether the functions of the drawer can be run now (a view that has a mode without them overrides it).
+  protected functionsAvailable(): boolean {
+    return true;
   }
 
   // The keys of the tools for the language of the plugin.
@@ -785,8 +808,9 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       const icon = variants && variants.showChoice ? variants.icon(variants.read(this.toolStyle())) : fn.icon;
       button.dataset.icon = icon;
       setIcon(button, icon);
-      const toolKey = isKeyTool(fn.tools[0]) ? this.toolKeyList()[fn.tools[0]] : ``;
-      button.setAttribute(`aria-label`, toolKey === `` ? fn.name() : `${fn.name()} (${toolKey.toUpperCase()})`);
+      const toolKey = isKeyTool(fn.tools[0]) ? this.toolKeyList()[fn.tools[0]] : isFunctionKeyId(fn.id) ? settings.functionKeys[fn.id] ?? `` : ``;
+      const keyText = toolKey === `` ? `` : isKeyTool(fn.tools[0]) ? toolKey.toUpperCase() : `${t(`Ctrl+Maj+`)}${toolKey.toUpperCase()}`;
+      button.setAttribute(`aria-label`, keyText === `` ? fn.name() : `${fn.name()} (${keyText})`);
       button.toggleClass(`is-active`, this.activeFn === fn.id);
       button.addEventListener(`click`, () => {
         // A second click on the active button of a function that has forms closes or opens its floating menu.
@@ -986,6 +1010,8 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       save: (order, hidden) => this.api.updateSettings({ drawButtonsOrder: order, drawButtonsHidden: hidden }),
       keys: () => this.toolKeyList(),
       saveKeys: (keys) => this.api.updateSettings({ toolKeys: keys }),
+      functionKeys: () => this.api.settings().functionKeys,
+      saveFunctionKeys: (keys) => this.api.updateSettings({ functionKeys: keys }),
     }).open();
   }
 

@@ -143,6 +143,23 @@ export abstract class CanvasView<D> extends TextFileView {
     return [];
   }
 
+  // Runs a function of the drawer by its identifier (a window to open, a menu to show). Returns false when the view has no such function or cannot run it now.
+  runFunction(_id: string): boolean {
+    void _id;
+    return false;
+  }
+
+  // Tells whether the functions of the drawer can be run now.
+  canRunFunction(): boolean {
+    return false;
+  }
+
+  // The function that Ctrl+Shift and a key choose, or null.
+  protected functionOfKey(_key: string): string | null {
+    void _key;
+    return null;
+  }
+
   // Keys that choose a tool.
   protected toolKeys(): Record<string, Tool> {
     return { v: `select`, h: `hand` };
@@ -773,6 +790,8 @@ export abstract class CanvasView<D> extends TextFileView {
     } else if (key === ` `) {
       this.spaceDown = true;
       this.updateCursor();
+    } else if (mod && e.shiftKey && !e.altKey && this.functionOfKey(key) !== null && this.runFunction(this.functionOfKey(key) ?? ``)) {
+      // A function of the drawer chosen by its shortcut: nothing more to do.
     } else if (mod && key === `z`) {
       if (e.shiftKey) this.redo();
       else this.undo();
