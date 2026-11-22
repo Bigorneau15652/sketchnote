@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.43.0
+
+English
+
+The old view of the drawing notes is removed. A note with the extension .sketchdraw is no longer opened in a view of its own in Sketchnote: the drawings are made on the page, zone by zone. The setting Folder of the drawings is removed too (a saved value is ignored), and so are the code that created and copied these notes and the texts of the old view. What stays: the drawings of the library are still notes .sketchdraw in the folder of the library, they are still put on a page from the button Drawings, and the old frames of the pages made before the single environment are still read from their notes when a page is opened. The notes already in the vault are not touched. Obsidian no longer offers to open a .sketchdraw note as a drawing: to change a drawing of the library, put it on a page, change it, and save it again to the library.
+
+Français
+
+L'ancienne vue des notes de dessin est supprimée. Une note d'extension .sketchdraw ne s'ouvre plus dans une vue à elle dans Sketchnote : les dessins se font sur la page, zone par zone. Le réglage Dossier des dessins est supprimé aussi (une valeur enregistrée est ignorée), ainsi que le code qui créait et copiait ces notes et les textes de l'ancienne vue. Ce qui reste : les dessins de la bibliothèque sont toujours des notes .sketchdraw dans le dossier de la bibliothèque, ils se mettent toujours sur une page avec le bouton Dessins, et les anciens cadres des pages faites avant l'environnement unique sont toujours lus depuis leurs notes à l'ouverture d'une page. Les notes déjà dans le coffre ne sont pas touchées. Obsidian ne propose plus d'ouvrir une note .sketchdraw comme un dessin : pour modifier un dessin de la bibliothèque, mettez-le sur une page, modifiez-le puis enregistrez-le de nouveau dans la bibliothèque.
+
 ## 0.42.1
 
 English

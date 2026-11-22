@@ -1,7 +1,6 @@
 // Entry point of the plugin: registers the views of a sketchnote and of a drawing, the commands, the settings and the follow-up of the drawing notes.
 import { Notice, Plugin, TFile, WorkspaceLeaf, normalizePath } from "obsidian";
 import { CanvasView } from "./canvas-view";
-import { DRAW_VIEW_TYPE, SketchdrawView } from "./draw-view";
 import { drawFunctions } from "./draw-functions";
 import { isFunctionKeyId } from "./tool-keys";
 import { functionCommandId } from "./hotkeys";
@@ -57,7 +56,7 @@ export default class SketchnotePlugin extends Plugin {
     this.settingsData = readSettings(await this.loadData());
     setLanguage(`auto`);
     registerIcons();
-    this.drawings = new DrawingStore(this.app, () => this.settingsData.drawingsFolder);
+    this.drawings = new DrawingStore(this.app);
     this.fonts = new FontStore(this.app, () => this.settingsData.fontsFolder);
     this.icons = new IconStore(this.app, () => this.settingsData.iconsFolder);
     this.icons.start();
@@ -70,16 +69,14 @@ export default class SketchnotePlugin extends Plugin {
     const exportServices = new ExportServiceImpl(this.app, () => this.settingsData.exportsFolder, this.fonts);
     const api: PluginApi = { drawings: this.drawings, fonts: this.fonts, icons: this.icons, exports: exportServices, zen: this.zen, settings: () => this.settingsData, updateSettings: (patch) => this.changeSettings(patch), onSettings: (listener) => this.listenSettings(listener), origins: this.origins };
     this.registerView(VIEW_TYPE, (leaf) => new SketchnoteView(leaf, api));
-    this.registerView(DRAW_VIEW_TYPE, (leaf) => new SketchdrawView(leaf, api));
     this.registerExtensions([`sketchnote`], VIEW_TYPE);
-    this.registerExtensions([`sketchdraw`], DRAW_VIEW_TYPE);
     this.addCommand({ id: `toggle-zen`, name: t(`Mode zen`), callback: () => void this.zen.toggle() });
     this.addCommand({ id: `create-sketchnote`, name: t(`Créer un sketchnote`), callback: () => void this.createSketchnote() });
     this.addCommand({
       id: `duplicate-selection`,
       name: t(`Dupliquer la sélection`),
       checkCallback: (checking) => {
-        const view = this.app.workspace.getActiveViewOfType(SketchnoteView) ?? this.app.workspace.getActiveViewOfType(SketchdrawView);
+        const view = this.app.workspace.getActiveViewOfType(SketchnoteView);
         if (!(view instanceof CanvasView)) return false;
         if (!checking) void view.duplicateSelection();
         return true;
@@ -92,7 +89,7 @@ export default class SketchnotePlugin extends Plugin {
         id: functionCommandId(fn.id).replace(`sketchnote:`, ``),
         name: `${t(`Dessinateur`)} : ${fn.name()}`,
         checkCallback: (checking) => {
-          const view = this.app.workspace.getActiveViewOfType(SketchnoteView) ?? this.app.workspace.getActiveViewOfType(SketchdrawView);
+          const view = this.app.workspace.getActiveViewOfType(SketchnoteView);
           if (!(view instanceof CanvasView)) return false;
           if (checking) return view.canRunFunction();
           return view.runFunction(fn.id);
@@ -124,7 +121,7 @@ export default class SketchnotePlugin extends Plugin {
       if (!isImageName(path)) return;
       if (imageTimer !== null) window.clearTimeout(imageTimer);
       imageTimer = window.setTimeout(() => {
-        for (const type of [VIEW_TYPE, DRAW_VIEW_TYPE]) for (const leaf of this.app.workspace.getLeavesOfType(type)) if (leaf.view instanceof CanvasView) leaf.view.refreshImages();
+        for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE)) if (leaf.view instanceof CanvasView) leaf.view.refreshImages();
       }, 300);
     };
     this.registerEvent(this.app.vault.on(`create`, (file) => imagesChanged(file.path)));
@@ -149,7 +146,7 @@ export default class SketchnotePlugin extends Plugin {
       id,
       name,
       checkCallback: (checking) => {
-        const view = this.app.workspace.getActiveViewOfType(SketchnoteView) ?? this.app.workspace.getActiveViewOfType(SketchdrawView);
+        const view = this.app.workspace.getActiveViewOfType(SketchnoteView);
         if (!(view instanceof CanvasView)) return false;
         if (!checking) run(view as CanvasView<unknown>);
         return true;

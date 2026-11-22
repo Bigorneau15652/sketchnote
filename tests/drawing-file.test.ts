@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createEmptyDrawing, contentBox, fitInFrame, guideBox, makeGuide, parseSketchdraw, renameReferences, serializeSketchdraw } from "../src/drawing-file";
 import { SketchElement } from "../src/elements";
-import { cleanName, DEFAULT_SETTINGS, normalizeFolder, readSettings, uniqueDrawingPath } from "../src/settings";
+import { cleanName, DEFAULT_SETTINGS, normalizeFolder, readSettings } from "../src/settings";
 import { defaultPaletteFor, isPalette } from "../src/color";
 import { setLanguage } from "../src/i18n";
 
@@ -81,8 +81,8 @@ test(`un dossier est nettoye ou refuse`, () => {
 
 test(`les reglages invalides reprennent la valeur par defaut`, () => {
   assert.deepEqual(readSettings(undefined), DEFAULT_SETTINGS);
-  assert.deepEqual(readSettings({ drawingsFolder: `../x` }), DEFAULT_SETTINGS);
-  assert.deepEqual(readSettings({ drawingsFolder: `Mes dessins` }), { ...DEFAULT_SETTINGS, drawingsFolder: `Mes dessins` });
+  // The old setting of the folder of the drawing notes is ignored: no view creates these notes any more.
+  assert.deepEqual(readSettings({ drawingsFolder: `Mes dessins` }), DEFAULT_SETTINGS);
   assert.deepEqual(readSettings({ fontsFolder: `Mes polices` }), { ...DEFAULT_SETTINGS, fontsFolder: `Mes polices` });
   assert.deepEqual(readSettings({ fontsFolder: `../x` }), DEFAULT_SETTINGS);
   // The folder of the icons of the user is read the same way, and has its own default.
@@ -100,12 +100,10 @@ test(`les reglages invalides reprennent la valeur par defaut`, () => {
   assert.equal(readSettings({ zenFullscreen: `oui` }).zenFullscreen, false);
 });
 
-test(`le nom d'un dessin est unique, sans caracteres interdits`, () => {
+test(`le nom d'un dessin n'a pas de caracteres interdits`, () => {
   assert.equal(cleanName(`a/b:c*d`), `abcd`);
   assert.equal(cleanName(`   `), `Sketchnote`);
   assert.equal(cleanName(`x`.repeat(100)).length, 60);
-  assert.equal(uniqueDrawingPath(`D`, `Mon note`, new Set()), `D/Mon note - dessin 1.sketchdraw`);
-  assert.equal(uniqueDrawingPath(`D`, `Mon note`, new Set([`D/Mon note - dessin 1.sketchdraw`, `d/mon note - dessin 2.sketchdraw`])), `D/Mon note - dessin 3.sketchdraw`);
 });
 
 test(`le renommage d'un dessin met a jour les cadres qui le montrent et rien d'autre`, () => {
