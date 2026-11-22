@@ -932,28 +932,62 @@ textarea.sketchnote-text-editor.is-label {
   object-fit: contain;
 }
 
-/* The window of the export: rows of choices, the preview on a chequered ground, and the buttons. */
+/* The window of the export, in the style of a print window: the menus on the left, the preview and the buttons on the right. */
 .sketchnote-export {
-  width: 520px;
+  width: 760px;
   max-width: 96vw;
+}
+
+.sketchnote-export-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.sketchnote-export-form {
+  display: flex;
+  flex: 0 0 230px;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sketchnote-export-side {
+  flex: 1 1 320px;
+  min-width: 0;
 }
 
 .sketchnote-export-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 10px;
-  margin: 0 0 6px;
+  gap: 4px 8px;
 }
 
 .sketchnote-export-label {
-  flex: 0 0 64px;
+  flex: 1 0 100%;
   color: var(--text-muted, #666666);
   font-size: var(--font-ui-smaller, 12px);
 }
 
-.sketchnote-export-chips {
-  margin: 0;
+.sketchnote-export-select {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.sketchnote-export-color {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 28px;
+  padding: 0;
+}
+
+.sketchnote-export-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-ui-small, 13px);
 }
 
 .sketchnote-export-preview {

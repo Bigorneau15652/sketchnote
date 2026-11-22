@@ -121,3 +121,37 @@ export async function canvasToPdf(canvas: HTMLCanvasElement, scale: number, titl
   const k = 0.75 / Math.max(scale, 0.01);
   return buildPdf(width, height, await deflate(rgb), width * k, height * k, title);
 }
+
+// Returns the bytes of the JPG file of a canvas, on a white ground (a JPG has no transparency). The quality is in percent.
+export async function canvasToJpeg(canvas: HTMLCanvasElement, quality: number): Promise<Uint8Array> {
+  const flat = document.createElement(`canvas`);
+  flat.width = canvas.width;
+  flat.height = canvas.height;
+  const ctx = flat.getContext(`2d`);
+  if (!ctx) throw new Error(`canvas`);
+  ctx.fillStyle = `#ffffff`;
+  ctx.fillRect(0, 0, flat.width, flat.height);
+  ctx.drawImage(canvas, 0, 0);
+  const q = Math.min(1, Math.max(0.1, quality / 100));
+  const blob = await new Promise<Blob | null>((resolve) => flat.toBlob(resolve, `image/jpeg`, q));
+  if (!blob) throw new Error(`jpg`);
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+// Puts everything that the SVG shows in a group with a filter, so that the picture is in shades of grey or in black and white. The transparent parts stay transparent. Nothing is done for colours.
+export function applyTone(svg: SVGElement, tone: `color` | `gray` | `bw`): void {
+  if (tone === `color`) return;
+  const group = svgEl(`g`, { filter: `url(#sketchnote-tone)` });
+  while (svg.firstChild) group.appendChild(svg.firstChild);
+  const defs = svgEl(`defs`, {});
+  const filter = svgEl(`filter`, { id: `sketchnote-tone`, "color-interpolation-filters": `sRGB`, x: `-10%`, y: `-10%`, width: `120%`, height: `120%` }, defs);
+  // The grey of each colour: its luminance.
+  svgEl(`feColorMatrix`, { type: `matrix`, values: `0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0 0 0 1 0` }, filter);
+  if (tone === `bw`) {
+    // Black or white: below the middle grey it is black.
+    const transfer = svgEl(`feComponentTransfer`, {}, filter);
+    for (const channel of [`feFuncR`, `feFuncG`, `feFuncB`]) svgEl(channel, { type: `discrete`, tableValues: `0 1` }, transfer);
+  }
+  svg.appendChild(defs);
+  svg.appendChild(group);
+}

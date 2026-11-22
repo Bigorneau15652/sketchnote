@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { deflateSync, inflateSync } from "node:zlib";
-import { elementsBox, EXPORT_MARGIN, EXPORT_MAX_PIXELS, EXPORT_MAX_SIDE, exportFileName, fitSize, fontFaceCss, isExportFormat, pluginFamilies, toBase64 } from "../src/export-plan";
+import { canBeTransparent, DEFAULT_JPEG_QUALITY, EXPORT_TARGETS, isHexColor, JPEG_QUALITIES, elementsBox, EXPORT_MARGIN, EXPORT_MAX_PIXELS, EXPORT_MAX_SIDE, exportFileName, fitSize, fontFaceCss, isExportFormat, pluginFamilies, toBase64 } from "../src/export-plan";
 import { buildPdf } from "../src/pdf-writer";
 import { readElements, SketchElement } from "../src/elements";
 import { readSettings, DEFAULT_SETTINGS } from "../src/settings";
@@ -82,4 +82,15 @@ test(`le dossier des exports des reglages a une valeur par defaut et refuse un d
   assert.equal(DEFAULT_SETTINGS.exportsFolder, `Sketchnote exports`);
   assert.deepEqual(readSettings({ exportsFolder: `/Mes exports/` }), { ...DEFAULT_SETTINGS, exportsFolder: `Mes exports` });
   assert.deepEqual(readSettings({ exportsFolder: `../x` }), DEFAULT_SETTINGS);
+});
+
+test(`le JPG est un format d'export, la transparence ne va qu'au PNG et au SVG, et une couleur de fond est controlee`, () => {
+  assert.ok(isExportFormat(`jpg`));
+  assert.ok(!isExportFormat(`gif`));
+  assert.deepEqual(EXPORT_TARGETS, [`printer`, `png`, `jpg`, `pdf`, `svg`]);
+  assert.deepEqual([`png`, `svg`, `jpg`, `pdf`, `printer`].map((f) => canBeTransparent(f as never)), [true, true, false, false, false]);
+  assert.ok(isHexColor(`#a1B2c3`));
+  for (const bad of [`#fff`, `red`, `#12345g`, `url(x)`, 5, null]) assert.ok(!isHexColor(bad), String(bad));
+  assert.ok(JPEG_QUALITIES.includes(DEFAULT_JPEG_QUALITY));
+  assert.match(exportFileName(`Note`, ``, `jpg`, new Date(2026, 10, 22, 8, 5, 3), new Set()), /\.jpg$/);
 });

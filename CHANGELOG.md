@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.49.0
+
+English
+
+The export window is redone in the style of a print window. The buttons with all the choices on top are replaced by drop-down menus on the left, with the preview and the buttons on the right. The menus are: part (page or selection), type of export (printer, PNG, JPG, PDF or SVG), size (for the files that are pictures), quality (for a JPG), background (white, the original background of the page or a colour of your choice) with a Transparent background box for a PNG or an SVG, and colours (colour, shades of grey or black and white). For the printer, the paper and the scale are shown, and the printer and the number of copies are chosen in the print window of the system, which opens with the Print button. The colours choice applies to every type of export and to the preview. JPG is a new format, with a quality of 60, 75, 90 or 100 percent, always on an opaque background; a JPG is copied to the clipboard as a PNG. The choices are kept for the next export.
+
+Français
+
+La fenêtre d'export est refaite dans le style d'une fenêtre d'impression. Les boutons qui montraient tous les choix en haut sont remplacés par des menus déroulants à gauche, avec l'aperçu et les boutons à droite. Les menus sont : partie (page ou sélection), type d'export (imprimante, PNG, JPG, PDF ou SVG), taille (pour les fichiers qui sont des images), qualité (pour un JPG), fond (blanc, fond d'origine de la page ou couleur au choix) avec une case Fond transparent pour un PNG ou un SVG, et couleurs (couleur, niveaux de gris ou noir et blanc). Pour l'imprimante, le papier et l'échelle sont montrés, et l'imprimante et le nombre de copies se choisissent dans la fenêtre d'impression du système, qui s'ouvre avec le bouton Imprimer. Le choix des couleurs s'applique à tous les types d'export et à l'aperçu. Le JPG est un nouveau format, avec une qualité de 60, 75, 90 ou 100 pour cent, toujours sur un fond opaque ; un JPG est copié dans le presse-papiers sous forme de PNG. Les choix sont gardés pour l'export suivant.
+
 ## 0.48.0
 
 English
