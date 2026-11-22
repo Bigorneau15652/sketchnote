@@ -95,6 +95,7 @@ export abstract class CanvasView<D> extends TextFileView {
   private selectionActions: HTMLElement | null = null;
   private groupButton: HTMLButtonElement | null = null;
   private restoreButton: HTMLButtonElement | null = null;
+  private saveButton: HTMLButtonElement | null = null;
   private groupIcon = ``;
   private lockSelectionButton: HTMLButtonElement | null = null;
   private lockIcon = ``;
@@ -327,6 +328,7 @@ export abstract class CanvasView<D> extends TextFileView {
     this.button(actions, `arrow-up`, t(`Monter d'un niveau`), () => this.reorderSelection(`up`));
     this.button(actions, `arrow-down`, t(`Descendre d'un niveau`), () => this.reorderSelection(`down`));
     this.button(actions, `send-to-back`, t(`Mettre à l'arrière plan`), () => this.reorderSelection(`back`));
+    this.saveButton = this.button(actions, `library`, t(`Enregistrer dans la bibliothèque`), () => this.saveSelectionToLibrary());
     this.restoreButton = this.button(actions, `eraser`, t(`Retirer les effacements`), () => this.restoreErased());
     this.button(actions, `trash-2`, t(`Supprimer`), () => this.deleteSelection());
     this.selectionActions = actions;
@@ -348,6 +350,7 @@ export abstract class CanvasView<D> extends TextFileView {
     this.selectionActions?.toggleClass(`is-visible`, this.selected.size > 0);
     this.updateGroupButton();
     this.updateLockButton();
+    if (this.saveButton) this.saveButton.disabled = !this.selectedElements().some((e) => e.group !== `structure` && e.type !== `drawing`);
     if (this.restoreButton) this.restoreButton.disabled = !this.selectedElements().some((e) => e.erase !== undefined && e.locked !== true);
     this.updateCursor();
     this.onSelectionChanged();
@@ -478,6 +481,9 @@ export abstract class CanvasView<D> extends TextFileView {
     const over = this.hitAt(p, false);
     return over && !isLocked(over) ? `grab` : ``;
   }
+
+  // Keeps the selection as a drawing of the library. A view that has a library overrides it.
+  protected saveSelectionToLibrary(): void {}
 
   // Called for a double click on an element before anything else: a view that handles it returns true.
   protected activateFirst(_el: SketchElement): boolean {

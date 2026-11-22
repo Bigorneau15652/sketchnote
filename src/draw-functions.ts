@@ -4,7 +4,7 @@
 import { t } from "./i18n";
 import type { PanelSection } from "./panel-kinds";
 
-export type DrawFunctionId = `select` | `hand` | `rect` | `diamond` | `ellipse` | `triangle` | `bubble` | `festoon` | `arrow` | `line` | `pen` | `point` | `eraser` | `text` | `icons` | `images` | `display` | `export`;
+export type DrawFunctionId = `select` | `hand` | `rect` | `diamond` | `ellipse` | `triangle` | `bubble` | `festoon` | `arrow` | `line` | `pen` | `point` | `eraser` | `text` | `icons` | `images` | `library` | `display` | `export`;
 
 export interface DrawFunction {
   id: DrawFunctionId;
@@ -18,7 +18,7 @@ export interface DrawFunction {
   // The parts of the properties that its menu shows (the ones that do not concern the selection or the tool are left out).
   sections: PanelSection[];
   // A function that opens a window when it is clicked instead of showing a menu.
-  opens?: `icons` | `images` | `export`;
+  opens?: `icons` | `images` | `library` | `export`;
 }
 
 const CONTENT: PanelSection[] = [`colour`, `fill`, `brush`, `width`, `dash`, `look`, `regularity`, `border`, `corners`, `bubbleform`, `festoonform`, `edges`, `taper`, `heads`, `text`, `warp`, `icon`, `image`, `effects`];
@@ -170,6 +170,18 @@ export function drawFunctions(): DrawFunction[] {
       opens: `images`,
     },
     {
+      id: `library`,
+      icon: `library`,
+      name: () => t(`Dessins`),
+      help: () => [
+        t(`Ouvre la bibliothèque : les dessins que vous avez enregistrés depuis une sélection. Un clic sur un dessin le met sur la page, au milieu de la vue, groupé pour qu'il se déplace d'un bloc.`),
+        t(`Pour enregistrer un dessin, sélectionnez ce qu'il faut garder (une zone entière, ou des éléments) puis utilisez le bouton Enregistrer dans la bibliothèque parmi les boutons de la sélection.`),
+      ],
+      tools: [],
+      sections: [],
+      opens: `library`,
+    },
+    {
       id: `display`,
       icon: `eye`,
       name: () => t(`Affichage`),
@@ -205,10 +217,11 @@ export const isSeparator = (id: string): boolean => /^sep:\d+$/.test(id);
 
 // The usual order: the tools (each one its own button), then the windows, then what acts on the drawing. The colours, the line and the effects have no button: they are in the menu of
 // the tool, or of the selected element.
-export const DEFAULT_ORDER: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `sep:2`, `arrow`, `line`, `pen`, `point`, `eraser`, `text`, `sep:3`, `icons`, `images`, `sep:4`, `display`, `export`];
+export const DEFAULT_ORDER: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `sep:2`, `arrow`, `line`, `pen`, `point`, `eraser`, `text`, `sep:3`, `icons`, `images`, `library`, `sep:4`, `display`, `export`];
 
 const BEFORE_BUBBLES: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `sep:2`, `arrow`, `line`, `pen`, `point`, `text`, `sep:3`, `icons`, `images`, `sep:4`, `display`, `export`];
 const BEFORE_ERASER: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `sep:2`, `arrow`, `line`, `pen`, `point`, `text`, `sep:3`, `icons`, `images`, `sep:4`, `display`, `export`];
+const BEFORE_LIBRARY: string[] = [`select`, `hand`, `sep:1`, `rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `sep:2`, `arrow`, `line`, `pen`, `point`, `eraser`, `text`, `sep:3`, `icons`, `images`, `sep:4`, `display`, `export`];
 
 // Tells whether a value can be an entry of a saved order: a known function or a separation.
 export function isOrderEntry(value: unknown, known: string[]): value is string {
@@ -219,7 +232,7 @@ export function isOrderEntry(value: unknown, known: string[]): value is string {
 export function readOrder(value: unknown, known: string[]): string[] {
   if (!Array.isArray(value)) return [...DEFAULT_ORDER];
   // The usual order of the versions before the bubbles and the festoons: it takes the new buttons at their place.
-  if (value.join(`,`) === BEFORE_BUBBLES.join(`,`) || value.join(`,`) === BEFORE_ERASER.join(`,`)) return [...DEFAULT_ORDER];
+  if (value.join(`,`) === BEFORE_BUBBLES.join(`,`) || value.join(`,`) === BEFORE_ERASER.join(`,`) || value.join(`,`) === BEFORE_LIBRARY.join(`,`)) return [...DEFAULT_ORDER];
   // An order saved when the tools were grouped (Draw, Shapes, Lines and arrows) has nothing to keep: each tool has its own button now, so the usual order is used.
   if (value.some((id) => id === `draw` || id === `shapes` || id === `lines` || id === `organise`)) return [...DEFAULT_ORDER];
   const out: string[] = [];

@@ -1147,3 +1147,24 @@ body.sketchnote-zen .workspace-tab-header-container {
 .sketchnote-faded {
   pointer-events: none;
 }
+
+/* The library of drawings: the small views of the drawings, and the field of the name. */
+.sketchnote-images-holder svg.sketchnote-library-thumb {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.sketchnote-images-holder.is-dark {
+  background: #2a3631;
+}
+
+.sketchnote-images-cell.is-unreadable {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.sketchnote-library-name {
+  width: 100%;
+  margin-bottom: 12px;
+}
