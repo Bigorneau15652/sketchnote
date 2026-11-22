@@ -490,6 +490,23 @@ const PAIRS: [string, string][] = [
   [`Estompage du reste de la page`, `Fading of the rest of the page`],
   [`Les dessins de la page sont maintenant dans la page : les anciennes notes de dessin restent dans le coffre.`, `The drawings of the page are now in the page: the old drawing notes stay in the vault.`],
   [`Impossible d'intégrer les dessins à la page : {0}`, `Cannot bring the drawings into the page: {0}`],
+  [`Dossier de la bibliothèque de dessins`, `Folder of the library of drawings`],
+  [`Dossier du coffre où sont enregistrés les dessins que vous mettez dans la bibliothèque (une sélection de la page, avec le bouton Enregistrer dans la bibliothèque) et où le bouton Dessins va les chercher pour les remettre sur la page. Chaque dessin est une note .sketchdraw que vous pouvez renommer, déplacer ou supprimer dans Obsidian. Le dossier est créé s'il n'existe pas.`, `Folder of the vault where the drawings that you put in the library are kept (a selection of the page, with the button Save in the library) and where the button Drawings looks for them to put them back on the page. Each drawing is a .sketchdraw note that you can rename, move or delete in Obsidian. The folder is created if it does not exist.`],
+  [`Dessins`, `Drawings`],
+  [`Ouvre la bibliothèque : les dessins que vous avez enregistrés depuis une sélection. Un clic sur un dessin le met sur la page, au milieu de la vue, groupé pour qu'il se déplace d'un bloc.`, `Opens the library: the drawings that you saved from a selection. A click on a drawing puts it on the page, in the middle of the view, grouped so that it moves as one block.`],
+  [`Pour enregistrer un dessin, sélectionnez ce qu'il faut garder (une zone entière, ou des éléments) puis utilisez le bouton Enregistrer dans la bibliothèque parmi les boutons de la sélection.`, `To save a drawing, select what must be kept (a whole zone, or some elements) then use the button Save in the library among the buttons of the selection.`],
+  [`Ce dessin est vide.`, `This drawing is empty.`],
+  [`Sélectionnez d'abord ce qu'il faut garder dans la bibliothèque.`, `First select what must be kept in the library.`],
+  [`Dessin enregistré dans la bibliothèque : {0}`, `Drawing saved in the library: {0}`],
+  [`Impossible d'enregistrer le dessin : {0}`, `Cannot save the drawing: {0}`],
+  [`Enregistrer dans la bibliothèque`, `Save in the library`],
+  [`Nom du dessin`, `Name of the drawing`],
+  [`Enregistrer`, `Save`],
+  [`Dessins de la bibliothèque`, `Drawings of the library`],
+  [`Chercher un dessin par son nom`, `Search a drawing by its name`],
+  [`Chercher un dessin`, `Search a drawing`],
+  [`Afficher plus de dessins`, `Show more drawings`],
+  [`Aucun dessin dans la bibliothèque. Sélectionnez des éléments sur une page, puis utilisez le bouton Enregistrer dans la bibliothèque.`, `No drawing in the library. Select elements on a page, then use the button Save in the library.`],
 ];
 
 export const EN: Record<string, string> = Object.fromEntries(PAIRS);

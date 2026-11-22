@@ -31,6 +31,10 @@ import { allLocked, isLocked } from "./lock";
 import { MAX_REGULARITY } from "./tidy";
 import { WARP_KINDS, WarpKind } from "./text-warp";
 import { PluginApi } from "./plugin-api";
+import { firstFreePath } from "./free-path";
+import { LibraryModal, SaveDrawingModal } from "./library-modal";
+import { drawingFromSelection, libraryElements, libraryName, libraryPath, PLACE_SHARE, placeDrawing } from "./library-file";
+import { serializeSketchdraw, SketchdrawDoc } from "./drawing-file";
 import { svgEl } from "./svg";
 import { applyStyleToIds, brushDefaultsPatch, cleanPatch, defaultStyle, MAX_WIDTH, MIN_WIDTH, StylePatch, styleOf, TEXT_SIZES, ToolStyle } from "./style";
 import { CreationTool, textElement, zoneElement, zoneFontSize } from "./tools";
@@ -474,6 +478,56 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
   protected iconName: HTMLElement | null = null;
 
   // Opens the window of the icons: Lucide, and the SVG drawings that the user keeps in the folder of the icons (which is created the first time).
+  // Opens the library of drawings: a click on a drawing puts it on the page, in the middle of the view.
+  protected openLibrary(): void {
+    void this.api.drawings.ensureFolder(this.api.settings().libraryFolder).catch(() => undefined);
+    new LibraryModal(this.app, () => this.api.settings().libraryFolder, (doc) => this.insertLibraryDrawing(doc)).open();
+  }
+
+  // Puts a drawing of the library on the page: in the middle of the view, at its size (smaller when it is wider than half of the view), as one group, selected.
+  protected insertLibraryDrawing(doc: SketchdrawDoc): void {
+    const scroller = this.scroller;
+    const room = scroller && scroller.clientWidth > 0 ? (scroller.clientWidth / this.zoom) * PLACE_SHARE : 400;
+    const existing = this.elementsOf(this.doc);
+    const placed = placeDrawing(doc, this.viewCentre(), room, existing);
+    if (placed.length === 0) {
+      new Notice(t(`Ce dessin est vide.`));
+      return;
+    }
+    this.commitElements([...existing, ...placed]);
+    this.tool = `select`;
+    this.selected = new Set(placed.map((e) => e.id));
+    this.renderUi();
+    this.updateBar();
+  }
+
+  // Keeps the selection as a drawing of the library: asks its name, then writes the note in the folder of the library.
+  protected saveSelectionToLibrary(): void {
+    const kept = libraryElements(this.elementsOf(this.doc), this.selected);
+    const doc = drawingFromSelection(kept, this.inkOf(), this.paletteOf());
+    if (!doc) {
+      new Notice(t(`Sélectionnez d'abord ce qu'il faut garder dans la bibliothèque.`));
+      return;
+    }
+    const now = new Date();
+    const pad = (n: number): string => String(n).padStart(2, `0`);
+    const proposed = `${t(`Dessin`)} ${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}-${pad(now.getMinutes())}`;
+    new SaveDrawingModal(this.app, proposed, (name) => void this.writeToLibrary(libraryName(name, proposed), doc)).open();
+  }
+
+  private async writeToLibrary(name: string, doc: SketchdrawDoc): Promise<void> {
+    try {
+      const folder = this.api.settings().libraryFolder;
+      await this.api.drawings.ensureFolder(folder);
+      const used = new Set(this.app.vault.getFiles().map((f) => f.path));
+      const path = await firstFreePath((taken) => libraryPath(folder, name, new Set([...used, ...taken])), (p) => this.app.vault.adapter.exists(p));
+      const file = await this.app.vault.create(path, serializeSketchdraw(doc));
+      new Notice(t(`Dessin enregistré dans la bibliothèque : {0}`, file.path));
+    } catch (e) {
+      new Notice(t(`Impossible d'enregistrer le dessin : {0}`, e instanceof Error ? e.message : String(e)));
+    }
+  }
+
   protected async openIcons(): Promise<void> {
     try {
       await this.api.drawings.ensureFolder(this.api.icons.folder());
@@ -733,6 +787,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     if (fn.id === `display`) this.refreshDisplay();
     if (fn.opens === `icons`) void this.openIcons();
     else if (fn.opens === `images`) void this.openImages();
+    else if (fn.opens === `library`) this.openLibrary();
     else if (fn.opens === `export`) this.openExport();
     this.contentEl.focus({ preventScroll: true });
   }

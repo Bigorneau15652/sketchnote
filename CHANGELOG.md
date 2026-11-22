@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.38.0
+
+English
+
+The library of drawings. A selection of the page can be kept as a drawing and put back on a page (or on another one) later. To keep a drawing: select what must be kept (a zone is selected as one block with a click in the structure mode, or elements in the drawing mode), then use the new button Save in the library among the buttons of the selection (the menu): the window asks the name (a name with the date is proposed) and writes a drawing note (.sketchdraw) in the folder of the library, with a number after the name when it is already taken. The strokes of the structure of the page and the number of the zone are not kept; the groups and the sizes are. To put a drawing back: the new button Drawings of the column (after Pictures) opens the library as small views, with a search by name and the most recent first; a click on a drawing puts it in the middle of the view, at its size (smaller when it is wider than half of the view), grouped so that it moves as one block, selected, and in the zone that is being drawn. A new setting, Folder of the library of drawings (Sketchnote bibliothèque by default, created if it does not exist), says where the drawings are kept: they are ordinary notes that can be renamed, moved or deleted in Obsidian. The new button of the column is added next to the others in a saved order of buttons.
+
+Français
+
+La bibliothèque de dessins. Une sélection de la page peut être gardée comme un dessin et remise plus tard sur une page (ou sur une autre). Pour garder un dessin : on sélectionne ce qu'il faut garder (une zone se sélectionne en un bloc d'un clic en mode structure, ou des éléments en mode dessin), puis on utilise le nouveau bouton Enregistrer dans la bibliothèque parmi les boutons de la sélection (le menu) : la fenêtre demande le nom (un nom avec la date est proposé) et écrit une note de dessin (.sketchdraw) dans le dossier de la bibliothèque, avec un numéro après le nom quand il est déjà pris. Les traits de la structure de la page et le numéro de la zone ne sont pas gardés ; les groupes et les tailles le sont. Pour remettre un dessin : le nouveau bouton Dessins de la colonne (après Images) ouvre la bibliothèque sous forme de petites vues, avec une recherche par nom et les plus récents d'abord ; un clic sur un dessin le met au milieu de la vue, à sa taille (plus petit quand il est plus large que la moitié de la vue), groupé pour qu'il se déplace d'un bloc, sélectionné, et dans la zone que l'on est en train de dessiner. Un nouveau réglage, Dossier de la bibliothèque de dessins (Sketchnote bibliothèque par défaut, créé s'il n'existe pas), dit où les dessins sont rangés : ce sont des notes ordinaires que l'on peut renommer, déplacer ou supprimer dans Obsidian. Le nouveau bouton de la colonne est ajouté à côté des autres dans un ordre de boutons enregistré.
+
 ## 0.37.0
 
 English

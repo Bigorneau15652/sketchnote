@@ -80,6 +80,13 @@ export class SketchnoteSettingTab extends PluginSettingTab {
     if (await this.plugin.drawings.ensureFolder(folder)) new Notice(t(`Dossier créé : {0}`, folder));
   }
 
+  // Keeps a folder as the folder of the library of drawings and creates it when it does not exist.
+  private async keepLibraryFolder(folder: string): Promise<void> {
+    this.plugin.settingsData.libraryFolder = folder;
+    await this.plugin.saveData(this.plugin.settingsData);
+    if (await this.plugin.drawings.ensureFolder(folder)) new Notice(t(`Dossier créé : {0}`, folder));
+  }
+
   // Keeps a folder as the folder of the exports and creates it when it does not exist.
   private async keepExportsFolder(folder: string): Promise<void> {
     this.plugin.settingsData.exportsFolder = folder;
@@ -188,6 +195,22 @@ export class SketchnoteSettingTab extends PluginSettingTab {
             new AddImageModal(this.app, { folder, importFiles: (files) => importImages(this.app, folder(), files) }, () => undefined).open();
           }),
       );
+
+    new Setting(containerEl)
+      .setName(t(`Dossier de la bibliothèque de dessins`))
+      .setDesc(t(`Dossier du coffre où sont enregistrés les dessins que vous mettez dans la bibliothèque (une sélection de la page, avec le bouton Enregistrer dans la bibliothèque) et où le bouton Dessins va les chercher pour les remettre sur la page. Chaque dessin est une note .sketchdraw que vous pouvez renommer, déplacer ou supprimer dans Obsidian. Le dossier est créé s'il n'existe pas.`))
+      .addText((text) => {
+        text.setPlaceholder(DEFAULT_SETTINGS.libraryFolder).setValue(this.plugin.settingsData.libraryFolder);
+        text.inputEl.addEventListener(`change`, () => {
+          const folder = normalizeFolder(text.getValue());
+          text.inputEl.toggleClass(`mod-error`, folder === null);
+          if (folder !== null) void this.keepLibraryFolder(folder);
+        });
+        new FolderSuggest(this.app, text.inputEl, (path) => {
+          text.inputEl.removeClass(`mod-error`);
+          void this.keepLibraryFolder(path);
+        });
+      });
 
     new Setting(containerEl)
       .setName(t(`Dossier des exports`))
