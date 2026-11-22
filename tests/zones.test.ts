@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { applySettings, ensureZoneFrames, remapFrames } from "../src/doc-ops";
-import { DrawingElement, readElements, SketchElement } from "../src/elements";
+import { applySettings, remapFrames } from "../src/doc-ops";
+import { DrawingElement, readElements, RectElement, SketchElement } from "../src/elements";
 import { createEmptyDoc } from "../src/file-format";
 import { addZone, buildStructure, defaultLayout, LAYOUT_LIMITS, LAYOUT_TYPES, LayoutSettings, ROW_LIMITS, Slot, slotIndexAt } from "../src/layout";
 import { changeSize } from "../src/page-settings";
@@ -83,96 +83,71 @@ test(`un cadre dont l'emplacement a disparu devient libre et les autres elements
   assert.equal(remapFrames([frame(1, 200, 0, 100, 100)], old, next).length, 0);
 });
 
-// Returns the frame of a slot of a document.
-const frameOf = (doc: { elements: SketchElement[] }, slot: number): DrawingElement => doc.elements.find((e) => e.type === `drawing` && e.slot === slot) as DrawingElement;
+// Returns an element of a zone.
+const inZone = (id: string, zone: number, x: number, y: number, w: number, h: number): SketchElement => ({ id, type: `rect`, x, y, width: w, height: h, stroke: `#000000`, strokeWidth: 4, slot: zone });
 
-test(`chaque zone d'une structure a son cadre vide qui remplit son emplacement`, () => {
+test(`une structure n'ajoute plus de cadre : ses zones sont ses emplacements`, () => {
   const doc0 = createEmptyDoc();
   for (const type of LAYOUT_TYPES) {
     const a = applySettings(doc0, doc0.page, defaultLayout(type));
-    const slots = buildStructure(defaultLayout(type), a.page).slots;
-    const frames = a.elements.filter((e): e is DrawingElement => e.type === `drawing`);
-    assert.equal(frames.length, slots.length, type);
-    slots.forEach((s, i) => {
-      const f = frameOf(a, i);
-      assert.ok(f.path === null && f.shape === s.shape, `${type} ${i}`);
-      assert.ok(Math.abs(f.x - s.x) < 0.2 && Math.abs(f.width - s.width) < 0.2 && Math.abs(f.height - s.height) < 0.2, `${type} ${i} fills its slot`);
-    });
+    assert.equal(a.elements.filter((e) => e.type === `drawing`).length, 0, type);
     assert.equal(new Set(a.elements.map((e) => e.id)).size, a.elements.length, `${type} ids`);
   }
 });
 
-test(`ajouter une zone ajoute son cadre et garde les autres cadres et leurs dessins`, () => {
+test(`ajouter une zone ou changer la taille de la page deplace les dessins de chaque zone avec elle`, () => {
   const doc0 = createEmptyDoc();
   const a = applySettings(doc0, doc0.page, defaultLayout(`popcorn`));
-  const drawn = { ...a, elements: a.elements.map((e) => (e.type === `drawing` && e.slot === 2 ? { ...e, path: `D/x.sketchdraw` } : e)) };
+  const from = buildStructure(defaultLayout(`popcorn`), a.page).slots[2];
+  const drawn = { ...a, elements: [...a.elements, inZone(`d1`, 2, from.x + 10, from.y + 5, 40, 20)] };
   const more = addZone(defaultLayout(`popcorn`)) as LayoutSettings;
   const b = applySettings(drawn, drawn.page, more);
-  assert.equal(b.elements.filter((e) => e.type === `drawing`).length, buildStructure(more, b.page).slots.length);
-  const f = frameOf(b, 2);
-  const target = buildStructure(more, b.page).slots[2];
-  assert.equal(f.path, `D/x.sketchdraw`);
-  assert.ok(Math.abs(f.x - target.x) < 0.5 && Math.abs(f.width - target.width) < 0.5, `frame follows its slot`);
+  const to = buildStructure(more, b.page).slots[2];
+  const moved = b.elements.find((e) => e.id === `d1`) as RectElement;
+  const k = Math.min(to.width / from.width, to.height / from.height);
+  assert.ok(Math.abs(moved.width - 40 * k) < 0.5, `la taille suit la zone`);
+  const centre = [moved.x + moved.width / 2, moved.y + moved.height / 2];
+  const expected = [to.x + to.width / 2 + (from.x + 10 + 20 - (from.x + from.width / 2)) * k, to.y + to.height / 2 + (from.y + 5 + 10 - (from.y + from.height / 2)) * k];
+  assert.ok(Math.abs(centre[0] - expected[0]) < 0.6 && Math.abs(centre[1] - expected[1]) < 0.6, `le dessin garde sa place dans la zone`);
+  assert.equal(moved.slot, 2);
   const c = applySettings(b, changeSize(b.page, 1200, 1700), more);
-  const g = frameOf(c, 2);
   const t2 = buildStructure(more, c.page).slots[2];
-  assert.ok(Math.abs(g.x + g.width / 2 - (t2.x + t2.width / 2)) < 1 && Math.abs(g.y + g.height / 2 - (t2.y + t2.height / 2)) < 1, `frame stays centred on its slot after a page resize`);
-  // The empty zones keep filling their zones, even when the proportions of the page change.
-  const empty = frameOf(c, 0);
-  const s0 = buildStructure(more, c.page).slots[0];
-  assert.ok(Math.abs(empty.x - s0.x) < 0.2 && Math.abs(empty.y - s0.y) < 0.2 && Math.abs(empty.width - s0.width) < 0.2 && Math.abs(empty.height - s0.height) < 0.2);
+  const m2 = c.elements.find((e) => e.id === `d1`) as RectElement;
+  assert.ok(Math.abs(m2.x + m2.width / 2 - (t2.x + t2.width / 2)) < t2.width && Math.abs(m2.y + m2.height / 2 - (t2.y + t2.height / 2)) < t2.height, `le dessin reste dans sa zone apres un changement de taille de la page`);
 });
 
-test(`un cadre agrandi par l'utilisateur garde sa taille relative a sa zone`, () => {
-  const doc0 = createEmptyDoc();
-  const a = applySettings(doc0, doc0.page, defaultLayout(`popcorn`));
-  const slot = buildStructure(defaultLayout(`popcorn`), a.page).slots[1];
-  const big = { ...a, elements: a.elements.map((e) => (e.type === `drawing` && e.slot === 1 ? { ...e, path: `D/y.sketchdraw`, x: slot.x - slot.width / 2, width: slot.width * 2, y: slot.y - 10, height: slot.height * 2 } : e)) };
-  const more = addZone(defaultLayout(`popcorn`)) as LayoutSettings;
-  const b = applySettings(big, big.page, more);
-  const f = frameOf(b, 1);
-  const to = buildStructure(more, b.page).slots[1];
-  assert.ok(Math.abs(f.width / to.width - 2) < 0.02, `still twice as wide as its zone: ${f.width / to.width}`);
-});
-
-test(`retirer des zones supprime les cadres vides et laisse libres les cadres qui ont un dessin`, () => {
+test(`retirer des zones laisse libres les dessins des zones qui disparaissent`, () => {
   const doc0 = createEmptyDoc();
   const a = applySettings(doc0, doc0.page, { type: `radial`, count: 6, rows: 2 });
-  const last = a.elements.filter((e): e is DrawingElement => e.type === `drawing`).length - 1;
-  const drawn = { ...a, elements: a.elements.map((e) => (e.type === `drawing` && e.slot === last ? { ...e, path: `D/z.sketchdraw` } : e)) };
+  const slots = buildStructure({ type: `radial`, count: 6, rows: 2 }, a.page).slots;
+  const last = slots.length - 1;
+  const drawn = { ...a, elements: [...a.elements, inZone(`z1`, last, slots[last].x, slots[last].y, 30, 30), inZone(`z2`, 1, slots[1].x, slots[1].y, 30, 30)] };
   const b = applySettings(drawn, drawn.page, { type: `radial`, count: 3, rows: 2 });
-  const frames = b.elements.filter((e): e is DrawingElement => e.type === `drawing`);
-  assert.equal(frames.filter((f) => f.slot !== undefined).length, 4);
-  const free = frames.filter((f) => f.slot === undefined);
-  assert.equal(free.length, 1);
-  assert.equal(free[0].path, `D/z.sketchdraw`);
+  assert.equal(b.elements.find((e) => e.id === `z1`)?.slot, undefined);
+  assert.equal(b.elements.find((e) => e.id === `z2`)?.slot, 1);
 });
 
-test(`retirer la structure supprime les zones vides et laisse les dessins ou ils sont`, () => {
+test(`retirer la structure laisse les dessins ou ils sont, sans zone`, () => {
   const doc0 = createEmptyDoc();
   const a = applySettings(doc0, doc0.page, defaultLayout(`linear`));
-  const drawn = { ...a, elements: a.elements.map((e) => (e.type === `drawing` && e.slot === 0 ? { ...e, path: `D/q.sketchdraw`, x: 30, y: 40, width: 100, height: 80 } : e)) };
+  const drawn = { ...a, elements: [...a.elements, inZone(`q1`, 0, 30, 40, 100, 80)] };
   const b = applySettings(drawn, drawn.page, null);
-  const frames = b.elements.filter((e) => e.type === `drawing`) as DrawingElement[];
-  assert.equal(frames.length, 1);
-  assert.deepEqual([frames[0].x, frames[0].y, frames[0].width, frames[0].height], [30, 40, 100, 80]);
-  assert.equal(frames[0].slot, undefined);
+  const q = b.elements.find((e) => e.id === `q1`) as RectElement;
+  assert.deepEqual([q.x, q.y, q.width, q.height], [30, 40, 100, 80]);
+  assert.equal(q.slot, undefined);
+  assert.ok(b.elements.every((e) => e.group !== `structure`));
 });
 
-test(`une page des versions precedentes recoit les cadres qui lui manquent a l'ouverture, sans changer ceux qui existent`, () => {
+test(`les cadres de dessin des versions precedentes qui restent suivent encore leur zone`, () => {
   const doc0 = createEmptyDoc();
-  const a = applySettings(doc0, doc0.page, defaultLayout(`modular`));
-  const slots = buildStructure(defaultLayout(`modular`), a.page).slots;
-  // An old page: only one frame, in slot 3, without a shape.
-  const old = { ...a, elements: [...a.elements.filter((e) => e.type !== `drawing`), { id: `old1`, type: `drawing`, x: 1, y: 2, width: 30, height: 20, slot: 3, path: `D/o.sketchdraw` } as DrawingElement] };
-  const fixed = ensureZoneFrames(old);
-  assert.equal(fixed.elements.filter((e) => e.type === `drawing`).length, slots.length);
-  const kept = frameOf(fixed, 3);
-  assert.equal(kept.id, `old1`);
-  assert.deepEqual([kept.x, kept.y, kept.width, kept.height], [1, 2, 30, 20]);
-  assert.equal(kept.shape, slots[3].shape);
-  assert.equal(ensureZoneFrames(fixed), fixed);
-  assert.equal(ensureZoneFrames(createEmptyDoc()).elements.length, 0);
+  const a = applySettings(doc0, doc0.page, defaultLayout(`popcorn`));
+  const from = buildStructure(defaultLayout(`popcorn`), a.page).slots[2];
+  const old = { ...a, elements: [...a.elements, { id: `old1`, type: `drawing`, x: from.x, y: from.y, width: from.width, height: from.height, slot: 2, path: `D/x.sketchdraw` } as DrawingElement] };
+  const more = addZone(defaultLayout(`popcorn`)) as LayoutSettings;
+  const b = applySettings(old, old.page, more);
+  const f = b.elements.find((e) => e.id === `old1`) as DrawingElement;
+  const target = buildStructure(more, b.page).slots[2];
+  assert.ok(Math.abs(f.x - target.x) < 0.5 && Math.abs(f.width - target.width) < 0.5);
 });
 
 test(`le numero d'emplacement d'un cadre est controle a la lecture`, () => {

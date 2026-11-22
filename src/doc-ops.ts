@@ -1,6 +1,7 @@
 // Pure operations on a whole document: applying new page settings and a new structure together.
 import type { SketchnoteDoc, PageSettings } from "./file-format";
-import { DrawingElement, isStroked, newId, SketchElement } from "./elements";
+import { isStroked, SketchElement } from "./elements";
+import { remapZoneElements } from "./zone-content";
 import { buildStructure, LayoutSettings, sameLayout, Slot } from "./layout";
 
 // Moves and scales the frames of drawings so that each one keeps its place in its slot when the slots change (another number of zones, another structure, another
@@ -32,63 +33,21 @@ export function remapFrames(elements: SketchElement[], oldSlots: Slot[], newSlot
   });
 }
 
-// Returns the frame of a zone: an empty drawing frame that fills the slot. Every zone of a structure has one from the start, so that a zone can be selected, moved,
-// resized and opened like any other element.
-export function zoneFrame(slot: Slot, index: number, id: string): DrawingElement {
-  return { id, type: `drawing`, x: slot.x, y: slot.y, width: slot.width, height: slot.height, slot: index, shape: slot.shape, path: null };
-}
-
-// Makes sure that each zone of the structure has its frame, and that no frame belongs to a zone that does not exist. A zone frame that is empty and has no zone left is
-// removed; one that holds a drawing becomes a free frame. Without a structure the same rule applies to every zone frame. Returns the same document when nothing changes.
-export function ensureZoneFrames(doc: SketchnoteDoc): SketchnoteDoc {
-  const slots = doc.layout ? buildStructure(doc.layout, doc.page).slots : [];
-  let changed = false;
-  const out: SketchElement[] = [];
-  const have = new Set<number>();
-  for (const el of doc.elements) {
-    if (el.type !== `drawing` || el.slot === undefined) {
-      out.push(el);
-      continue;
-    }
-    if (el.slot >= slots.length) {
-      changed = true;
-      if (el.path !== null) {
-        const { slot: _s, shape: _h, ...free } = el;
-        void _s;
-        void _h;
-        out.push(free);
-      }
-      continue;
-    }
-    have.add(el.slot);
-    const shape = slots[el.slot].shape;
-    if (el.shape !== shape) {
-      changed = true;
-      out.push({ ...el, shape });
-    } else {
-      out.push(el);
-    }
-  }
-  slots.forEach((s, i) => {
-    if (have.has(i)) return;
-    changed = true;
-    out.push(zoneFrame(s, i, newId(out)));
-  });
-  return changed ? { ...doc, elements: out } : doc;
-}
-
-// Returns the document with new page settings and a new structure (or none).
+// Returns the document with new page settings and a new structure (or none). A zone has no frame any more: the dotted places are the slots of the structure, and what is drawn in a
+// zone carries its number.
 // The elements of the structure (group `structure`) are made again when the structure or the page size changes, and removed when the structure is removed.
 // They are drawn first, so they stay behind the contents. When only the default ink changes, the structure elements that had the old ink take the new one.
 // Every other element is kept as it is.
 export function applySettings(doc: SketchnoteDoc, page: PageSettings, layout: LayoutSettings | null): SketchnoteDoc {
   const own = doc.elements.filter((e) => e.group !== `structure`);
-  if (layout === null) return ensureZoneFrames({ ...doc, page, layout: null, elements: own });
+  const oldSlots = doc.layout === null ? [] : buildStructure(doc.layout, doc.page).slots;
+  // What is drawn in a zone follows its zone; the frames of drawing notes that a page of an earlier version may still hold follow their zones too.
+  const follow = (slots: Slot[]): SketchElement[] => remapFrames(remapZoneElements(own, oldSlots, slots), oldSlots, slots);
+  if (layout === null) return { ...doc, page, layout: null, elements: follow([]) };
   const sizeChanged = page.width !== doc.page.width || page.height !== doc.page.height;
   if (sizeChanged || !sameLayout(doc.layout, layout)) {
     const next = buildStructure(layout, page);
-    const moved = doc.layout === null ? own : remapFrames(own, buildStructure(doc.layout, doc.page).slots, next.slots);
-    return ensureZoneFrames({ ...doc, page, layout, elements: [...next.elements, ...moved] });
+    return { ...doc, page, layout, elements: [...next.elements, ...(doc.layout === null ? own : follow(next.slots))] };
   }
   if (page.ink !== doc.page.ink) {
     const elements = doc.elements.map((e) => (e.group === `structure` && isStroked(e) && e.stroke === doc.page.ink ? { ...e, stroke: page.ink } : e));

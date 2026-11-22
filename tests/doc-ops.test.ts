@@ -12,16 +12,14 @@ const mine: SketchElement = { id: `u1`, type: `rect`, x: 10, y: 10, width: 50, h
 // Returns an empty document that holds one content element.
 const withContent = (): SketchnoteDoc => ({ ...createEmptyDoc(), elements: [mine] });
 
-test(`choisir une structure ajoute ses traits derriere les contenus et un cadre pour chaque zone devant`, () => {
+test(`choisir une structure ajoute ses traits derriere les contenus, sans cadre de zone`, () => {
   const doc = withContent();
   const next = applySettings(doc, doc.page, defaultLayout(`linear`));
   assert.deepEqual(next.layout, defaultLayout(`linear`));
   const at = next.elements.indexOf(mine);
   assert.ok(at > 0, `content is kept`);
   assert.ok(next.elements.slice(0, at).every((e) => e.group === `structure`));
-  const frames = next.elements.filter((e) => e.type === `drawing`);
-  assert.equal(frames.length, buildStructure(defaultLayout(`linear`), next.page).slots.length);
-  assert.ok(frames.every((f) => f.type === `drawing` && f.path === null && f.slot !== undefined));
+  assert.equal(next.elements.filter((e) => e.type === `drawing`).length, 0, `les zones sont les emplacements de la structure : elles n ont plus de cadre`);
 });
 
 test(`retirer la structure supprime ses elements et garde les contenus`, () => {

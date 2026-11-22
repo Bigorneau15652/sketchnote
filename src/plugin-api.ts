@@ -9,8 +9,6 @@ import type { SketchnoteSettings } from "./settings";
 // Zen mode, as the views see it.
 export interface ZenApi {
   active(): boolean;
-  // The leaf of the main window where the drawings open while the mode is on (null when it is off).
-  drawLeaf(): WorkspaceLeaf | null;
   toggle(): Promise<void>;
 }
 
@@ -22,7 +20,7 @@ export interface PluginApi {
   icons: IconSource;
   // What the exports need: the folder, saving, the link in a note, the fonts and the pictures.
   exports: ExportServices;
-  // Zen mode: the page in a floating window, everything else for the drawing.
+  // Zen mode: the menus of Obsidian are hidden.
   zen: ZenApi;
   settings(): SketchnoteSettings;
   // Changes some settings and saves them; every open drawing is told (to draw its buttons again).
