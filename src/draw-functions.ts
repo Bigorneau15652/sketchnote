@@ -74,7 +74,7 @@ export function drawFunctions(): DrawFunction[] {
       name: () => t(`Feston`),
       help: () => [
         t(`Trace un feston en tirant sur le dessin : un bandeau, une banderole, un fanion ou une étiquette dans lequel on peut écrire un titre.`),
-        t(`Le menu flottant à côté du bouton choisit la forme parmi onze modèles. Un double clic sur le feston permet d'écrire dedans.`),
+        t(`Le menu flottant à côté du bouton choisit la forme parmi douze modèles. Un double clic sur le feston permet d'écrire dedans.`),
       ],
       tools: [`festoon`],
       sections: [`colour`, `fill`, `transparency`, `width`, `dash`, `look`, `border`],

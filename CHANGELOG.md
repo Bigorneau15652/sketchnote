@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.50.0
+
+English
+
+Eraser: at 100 percent the soft tip now erases completely across its whole width in one pass (only its outer edge is soft). The tip is shown over the page at its true size at any zoom, as an outline that follows the pointer (a cursor picture cannot be larger than 128 pixels, which made large sizes look alike); the cursor itself is only the small target. Brushes: the choice of the brush leaves the bottom menu and becomes a floating menu, shown while the pen is the tool, that can be moved by its top bar (the position is kept, a second click on the pen button closes it). Each brush is a stroke drawn with it, in the colour that is chosen, and changes colour with it; the brush in use is lit. The pictogram of the Flux setting is now a paint pot instead of an eraser. New festoon form: an irregular cloud (twelve festoon forms in all).
+
+Français
+
+Gomme : à 100 pour cent, la pointe douce efface maintenant complètement sur toute sa largeur en un seul passage (seul son bord extérieur est doux). La pointe est montrée sur la page à sa vraie taille, quel que soit le zoom, par un contour qui suit le pointeur (l'image d'un curseur ne peut pas dépasser 128 pixels, ce qui faisait paraître les grandes tailles identiques) ; le curseur lui-même n'est plus que la petite cible. Pinceaux : le choix du pinceau quitte le menu du bas et devient un menu flottant, visible quand le stylo est l'outil, que l'on déplace par sa barre du haut (la position est gardée, un deuxième clic sur le bouton du stylo le ferme). Chaque pinceau est un trait dessiné avec lui, dans la couleur choisie, et change de couleur avec elle ; le pinceau utilisé est mis en valeur. Le pictogramme du réglage Flux est maintenant un pot de peinture au lieu d'une gomme. Nouvelle forme de feston : un nuage irrégulier (douze formes de feston en tout).
+
 ## 0.49.0
 
 English

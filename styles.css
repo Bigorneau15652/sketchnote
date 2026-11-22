@@ -487,14 +487,16 @@
   font-size: var(--font-ui-smaller);
 }
 
-/* The choice of the brush: the current brush shows a stroke drawn with it, wide, with its name; the list of the brushes does the same for each one. */
-.sketchdraw-context .sketchdraw-brushes {
-  display: block;
-  width: 150px;
+/* The floating menu of the brushes: each brush is a stroke drawn with it, in the colour that is chosen, with its name; the brush in use is lit. */
+.sketchdraw-brush-flyout-list {
+  display: grid;
+  grid-template-columns: repeat(3, 132px);
+  gap: 4px;
+  max-height: 70vh;
+  overflow-y: auto;
 }
 
-.sketchdraw-context .sketchdraw-brush-current,
-.sketchdraw-context .sketchdraw-brush-row {
+.sketchdraw-brush-flyout .sketchdraw-brush-row {
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -502,23 +504,23 @@
   width: 100%;
   height: auto;
   margin: 0;
-  padding: 3px 6px;
+  padding: 3px 5px;
   border: 1px solid var(--background-modifier-border, #cccccc);
   border-radius: 6px;
   background: var(--background-secondary, #f2f2f2);
-  color: var(--text-normal, #222222);
   box-shadow: none;
   text-align: left;
   cursor: pointer;
 }
 
-.sketchdraw-context .sketchdraw-brush-row.is-active {
+.sketchdraw-brush-flyout .sketchdraw-brush-row.is-active {
   border-color: var(--interactive-accent, #7c5cff);
   background: var(--background-modifier-hover, #e4e4e4);
+  box-shadow: 0 0 0 1px var(--interactive-accent, #7c5cff);
 }
 
 /* The stroke fills the width of the button (its picture has the proportions of the button). */
-.sketchdraw-context .sketchdraw-brush-preview {
+.sketchdraw-brush-flyout .sketchdraw-brush-preview {
   display: block;
   width: 100%;
   height: auto;
@@ -527,34 +529,12 @@
   overflow: hidden;
 }
 
-.sketchdraw-context .sketchdraw-brush-name {
+.sketchdraw-brush-flyout .sketchdraw-brush-name {
   display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
   color: var(--text-muted, #666666);
   font-size: var(--font-ui-smaller, 12px);
   line-height: 1.2;
-}
-
-/* The list of the brushes opens over the menu, next to the button, in two columns. */
-.sketchdraw-context .sketchdraw-brush-list {
-  display: none;
-}
-
-.sketchdraw-context .sketchdraw-brush-list.is-open {
-  position: fixed;
-  z-index: 100;
-  display: grid;
-  grid-template-columns: repeat(2, 150px);
-  gap: 6px;
-  max-height: 60vh;
-  padding: 8px;
-  overflow-y: auto;
-  border: 1px solid var(--background-modifier-border, #cccccc);
-  border-radius: 8px;
-  background: var(--background-primary, #ffffff);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 
 /* On a narrow window the column is a little narrower. */
@@ -1311,14 +1291,8 @@ body.sketchnote-zen .workspace-tab-header-container {
 }
 
 .sketchdraw-context .sketchdraw-title,
-.sketchdraw-context .sketchdraw-slider-label,
-.sketchdraw-context .sketchdraw-brush-name {
+.sketchdraw-context .sketchdraw-slider-label {
   display: none;
-}
-
-/* The list of the brushes, when it is open, still shows the names. */
-.sketchdraw-context .sketchdraw-brush-list.is-open .sketchdraw-brush-name {
-  display: block;
 }
 
 .sketchdraw-context .sketchdraw-row {
@@ -1475,16 +1449,6 @@ body.sketchnote-zen .workspace-tab-header-container {
   background: var(--background-primary);
   box-shadow: 0 0 0 1px var(--interactive-accent);
   cursor: text;
-}
-
-.sketchdraw-context .sketchdraw-brushes {
-  width: 74px;
-}
-
-.sketchdraw-context .sketchdraw-brush-current {
-  height: 24px;
-  padding: 0 4px;
-  justify-content: center;
 }
 
 .sketchdraw-font {

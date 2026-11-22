@@ -6,7 +6,7 @@ import type { Point } from "./elements";
 export const BUBBLE_FORMS = [`oval`, `rounded`, `thought`, `shout`] as const;
 export type BubbleForm = (typeof BUBBLE_FORMS)[number];
 
-export const FESTOON_FORMS = [`ribbon`, `notched`, `wave`, `scallop`, `plaque`, `tag`, `pennant`, `pointer`, `hexagon`, `flag`, `seal`] as const;
+export const FESTOON_FORMS = [`ribbon`, `notched`, `wave`, `scallop`, `plaque`, `tag`, `pennant`, `pointer`, `hexagon`, `flag`, `seal`, `cloud`] as const;
 export type FestoonForm = (typeof FESTOON_FORMS)[number];
 
 export type ShapeForm = BubbleForm | FestoonForm;
@@ -229,6 +229,28 @@ function waveOutline(x: number, y: number, w: number, h: number): Outline {
   return [...top, ...bottom];
 }
 
+// The points of an irregular cloud that fills a box: a ring of round bumps that are not all the same width or height, with a small point where two of them meet. The bumps are always the
+// same, so that the form is the same every time.
+function irregularCloudOutline(x: number, y: number, w: number, h: number): Outline {
+  const widths = [1, 0.7, 1.2, 0.8, 1.1, 0.65, 1, 0.9, 1.15, 0.75, 1.05, 0.85];
+  const heights = [0.16, 0.1, 0.2, 0.12, 0.18, 0.1, 0.15, 0.2, 0.11, 0.17, 0.13, 0.19];
+  const total = widths.reduce((a, b) => a + b, 0);
+  const out: Outline = [];
+  let angle = -Math.PI / 2;
+  const steps = 14;
+  widths.forEach((weight, i) => {
+    const span = (weight / total) * Math.PI * 2;
+    for (let k = 0; k < steps; k++) {
+      const t = k / steps;
+      const a = angle + span * t;
+      const r = 0.8 + heights[i] * Math.sin(Math.PI * t);
+      out.push([x + w / 2 + (w / 2) * r * Math.cos(a), y + h / 2 + (h / 2) * r * Math.sin(a)]);
+    }
+    angle += span;
+  });
+  return out;
+}
+
 // The outlines of a festoon in a box.
 function festoonOutlines(form: FestoonForm, x: number, y: number, w: number, h: number): Outline[] {
   const c = Math.min(w, h) * 0.22;
@@ -255,6 +277,8 @@ function festoonOutlines(form: FestoonForm, x: number, y: number, w: number, h: 
       return [inBox([[0, 0], [1, 0], [0.82, 0.5], [1, 1], [0, 1]], x, y, w, h)];
     case `seal`:
       return [starOutline(x + w / 2, y + h / 2, w / 2, h / 2, 16, 0.88, 0)];
+    case `cloud`:
+      return [irregularCloudOutline(x, y, w, h)];
   }
 }
 
@@ -310,6 +334,8 @@ export function formRoom(form: ShapeForm): { x: number; y: number; w: number; h:
       return { x: 0.06, y: 0.08, w: 0.68, h: 0.84 };
     case `seal`:
       return { x: 0.2, y: 0.2, w: 0.6, h: 0.6 };
+    case `cloud`:
+      return { x: 0.16, y: 0.2, w: 0.68, h: 0.6 };
   }
 }
 

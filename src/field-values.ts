@@ -55,7 +55,7 @@ export const FIELD_KINDS: Record<string, { icon: string; unit: string }> = {
   [`Dégradé du reflet`]: { icon: `sketchnote-reflection`, unit: ` %` },
   [`Éloignement du reflet`]: { icon: `move-vertical`, unit: ` %` },
   // The settings of the brushes.
-  [`Flux`]: { icon: `eraser`, unit: ` %` },
+  [`Flux`]: { icon: `sketchnote-paint-pot`, unit: ` %` },
   [`Dureté`]: { icon: `contrast`, unit: ` %` },
   [`Espacement`]: { icon: `sketchnote-brush-spacing`, unit: ` %` },
   [`Forme`]: { icon: `sketchnote-brush-form`, unit: ` %` },

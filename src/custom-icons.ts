@@ -91,6 +91,7 @@ const ICONS: Record<string, string> = {
   // The settings of the brushes: the spacing (dots in a row), the form (a flattened ellipse), the grain (scattered specks) and two circles that overlap (the opacity of an element).
   "sketchnote-brush-spacing": tag(`circle`, { cx: 18, cy: 50, r: 9, fill: `currentColor`, stroke: `none` }) + tag(`circle`, { cx: 50, cy: 50, r: 9, fill: `currentColor`, stroke: `none` }) + tag(`circle`, { cx: 82, cy: 50, r: 9, fill: `currentColor`, stroke: `none` }),
   "sketchnote-brush-form": tag(`ellipse`, { cx: 50, cy: 50, rx: 38, ry: 22, ...boxed, "stroke-width": 7 }),
+  "sketchnote-paint-pot": tag(`path`, { d: `M22 38h56v42a10 10 0 0 1-10 10H32a10 10 0 0 1-10-10Z`, ...boxed, "stroke-width": 7 }) + tag(`path`, { d: `M16 38h68M30 38V26h40v12`, ...boxed, "stroke-width": 7, "stroke-linecap": `round` }) + tag(`path`, { d: `M40 56c0 6 8 6 8 0v-4M58 62c0 6 8 6 8 0`, ...boxed, "stroke-width": 6, "stroke-linecap": `round` }),
   "sketchnote-brush-grain": [[22, 24], [52, 18], [80, 30], [34, 50], [66, 54], [18, 76], [48, 80], [82, 78]].map(([x, y]) => tag(`circle`, { cx: x, cy: y, r: 6, fill: `currentColor`, stroke: `none` })).join(``),
   "sketchnote-overlap": tag(`circle`, { cx: 38, cy: 50, r: 26, ...boxed, "stroke-width": 7 }) + tag(`circle`, { cx: 62, cy: 50, r: 26, ...boxed, "stroke-width": 7 }),
   "sketchnote-opacity": tag(`circle`, { cx: 50, cy: 50, r: 32, ...boxed, "stroke-width": 7 }) + tag(`path`, { d: `M50 18A32 32 0 0 1 50 82Z`, fill: `currentColor`, stroke: `none` }),
