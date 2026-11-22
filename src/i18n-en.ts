@@ -536,7 +536,6 @@ const PAIRS: [string, string][] = [
   [`Expression`, `Expression`],
   [`Couleur du chapeau`, `Colour of the hat`],
   [`Couleur des cheveux`, `Colour of the hair`],
-  [`Taille du personnage`, `Size of the character`],
   [`Forme du visage`, `Shape of the face`],
   [`Homme ou femme`, `Man or woman`],
   [`Cheveux`, `Hair`],
@@ -547,8 +546,6 @@ const PAIRS: [string, string][] = [
   [`Nez`, `Nose`],
   [`Direction du visage`, `Direction of the face`],
   [`Peau`, `Skin`],
-  [`Pose un visage en portrait robot d'un clic : la forme du visage, homme ou femme, les cheveux, un chapeau, une barbe ou une moustache, des lunettes, des boucles d'oreilles, le nez, la peau, la couleur des cheveux et du chapeau, et l'expression (quinze) dans le menu flottant du bouton.`, `Puts a face in the manner of an identikit with a click: the shape of the face, man or woman, the hair, a hat, a beard or a moustache, glasses, earrings, the nose, the skin, the colour of the hair and of the hat, and the expression (fifteen) in the floating menu of the button.`],
-  [`Le menu du bas règle tous les choix, même pour un personnage déjà posé. Le visage peut être tourné vers la gauche ou vers la droite. Les couleurs de peau et de cheveux sont propres au personnage ; le remplissage du menu colore le reste.`, `The bottom menu sets every choice, even for a character that is already put. The face can be turned to the left or to the right. The colours of the skin and of the hair belong to the character; the fill of the menu colours the rest.`],
   [`Visage rond`, `Round face`],
   [`Visage allongé`, `Long face`],
   [`Visage carré`, `Square face`],
@@ -617,6 +614,11 @@ const PAIRS: [string, string][] = [
   [`Chapeau vert`, `Green hat`],
   [`Chapeau jaune`, `Yellow hat`],
   [`Chapeau brun`, `Brown hat`],
+  [`Modifier le personnage`, `Change the character`],
+  [`Créer un personnage`, `Create a character`],
+  [`OK`, `OK`],
+  [`Ouvre la fenêtre du personnage, un visage en portrait robot : à gauche tous les choix en grands pictogrammes (expression, direction du visage, homme ou femme, peau, forme du visage, cheveux, chapeau, barbe et moustache, nez, lunettes, boucles d'oreilles et leurs couleurs), à droite le résultat, qui change à chaque choix. Le bouton OK pose le personnage sur la page.`, `Opens the window of the character, a face in the manner of an identikit: on the left all the choices as large pictograms (expression, direction of the face, man or woman, skin, shape of the face, hair, hat, beard and moustache, nose, glasses, earrings and their colours), on the right the result, which changes with each choice. The button OK puts the character on the page.`],
+  [`Un double clic sur un personnage rouvre la fenêtre pour le modifier. Pour le retoucher point par point, le bouton Transformer en traits du menu le change en traits de stylo à main levée.`, `A double click on a character opens the window again to change it. To touch it up point by point, the button Turn into strokes of the menu changes it into freehand pen strokes.`],
 ];
 
 export const EN: Record<string, string> = Object.fromEntries(PAIRS);

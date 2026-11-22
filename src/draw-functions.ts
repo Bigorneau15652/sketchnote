@@ -18,7 +18,7 @@ export interface DrawFunction {
   // The parts of the properties that its menu shows (the ones that do not concern the selection or the tool are left out).
   sections: PanelSection[];
   // A function that opens a window when it is clicked instead of showing a menu.
-  opens?: `icons` | `images` | `library` | `export`;
+  opens?: `icons` | `images` | `library` | `export` | `portrait`;
 }
 
 const CONTENT: PanelSection[] = [`colour`, `fill`, `transparency`, `brush`, `width`, `dash`, `look`, `regularity`, `border`, `corners`, `bubbleform`, `festoonform`, `edges`, `taper`, `heads`, `text`, `warp`, `icon`, `image`, `effects`];
@@ -139,11 +139,12 @@ export function drawFunctions(): DrawFunction[] {
       icon: `sketchnote-face-happy`,
       name: () => t(`Personnage`),
       help: () => [
-        t(`Pose un visage en portrait robot d'un clic : la forme du visage, homme ou femme, les cheveux, un chapeau, une barbe ou une moustache, des lunettes, des boucles d'oreilles, le nez, la peau, la couleur des cheveux et du chapeau, et l'expression (quinze) dans le menu flottant du bouton.`),
-        t(`Le menu du bas règle tous les choix, même pour un personnage déjà posé. Le visage peut être tourné vers la gauche ou vers la droite. Les couleurs de peau et de cheveux sont propres au personnage ; le remplissage du menu colore le reste.`),
+        t(`Ouvre la fenêtre du personnage, un visage en portrait robot : à gauche tous les choix en grands pictogrammes (expression, direction du visage, homme ou femme, peau, forme du visage, cheveux, chapeau, barbe et moustache, nez, lunettes, boucles d'oreilles et leurs couleurs), à droite le résultat, qui change à chaque choix. Le bouton OK pose le personnage sur la page.`),
+        t(`Un double clic sur un personnage rouvre la fenêtre pour le modifier. Pour le retoucher point par point, le bouton Transformer en traits du menu le change en traits de stylo à main levée.`),
       ],
-      tools: [`portrait`],
-      sections: [`portrait`, `portraitsize`, `colour`, `fill`, `transparency`, `width`, `look`],
+      tools: [],
+      sections: [],
+      opens: `portrait`,
     },
     {
       id: `eraser`,

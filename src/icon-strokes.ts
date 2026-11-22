@@ -47,8 +47,8 @@ export function iconToElements(el: IconElement, data: IconData, existing: Sketch
   const seedOf = (i: number): { seed: number } => ({ seed: ((el.seed ?? 1) + i) % 2000000000 });
   data.shapes.forEach((shape, i) => {
     // What fills the shape: the colour of the line for a shape that the file filled, otherwise the fill of the element for a closed shape.
-    const fill = shape.fill ? el.stroke : shape.closed ? el.fill : undefined;
-    const fillFields = fill === undefined ? {} : { fill, fillStyle: shape.fill ? (`solid` as const) : el.fillStyle ?? (`solid` as const), ...(shape.fill || el.fillOpacity === undefined ? {} : { fillOpacity: el.fillOpacity }) };
+    const fill = shape.paint ?? (shape.fill ? el.stroke : shape.closed ? el.fill : undefined);
+    const fillFields = fill === undefined ? {} : { fill, fillStyle: shape.fill || shape.paint ? (`solid` as const) : el.fillStyle ?? (`solid` as const), ...(shape.fill || el.fillOpacity === undefined ? {} : { fillOpacity: el.fillOpacity }) };
     const noStroke = !shape.stroke;
     if (shape.prim && shape.prim.kind === `ellipse`) {
       const c = place([shape.prim.cx, shape.prim.cy]);

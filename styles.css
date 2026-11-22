@@ -1599,3 +1599,150 @@ body.sketchnote-zen .workspace-tab-header-container {
   font-size: var(--font-ui-smaller);
   color: var(--text-muted);
 }
+
+/* The window of the character: floating in the drawing, the choices on the left in large pictograms and the result on the right. */
+.sketchnote-portrait-window {
+  position: absolute;
+  z-index: 40;
+  box-sizing: border-box;
+  width: min(900px, calc(100% - 16px));
+  height: min(640px, calc(100% - 16px));
+  display: flex;
+  flex-direction: column;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+  outline: none;
+}
+
+.sketchnote-portrait-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.sketchnote-portrait-title {
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.sketchnote-portrait-close {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none;
+  background: transparent;
+}
+
+.sketchnote-portrait-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+}
+
+.sketchnote-portrait-options {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 8px 12px;
+}
+
+.sketchnote-portrait-group {
+  margin-bottom: 12px;
+}
+
+.sketchnote-portrait-group-title {
+  margin-bottom: 4px;
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.sketchnote-portrait-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sketchnote-portrait-option {
+  box-sizing: border-box;
+  width: 52px;
+  height: 52px;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-normal);
+}
+
+.sketchnote-portrait-option svg {
+  width: 100%;
+  height: 100%;
+}
+
+.sketchnote-portrait-grid.is-disc .sketchnote-portrait-option {
+  width: 38px;
+  height: 38px;
+  padding: 3px;
+}
+
+.sketchnote-portrait-option.is-active {
+  background: var(--interactive-accent);
+  box-shadow: 0 0 0 2px var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.sketchnote-portrait-grid.is-disc .sketchnote-portrait-option.is-active {
+  background: var(--background-modifier-hover);
+  box-shadow: 0 0 0 3px var(--interactive-accent);
+}
+
+.sketchnote-portrait-side {
+  flex: 0 0 300px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+  border-left: 1px solid var(--background-modifier-border);
+}
+
+.sketchnote-portrait-preview {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+}
+
+.sketchnote-portrait-foot {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 700px) {
+  .sketchnote-portrait-body {
+    flex-direction: column-reverse;
+  }
+
+  .sketchnote-portrait-side {
+    flex: 0 0 200px;
+    border-left: 0;
+    border-bottom: 1px solid var(--background-modifier-border);
+  }
+}
