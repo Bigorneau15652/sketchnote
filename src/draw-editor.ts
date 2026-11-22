@@ -31,7 +31,7 @@ import { allLocked, isLocked } from "./lock";
 import { MAX_REGULARITY } from "./tidy";
 import { WARP_KINDS, WarpKind } from "./text-warp";
 import { PluginApi } from "./plugin-api";
-import { presetValues } from "./field-values";
+import { FIELD_KINDS, presetValues } from "./field-values";
 import { valueField } from "./value-field";
 import { firstFreePath } from "./free-path";
 import { LibraryModal, SaveDrawingModal } from "./library-modal";
@@ -44,7 +44,8 @@ import { isLabeledShape, labelBox, labelColor, LabeledShape, pathMiddle } from "
 import { hitTop } from "./geometry";
 import { newId } from "./elements";
 import { MIN_ERASE_SIZE } from "./erase-data";
-import { effectiveToolKeys, functionOfKey, isFunctionKeyId, isKeyTool, KEY_TOOLS, keyTable, ToolKeys } from "./tool-keys";
+import { effectiveToolKeys, isFunctionKeyId, isKeyTool, KEY_TOOLS, keyTable, ToolKeys } from "./tool-keys";
+import { commandHotkeyText, functionCommandId } from "./hotkeys";
 import { MIN_STAMP_SIZE, STAMP_IDS, stampName, StampId } from "./stamps";
 import { BUBBLE_FORMS, BubbleForm, FESTOON_FORMS, FestoonForm, ShapeForm } from "./shape-forms";
 
@@ -132,25 +133,6 @@ function brushSliderLabel(param: BrushParam): string {
   }
 }
 
-// The pictogram and the unit of each field of the menu, from its short name.
-const FIELD_KINDS: Record<string, { icon: string; unit: string }> = {
-  [`Épaisseur`]: { icon: `sketchnote-width-medium`, unit: ` px` },
-  [`Imperfection`]: { icon: `brush`, unit: `` },
-  [`Régularité`]: { icon: `pencil-ruler`, unit: `` },
-  [`Opacité`]: { icon: `sketchnote-opacity`, unit: ` %` },
-  [`Opacité de l'élément`]: { icon: `sketchnote-opacity`, unit: ` %` },
-  [`Taille`]: { icon: `ruler`, unit: `` },
-  [`Densité`]: { icon: `sketchnote-opacity`, unit: ` %` },
-  [`Fuselage`]: { icon: `sketchnote-taper`, unit: ` %` },
-  [`Intensité`]: { icon: `activity`, unit: ` %` },
-  [`Éloignement de l'ombre`]: { icon: `sketchnote-shadow-offset`, unit: ` px` },
-  [`Flou de l'ombre`]: { icon: `sketchnote-shadow-soft`, unit: ` px` },
-  [`Densité de l'ombre`]: { icon: `sketchnote-shadow-strong`, unit: ` %` },
-  [`Profondeur du reflet`]: { icon: `sketchnote-reflection`, unit: ` %` },
-  [`Dégradé du reflet`]: { icon: `sketchnote-reflection`, unit: ` %` },
-  [`Éloignement du reflet`]: { icon: `sketchnote-reflection`, unit: ` %` },
-};
-
 export abstract class DrawEditor<D> extends CanvasView<D> {
   protected readonly api: PluginApi;
   protected lastPanel = ``;
@@ -229,11 +211,6 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
 
   protected creationTools(): CreationTool[] {
     return [`rect`, `diamond`, `ellipse`, `triangle`, `bubble`, `festoon`, `arrow`, `line`, `pen`, `point`];
-  }
-
-  // The function that Ctrl+Shift and a key choose (the icons, the images, the library, the display, the export), from the settings.
-  protected functionOfKey(key: string): string | null {
-    return functionOfKey(this.api.settings().functionKeys, key) ?? null;
   }
 
   // Runs a function of the drawer: the same as a click on its button.
@@ -808,9 +785,13 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       const icon = variants && variants.showChoice ? variants.icon(variants.read(this.toolStyle())) : fn.icon;
       button.dataset.icon = icon;
       setIcon(button, icon);
-      const toolKey = isKeyTool(fn.tools[0]) ? this.toolKeyList()[fn.tools[0]] : isFunctionKeyId(fn.id) ? settings.functionKeys[fn.id] ?? `` : ``;
-      const keyText = toolKey === `` ? `` : isKeyTool(fn.tools[0]) ? toolKey.toUpperCase() : `${t(`Ctrl+Maj+`)}${toolKey.toUpperCase()}`;
-      button.setAttribute(`aria-label`, keyText === `` ? fn.name() : `${fn.name()} (${keyText})`);
+      // The name and the shortcut: the key of a tool, or the hotkey that was given to the function in the settings of Obsidian. It is read again when the pointer comes over the button.
+      const label = (): string => {
+        const keyText = isKeyTool(fn.tools[0]) ? this.toolKeyList()[fn.tools[0]].toUpperCase() : isFunctionKeyId(fn.id) ? commandHotkeyText(this.app, functionCommandId(fn.id), t(`Maj`)) : ``;
+        return keyText === `` ? fn.name() : `${fn.name()} (${keyText})`;
+      };
+      button.setAttribute(`aria-label`, label());
+      button.addEventListener(`mouseover`, () => button.setAttribute(`aria-label`, label()));
       button.toggleClass(`is-active`, this.activeFn === fn.id);
       button.addEventListener(`click`, () => {
         // A second click on the active button of a function that has forms closes or opens its floating menu.
@@ -1010,8 +991,6 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
       save: (order, hidden) => this.api.updateSettings({ drawButtonsOrder: order, drawButtonsHidden: hidden }),
       keys: () => this.toolKeyList(),
       saveKeys: (keys) => this.api.updateSettings({ toolKeys: keys }),
-      functionKeys: () => this.api.settings().functionKeys,
-      saveFunctionKeys: (keys) => this.api.updateSettings({ functionKeys: keys }),
     }).open();
   }
 

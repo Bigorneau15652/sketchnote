@@ -4,6 +4,7 @@ import { CanvasView } from "./canvas-view";
 import { DRAW_VIEW_TYPE, SketchdrawView } from "./draw-view";
 import { drawFunctions } from "./draw-functions";
 import { isFunctionKeyId } from "./tool-keys";
+import { functionCommandId } from "./hotkeys";
 import { DrawingStore } from "./drawings";
 import { registerIcons } from "./custom-icons";
 import { firstFreePath } from "./free-path";
@@ -88,7 +89,7 @@ export default class SketchnotePlugin extends Plugin {
     for (const fn of drawFunctions()) {
       if (!isFunctionKeyId(fn.id)) continue;
       this.addCommand({
-        id: `draw-function-${fn.id}`,
+        id: functionCommandId(fn.id).replace(`sketchnote:`, ``),
         name: `${t(`Dessinateur`)} : ${fn.name()}`,
         checkCallback: (checking) => {
           const view = this.app.workspace.getActiveViewOfType(SketchnoteView) ?? this.app.workspace.getActiveViewOfType(SketchdrawView);

@@ -110,57 +110,10 @@ export function effectiveToolKeys(saved: ToolKeys, lang: `fr` | `en`): ToolKeys 
   return readToolKeys(changed, ENGLISH_TOOL_KEYS);
 }
 
-// The functions that are not tools (they open a window or show a menu): each can have a shortcut with Ctrl and Shift and one key (Ctrl+Shift+I for the icons). No key written means no
-// shortcut. The shortcuts of the other functions of the palette of commands are set in the hotkeys of Obsidian.
+// The functions that are not tools (they open a window or show a menu) are commands of the palette: their hotkeys are chosen in the settings of Obsidian.
 export const FUNCTION_KEY_IDS = [`icons`, `images`, `library`, `display`, `export`] as const;
 export type FunctionKeyId = (typeof FUNCTION_KEY_IDS)[number];
-export type FunctionKeys = Partial<Record<FunctionKeyId, string>>;
-
-// The keys that Ctrl and Shift already use in the drawing (Ctrl+Shift+Z redoes).
-const RESERVED_FUNCTION_KEYS = [`z`];
 
 export function isFunctionKeyId(value: unknown): value is FunctionKeyId {
   return typeof value === `string` && (FUNCTION_KEY_IDS as readonly string[]).includes(value);
-}
-
-// Returns a key of a function in its clean form (a letter or a digit, in lower case), or null when it cannot be one.
-export function cleanFunctionKey(value: unknown): string | null {
-  const key = cleanKey(value);
-  if (key === null || !/^[a-z0-9]$/.test(key) || RESERVED_FUNCTION_KEYS.includes(key)) return null;
-  return key;
-}
-
-// Reads the saved keys of the functions: a wrong key, or a key already taken by an earlier function, is left out.
-export function readFunctionKeys(raw: unknown): FunctionKeys {
-  const source = typeof raw === `object` && raw !== null ? (raw as Record<string, unknown>) : {};
-  const out: FunctionKeys = {};
-  const used = new Set<string>();
-  for (const id of FUNCTION_KEY_IDS) {
-    const key = cleanFunctionKey(source[id]);
-    if (key !== null && !used.has(key)) {
-      out[id] = key;
-      used.add(key);
-    }
-  }
-  return out;
-}
-
-// Gives a key to a function, or takes it away (an empty value). Returns the new keys, the function that already has the key, or that the key is not acceptable.
-export function setFunctionKey(keys: FunctionKeys, id: FunctionKeyId, value: unknown): { keys: FunctionKeys } | { taken: FunctionKeyId } | { invalid: true } {
-  if (typeof value === `string` && value.trim() === ``) {
-    const { [id]: _removed, ...rest } = keys;
-    void _removed;
-    return { keys: rest };
-  }
-  const key = cleanFunctionKey(value);
-  if (key === null) return { invalid: true };
-  const other = FUNCTION_KEY_IDS.find((f) => f !== id && keys[f] === key);
-  if (other) return { taken: other };
-  return { keys: { ...keys, [id]: key } };
-}
-
-// The function that a key chooses (with Ctrl and Shift), or undefined.
-export function functionOfKey(keys: FunctionKeys, key: string): FunctionKeyId | undefined {
-  const clean = cleanFunctionKey(key);
-  return clean === null ? undefined : FUNCTION_KEY_IDS.find((id) => keys[id] === clean);
 }

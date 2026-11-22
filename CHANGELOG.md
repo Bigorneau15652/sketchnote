@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.42.1
+
+English
+
+The shortcuts of the functions that are not tools (the icons, the images, the library, the display and the export) are chosen in the settings of Obsidian (Hotkeys, by searching for Drawer), where Obsidian says if a hotkey is already used. The fields Ctrl+Shift+ of the list of the buttons are removed, and the plugin keeps no shortcut of its own for these functions. The list of the buttons (in the drawing mode and in the settings) now shows, for each of them, the hotkey that was chosen in Obsidian, and nothing when there is none; the tooltip of the button of the column gives it after the name, and it is read again each time the pointer comes over the button. The single keys of the tools stay in the list as before. In the settings of the brushes of the free drawing, every field now has a pictogram of its own (the flow, the hardness, the spacing, the form, the rotation, the grain and the dynamics had all the same one), and so do the other fields of the menu that shared one (the density, the opacity of an element and the three settings of the reflection); a test checks that no two fields have the same pictogram.
+
+Français
+
+Les raccourcis des fonctions qui ne sont pas des outils (les icônes, les images, la bibliothèque, l'affichage et l'export) se choisissent dans les réglages d'Obsidian (Raccourcis clavier, en cherchant Dessinateur), où Obsidian dit si un raccourci est déjà utilisé. Les champs Ctrl+Maj+ de la liste des boutons sont supprimés, et le plugin ne garde aucun raccourci à lui pour ces fonctions. La liste des boutons (en mode dessin et dans les réglages) montre maintenant, pour chacune, le raccourci choisi dans Obsidian, et rien quand il n'y en a pas ; l'infobulle du bouton de la colonne le donne après le nom, et il est relu chaque fois que le pointeur passe sur le bouton. Les touches seules des outils restent dans la liste comme avant. Dans les réglages des pinceaux du dessin libre, chaque champ a maintenant un pictogramme qui lui est propre (le flux, la dureté, l'espacement, la forme, la rotation, le grain et la dynamique avaient tous le même), ainsi que les autres champs du menu qui en partageaient un (la densité, l'opacité d'un élément et les trois réglages du reflet) ; un test vérifie que deux champs n'ont jamais le même pictogramme.
+
 ## 0.42.0
 
 English

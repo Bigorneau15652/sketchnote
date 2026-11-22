@@ -1592,8 +1592,10 @@ body.sketchnote-zen .workspace-tab-header-container {
   font-weight: 600;
 }
 
-.sketchnote-buttons-mod {
+.sketchnote-buttons-hotkey {
   flex: 0 0 auto;
+  min-width: 5em;
+  text-align: right;
   font-size: var(--font-ui-smaller);
   color: var(--text-muted);
 }

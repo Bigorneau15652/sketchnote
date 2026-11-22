@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cleanFunctionKey, functionOfKey, readFunctionKeys, setFunctionKey, cleanKey, DEFAULT_TOOL_KEYS, effectiveToolKeys, ENGLISH_TOOL_KEYS, KEY_TOOLS, keyTable, readToolKeys, setToolKey } from "../src/tool-keys";
+import { cleanKey, DEFAULT_TOOL_KEYS, effectiveToolKeys, ENGLISH_TOOL_KEYS, KEY_TOOLS, keyTable, readToolKeys, setToolKey } from "../src/tool-keys";
 
 test(`les touches par defaut sont uniques et valides`, () => {
   const keys = KEY_TOOLS.map((t) => DEFAULT_TOOL_KEYS[t]);
@@ -80,31 +80,4 @@ test(`la version anglaise prend ses touches sauf celles que l utilisateur a chan
   assert.equal(clash.pen, `e`);
   assert.notEqual(clash.eraser, `e`);
   assert.equal(new Set(KEY_TOOLS.map((t) => clash[t])).size, KEY_TOOLS.length);
-});
-
-test(`les raccourcis des fonctions sont une lettre ou un chiffre et Z est reserve`, () => {
-  assert.equal(cleanFunctionKey(`I`), `i`);
-  assert.equal(cleanFunctionKey(`5`), `5`);
-  assert.equal(cleanFunctionKey(`z`), null);
-  assert.equal(cleanFunctionKey(`.`), null);
-  assert.equal(cleanFunctionKey(`ab`), null);
-});
-
-test(`la lecture des raccourcis des fonctions ecarte le faux et les doublons`, () => {
-  assert.deepEqual(readFunctionKeys(undefined), {});
-  assert.deepEqual(readFunctionKeys({ icons: `I`, images: `i`, export: `E`, bogus: `q`, library: 4, display: `zz` }), { icons: `i`, export: `e` });
-});
-
-test(`changer ou retirer le raccourci d une fonction`, () => {
-  const ok = setFunctionKey({}, `icons`, `I`);
-  assert.deepEqual(ok, { keys: { icons: `i` } });
-  assert.deepEqual(setFunctionKey({ icons: `i` }, `images`, `i`), { taken: `icons` });
-  assert.deepEqual(setFunctionKey({ icons: `i` }, `icons`, ``), { keys: {} });
-  assert.deepEqual(setFunctionKey({}, `icons`, `z`), { invalid: true });
-});
-
-test(`la touche donne la fonction`, () => {
-  assert.equal(functionOfKey({ export: `e` }, `E`), `export`);
-  assert.equal(functionOfKey({ export: `e` }, `x`), undefined);
-  assert.equal(functionOfKey({}, `e`), undefined);
 });
