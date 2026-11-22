@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.43.2
+
+English
+
+In the compartment of the colours, the thin slider of transparency is now on the same line as the two swatches (the border and the fill) and the three types of line, instead of under them: the compartment is one thin line.
+
+Français
+
+Dans le compartiment des couleurs, la glissière fine de transparence est maintenant sur la même ligne que les deux pastilles (bordure et remplissage) et les trois types de trait, au lieu d'être dessous : le compartiment tient sur une seule ligne mince.
+
 ## 0.43.1
 
 English

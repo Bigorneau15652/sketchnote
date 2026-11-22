@@ -1033,7 +1033,6 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     const compartment = props.createDiv({ cls: `sketchdraw-compartment` });
     this.compartments.push({ el: compartment, names: [`colour`, `fill`, `dash`, `transparency`] });
     const topRow = compartment.createDiv({ cls: `sketchdraw-compartment-row` });
-    const bottomRow = compartment.createDiv({ cls: `sketchdraw-compartment-row` });
     const colour = this.section(topRow, `colour`);
     this.sectionIcon(colour, `pencil-line`, t(`Couleur de la bordure`));
     this.strokePastille = this.pastille(colour, t(`Couleur de la bordure`), () => this.openStrokeColor());
@@ -1042,17 +1041,17 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     this.sectionIcon(fillSec, `paint-bucket`, t(`Remplissage`));
     this.fillPastille = this.pastille(fillSec, t(`Couleur du remplissage`), () => this.openFillColor());
 
+    const transparencySec = this.section(topRow, `transparency`);
+    this.sectionIcon(transparencySec, `sketchnote-opacity`, t(`Transparence`));
+    // 0 is opaque. For a shape it is the transparency of the fill (the border stays sharp), for anything else the transparency of the whole element.
+    this.thinSlider(transparencySec, t(`Transparence`), 0, 100, 5, (s) => Math.round((s.transparency * 100) / 5) * 5, (v) => ({ transparency: v / 100 }));
+
     const dashSec = this.section(topRow, `dash`);
     this.sectionIcon(dashSec, `sketchnote-line-dashed`, t(`Type de trait`));
     const dashes = dashSec.createDiv({ cls: `sketchdraw-row` });
     this.panelButton(dashes, `sketchnote-line-solid`, t(`Trait continu`), (s) => s.border !== `none` && s.lineStyle === `solid`, () => this.chooseLine(`solid`));
     this.panelButton(dashes, `sketchnote-line-dashed`, t(`Tirets`), (s) => s.border !== `none` && s.lineStyle === `dashed`, () => this.chooseLine(`dashed`));
     this.panelButton(dashes, `sketchnote-line-dotted`, t(`Pointillés`), (s) => s.border !== `none` && s.lineStyle === `dotted`, () => this.chooseLine(`dotted`));
-
-    const transparencySec = this.section(bottomRow, `transparency`);
-    this.sectionIcon(transparencySec, `sketchnote-opacity`, t(`Transparence`));
-    // 0 is opaque. For a shape it is the transparency of the fill (the border stays sharp), for anything else the transparency of the whole element.
-    this.thinSlider(transparencySec, t(`Transparence`), 0, 100, 5, (s) => Math.round((s.transparency * 100) / 5) * 5, (v) => ({ transparency: v / 100 }));
 
     // The brush of the pen: one menu, then how much paint it puts and, for the nib, its angle. The thickness is the one of every line.
     const brushSec = this.section(props, `brush`);
