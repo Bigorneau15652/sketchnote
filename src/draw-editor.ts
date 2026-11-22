@@ -163,6 +163,7 @@ export abstract class DrawEditor<D> extends CanvasView<D> {
     this.unsubscribeFonts = null;
     this.unsubscribeSettings?.();
     this.unsubscribeSettings = null;
+    this.cancelPendingContent();
     this.flyout?.remove();
     this.flyout = null;
     this.shortcutsBox?.remove();
