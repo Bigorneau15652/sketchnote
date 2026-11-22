@@ -100,10 +100,10 @@ export function expandWord(word: string): string[] {
 
 // Tells whether an icon matches a search: every word of the search must be found, as it is written or as the French dictionary understands it, in the name of the icon, or be a word
 // of the name of one of its themes. The name of an icon is its words joined by hyphens, and a word found in it counts even if it is only the beginning of a word of the name.
-export function matchesSearch(name: string, themes: string[], query: string): boolean {
+export function matchesSearch(name: string, themes: string[], query: string, aliases: string[] = []): boolean {
   const words = plain(query).split(/\s+/).filter((x) => x !== ``);
   if (words.length === 0) return true;
-  const lower = name.toLowerCase();
+  const lower = [name, ...aliases].join(` `).toLowerCase();
   const themeWords = themes.flatMap((id) => plain(themeName(id)).split(/[\s,]+/).filter((x) => x.length >= 4));
   return words.every((word) => {
     if (themeWords.includes(word)) return true;
@@ -115,15 +115,17 @@ export function matchesSearch(name: string, themes: string[], query: string): bo
 export interface IconEntry {
   // The name: the one of Lucide (house), or the path of the file of the user.
   name: string;
-  source: `lucide` | `custom`;
+  source: `lucide` | `tabler` | `custom`;
   // A name to show, and the folder of a file of the user (the name of its theme).
   label: string;
   themes: string[];
+  // The other names of the same drawing (Lucide keeps old names for a drawing that was renamed: house and home): the search finds the icon by them too, and the window shows it once.
+  aliases?: string[];
 }
 
 // Returns the icons of a theme (every icon for no theme) that match a search, in the order of their names, at most `limit` of them (and how many there are in all).
 export function listIcons(entries: IconEntry[], theme: string | null, query: string, limit: number): { shown: IconEntry[]; total: number } {
-  const found = entries.filter((e) => (theme === null || e.themes.includes(theme)) && matchesSearch(e.label, e.themes, query));
+  const found = entries.filter((e) => (theme === null || e.themes.includes(theme)) && matchesSearch(e.label, e.themes, query, e.aliases));
   found.sort((a, b) => a.label.localeCompare(b.label));
   return { shown: found.slice(0, Math.max(0, limit)), total: found.length };
 }
@@ -134,6 +136,30 @@ export function lucideEntries(ids: string[]): IconEntry[] {
   // A version of Obsidian that does not prefix the names: everything but what belongs to the plugin.
   const names = lucide.length > 0 ? lucide.map((id) => id.slice(7)) : ids.filter((id) => !id.startsWith(`sketchnote-`) && !id.includes(`:`));
   return [...new Set(names)].filter((n) => /^[a-z0-9][a-z0-9-]{0,80}$/.test(n)).map((name) => ({ name, source: `lucide` as const, label: name, themes: themesOf(name) }));
+}
+
+// Merges the entries that draw the same picture into one: the one with the longest name (then the first in the alphabet) is kept and the other names become its aliases. `signature`
+// gives the text that is the same for the same picture, or null when it is not known (the entry is then kept as it is).
+export function mergeSamePictures(entries: IconEntry[], signature: (entry: IconEntry) => string | null): IconEntry[] {
+  const groups = new Map<string, IconEntry[]>();
+  const out: IconEntry[] = [];
+  for (const e of entries) {
+    const sig = signature(e);
+    if (sig === null) {
+      out.push(e);
+      continue;
+    }
+    const key = `${e.source}|${sig}`;
+    const group = groups.get(key);
+    if (group) group.push(e);
+    else groups.set(key, [e]);
+  }
+  for (const group of groups.values()) {
+    const sorted = [...group].sort((a, b) => b.label.length - a.label.length || a.label.localeCompare(b.label));
+    const [first, ...rest] = sorted;
+    out.push(rest.length === 0 ? first : { ...first, aliases: rest.map((r) => r.label) });
+  }
+  return out;
 }
 
 // Returns the identifier that Obsidian knows an icon of Lucide by.

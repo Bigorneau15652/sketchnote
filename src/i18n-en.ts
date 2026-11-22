@@ -498,6 +498,7 @@ const PAIRS: [string, string][] = [
   [`Maj`, `Shift`],
   [`Aucun raccourci : à choisir dans les réglages d'Obsidian, Raccourcis clavier`, `No shortcut: choose one in the settings of Obsidian, Hotkeys`],
   [`Raccourci choisi dans les réglages d'Obsidian`, `Shortcut chosen in the settings of Obsidian`],
+  [`Toutes les collections`, `All collections`],
 ];
 
 export const EN: Record<string, string> = Object.fromEntries(PAIRS);

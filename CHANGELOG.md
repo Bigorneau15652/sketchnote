@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.44.0
+
+English
+
+A second collection of icons, Tabler Icons, joins Lucide in the window of the icons. About 1 500 icons (outline style, MIT licence, Copyright (c) 2020-2025 Pawel Kuna) were chosen for sketchnotes: buildings, vehicles, health, weather, nature, food, faces and gestures, communication, documents, shapes, sport, commerce, media, maps and arrows. They are in the plugin (about 260 KB), need nothing from the network, and are drawn in the hand drawn look like every other icon; an icon that is inserted carries its own shapes, so it does not depend on the collection. The window has a row of buttons to show every collection, Lucide only or Tabler only, and the themes and the search (French words included) work on both. The same picture is never shown twice: the icons of Lucide that are the same drawing under two names (house and home) are merged into one that the search finds by both names, and an icon of Tabler that has the name of an icon of Lucide is left out when every collection is shown (it is still in the collection Tabler). The tool tools/make-tabler.mjs rebuilds the selection from the package of Tabler; the licence is in licences/MIT-tabler-icons.txt and in the files NOTICE and docs/DEPENDANCES.md. This version also holds the version 0.43.2 (the slider of transparency on the line of the swatches of colour).
+
+Français
+
+Une deuxième collection d'icônes, Tabler Icons, rejoint Lucide dans la fenêtre des icônes. Environ 1 500 icônes (style contour, licence MIT, Copyright (c) 2020-2025 Pawel Kuna) ont été choisies pour les sketchnotes : bâtiments, véhicules, santé, météo, nature, alimentation, visages et gestes, communication, documents, formes, sport, commerce, multimédia, cartes et flèches. Elles sont dans le plugin (environ 260 Ko), n'ont besoin de rien sur le réseau, et sont dessinées à main levée comme toutes les icônes ; une icône insérée porte ses propres formes, donc elle ne dépend pas de la collection. La fenêtre a une rangée de boutons pour montrer toutes les collections, Lucide seulement ou Tabler seulement, et les thèmes et la recherche (mots français compris) fonctionnent sur les deux. Un même dessin n'est jamais montré deux fois : les icônes de Lucide qui sont le même dessin sous deux noms (house et home) sont fusionnées en une seule que la recherche trouve par les deux noms, et une icône de Tabler qui porte le nom d'une icône de Lucide est écartée quand toutes les collections sont montrées (elle reste dans la collection Tabler). L'outil tools/make-tabler.mjs refait la sélection à partir du paquet de Tabler ; la licence est dans licences/MIT-tabler-icons.txt et dans les fichiers NOTICE et docs/DEPENDANCES.md. Cette version contient aussi la version 0.43.2 (la glissière de transparence sur la ligne des pastilles de couleur).
+
+## 0.43.2
+
+English
+
+In the compartment of the colours, the thin slider of transparency is now on the same line as the two swatches (the border and the fill) and the three types of line, instead of under them: the compartment is one thin line.
+
+Français
+
+Dans le compartiment des couleurs, la glissière fine de transparence est maintenant sur la même ligne que les deux pastilles (bordure et remplissage) et les trois types de trait, au lieu d'être dessous : le compartiment tient sur une seule ligne mince.
+
 ## 0.43.1
 
 English

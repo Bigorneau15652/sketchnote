@@ -9,4 +9,6 @@ perfect-freehand 1.2.3, Copyright (c) 2021 Stephen Ruiz Ltd (licences/MIT-perfec
 
 Since version 0.9.0, main.js also holds four handwritten fonts under the SIL Open Font License 1.1, reduced to the latin letters (texts in licences/): Caveat, Copyright 2014 The Caveat Project Authors (licences/OFL-Caveat.txt); Patrick Hand, Copyright (c) 2010-2012 Patrick Wagesreiter (licences/OFL-PatrickHand.txt); Gloria Hallelujah and Architects Daughter, Copyright (c) 2010 Kimberly Geswein (licences/OFL-GloriaHallelujah.txt and licences/OFL-ArchitectsDaughter.txt). Source: https://github.com/google/fonts.
 
+Since version 0.44.0, main.js also holds a selection of about 1 500 outline icons of Tabler Icons 3.35.0 under the MIT licence, Copyright (c) 2020-2025 Pawel Kuna (licences/MIT-tabler-icons.txt), https://tabler.io/icons. They are in the file src/tabler-data.ts, made by tools/make-tabler.mjs, and are drawn in the hand drawn look like every other icon.
+
 Each dependency, font or data file added later is recorded here and in docs/DEPENDANCES.md, with its licence text in the folder licences/.

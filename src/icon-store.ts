@@ -3,7 +3,8 @@
 import { App, getIcon, getIconIds, TFile } from "obsidian";
 import { IconData, MAX_ICON_TEXT, parseIconSvg } from "./icon-svg";
 import { lucideData, setLucideSource } from "./icon-registry";
-import { IconEntry, lucideEntries } from "./icon-themes";
+import { IconEntry, lucideEntries, mergeSamePictures } from "./icon-themes";
+import { tablerData, tablerEntries } from "./tabler";
 
 // What the window of the icons needs.
 export interface IconSource {
@@ -31,9 +32,22 @@ function readLucide(name: string): IconData | null {
   return parseIconSvg(new XMLSerializer().serializeToString(svg));
 }
 
+// The text that is the same for the icons of Lucide that draw the same picture under two names: the shapes inside the svg that Obsidian gives. Null when Obsidian does not give it.
+function lucideSignature(name: string): string | null {
+  try {
+    const svg = getIcon(`lucide-${name}`) ?? getIcon(name);
+    if (!svg) return null;
+    const serializer = new XMLSerializer();
+    return Array.from(svg.children).map((child) => serializer.serializeToString(child)).join(``);
+  } catch {
+    return null;
+  }
+}
+
 export class IconStore implements IconSource {
   problems: string[] = [];
   private lucide: IconEntry[] | null = null;
+  private tabler: IconEntry[] | null = null;
   private mine: { entry: IconEntry; data: IconData; mtime: number }[] = [];
   private known = new Map<string, { mtime: number; entry: IconEntry | null; data: IconData | null; problem: string | null }>();
 
@@ -51,13 +65,15 @@ export class IconStore implements IconSource {
 
   // The icons of Lucide, then the ones of the user.
   entries(): IconEntry[] {
-    if (!this.lucide) this.lucide = lucideEntries(getIconIds());
-    return [...this.lucide, ...this.mine.map((m) => m.entry)];
+    if (!this.lucide) this.lucide = mergeSamePictures(lucideEntries(getIconIds()), (e) => lucideSignature(e.name));
+    if (!this.tabler) this.tabler = tablerEntries();
+    return [...this.lucide, ...this.tabler, ...this.mine.map((m) => m.entry)];
   }
 
   // The drawing of an icon.
   dataOf(entry: IconEntry): IconData | null {
     if (entry.source === `lucide`) return lucideData(entry.name);
+    if (entry.source === `tabler`) return tablerData(entry.name);
     return this.mine.find((m) => m.entry.name === entry.name)?.data ?? null;
   }
 
