@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.51.0
+
+English
+
+Preparation for the community plugins directory. The README files (English and French) are rewritten as a real presentation of the plugin: what it does, how to install it with BRAT, how to use it, languages and settings, privacy and development. The workflows of GitHub (checks and publication of a release) are in English, with the same behaviour. The comments at the top of the language file are in English. The plugin follows the language of Obsidian; there is no setting to choose the language.
+
+Français
+
+Préparation de l'annuaire des plugins de la communauté. Les fichiers README (anglais et français) sont réécrits en vraie présentation du plugin : ce qu'il fait, comment l'installer avec BRAT, comment l'utiliser, langues et réglages, confidentialité et développement. Les workflows de GitHub (vérifications et publication d'une release) sont en anglais, avec le même comportement. Les commentaires en tête du fichier des langues sont en anglais. Le plugin suit la langue d'Obsidian ; il n'y a pas de réglage pour choisir la langue.
+
 ## 0.50.0
 
 English
