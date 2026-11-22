@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.42.0
+
+English
+
+Shortcuts for the other functions. The functions that are not tools (the icons, the images, the library of drawings, the display and the export) can have a shortcut with Ctrl, Shift and one key (Ctrl+Shift+I for example). In the list of the buttons of the drawer (the window of the first button of the column and the settings of Sketchnote), each of them has a field after the words Ctrl+Shift+: a letter or a digit typed there is the key, a field that is empty means no shortcut (there is none by default), a key that another function already has is refused with a message, and Z is kept for the redo. The shortcuts work in the drawing mode. The tooltip of a button of the column gives its name and its shortcut when the pointer is over it (Ctrl+Shift+I for a function, the single key for a tool), and so does the window that explains a function. The same functions are also commands of the palette of commands (Sketchnote: Drawer: Icons, Images, Drawings, Display, Export), so Obsidian can give them any hotkey in its own settings. The button that gives back the original keys also clears these shortcuts.
+
+Français
+
+Des raccourcis pour les autres fonctions. Les fonctions qui ne sont pas des outils (les icônes, les images, la bibliothèque de dessins, l'affichage et l'export) peuvent avoir un raccourci avec Ctrl, Maj et une touche (Ctrl+Maj+I par exemple). Dans la liste des boutons du dessinateur (la fenêtre du premier bouton de la colonne et les réglages de Sketchnote), chacune a un champ après les mots Ctrl+Maj+ : une lettre ou un chiffre tapé là est la touche, un champ vide veut dire pas de raccourci (il n'y en a aucun par défaut), une touche déjà prise par une autre fonction est refusée avec un message, et Z est gardée pour le rétablissement. Les raccourcis fonctionnent en mode dessin. L'infobulle d'un bouton de la colonne donne son nom et son raccourci quand le pointeur le survole (Ctrl+Maj+I pour une fonction, la touche seule pour un outil), et la fenêtre qui explique une fonction aussi. Les mêmes fonctions sont aussi des commandes de la palette de commandes (Sketchnote : Dessinateur : Icônes, Images, Dessins, Affichage, Exporter), pour qu'Obsidian puisse leur donner n'importe quel raccourci clavier dans ses propres réglages. Le bouton qui remet les touches d'origine efface aussi ces raccourcis.
+
 ## 0.41.2
 
 English

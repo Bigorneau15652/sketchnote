@@ -4,7 +4,7 @@
 import { App, Modal, Notice, setIcon } from "obsidian";
 import { t } from "./i18n";
 import { addSeparator, drawFunctions, DrawFunction, isSeparator, moveEntry, removeEntry, setHidden } from "./draw-functions";
-import { DEFAULT_TOOL_KEYS, isKeyTool, setToolKey, ToolKeys } from "./tool-keys";
+import { DEFAULT_TOOL_KEYS, FunctionKeys, isFunctionKeyId, isKeyTool, setFunctionKey, setToolKey, ToolKeys } from "./tool-keys";
 
 export interface ButtonsHost {
   app: App;
@@ -14,6 +14,9 @@ export interface ButtonsHost {
   // The key of each tool (for the language of the plugin), and the saving of the keys.
   keys(): ToolKeys;
   saveKeys(keys: ToolKeys): Promise<void>;
+  // The shortcut (Ctrl+Shift and a key) of the functions that are not tools, and its saving.
+  functionKeys(): FunctionKeys;
+  saveFunctionKeys(keys: FunctionKeys): Promise<void>;
 }
 
 // The window that explains what a function does.
@@ -28,7 +31,7 @@ export class ButtonHelpModal extends Modal {
     const head = this.contentEl.createDiv({ cls: `sketchnote-function-help-icon` });
     setIcon(head, this.fn.icon);
     for (const paragraph of this.fn.help()) this.contentEl.createEl(`p`, { text: paragraph });
-    if (this.key !== ``) this.contentEl.createEl(`p`, { text: t(`Touche du clavier : {0}.`, this.key.toUpperCase()) });
+    if (this.key !== ``) this.contentEl.createEl(`p`, { text: t(`Touche du clavier : {0}.`, this.key) });
   }
 
   onClose(): void {
@@ -68,17 +71,17 @@ export function renderDrawButtonList(el: HTMLElement, host: ButtonsHost): void {
       setIcon(icon, fn.icon);
       row.createSpan({ cls: `sketchnote-buttons-name`, text: fn.name() });
       const tool = fn.tools[0];
-      const keyOf = tool !== undefined && isKeyTool(tool) ? host.keys()[tool] : ``;
+      const keyOf = tool !== undefined && isKeyTool(tool) ? host.keys()[tool].toUpperCase() : isFunctionKeyId(fn.id) && host.functionKeys()[fn.id] ? `${t(`Ctrl+Maj+`)}${(host.functionKeys()[fn.id] ?? ``).toUpperCase()}` : ``;
       // The key that chooses the tool: one character, never the same for two tools.
       if (tool !== undefined && isKeyTool(tool)) {
         const field = row.createEl(`input`, { cls: `sketchnote-buttons-key`, type: `text` });
         field.maxLength = 1;
-        field.value = keyOf.toUpperCase();
-        field.setAttribute(`aria-label`, t(`Touche du clavier : {0}.`, keyOf.toUpperCase()));
+        field.value = keyOf;
+        field.setAttribute(`aria-label`, t(`Touche du clavier : {0}.`, keyOf));
         field.addEventListener(`focus`, () => field.select());
         field.addEventListener(`change`, () => {
           if (field.value.trim() === ``) {
-            field.value = keyOf.toUpperCase();
+            field.value = keyOf;
             return;
           }
           const result = setToolKey(host.keys(), tool, field.value);
@@ -88,7 +91,28 @@ export function renderDrawButtonList(el: HTMLElement, host: ButtonsHost): void {
               const other = functions.find((f) => f.tools[0] === result.taken);
               new Notice(t(`La touche {0} est déjà prise par l'outil {1}.`, field.value.toUpperCase(), other ? other.name() : ``));
             }
-            field.value = keyOf.toUpperCase();
+            field.value = keyOf;
+          }
+        });
+      } else if (isFunctionKeyId(fn.id)) {
+        // A function that is not a tool: a shortcut with Ctrl and Shift and one key, or none (an empty field).
+        const id = fn.id;
+        const current = host.functionKeys()[id] ?? ``;
+        row.createSpan({ cls: `sketchnote-buttons-mod`, text: t(`Ctrl+Maj+`) });
+        const field = row.createEl(`input`, { cls: `sketchnote-buttons-key`, type: `text` });
+        field.maxLength = 1;
+        field.value = current.toUpperCase();
+        field.setAttribute(`aria-label`, t(`Raccourci avec Ctrl et Maj : aucun s'il n'y a rien d'écrit`));
+        field.addEventListener(`focus`, () => field.select());
+        field.addEventListener(`change`, () => {
+          const result = setFunctionKey(host.functionKeys(), id, field.value);
+          if (`keys` in result) void host.saveFunctionKeys(result.keys).then(draw);
+          else {
+            if (`taken` in result) {
+              const other = functions.find((f) => f.id === result.taken);
+              new Notice(t(`La touche {0} est déjà prise par l'outil {1}.`, field.value.toUpperCase(), other ? other.name() : ``));
+            }
+            field.value = current.toUpperCase();
           }
         });
       }
@@ -107,7 +131,7 @@ export function renderDrawButtonList(el: HTMLElement, host: ButtonsHost): void {
     const reset = list.createEl(`button`, { cls: `sketchnote-buttons-add` });
     setIcon(reset, `rotate-ccw`);
     reset.createSpan({ text: t(`Remettre les touches d'origine`) });
-    reset.addEventListener(`click`, () => void host.saveKeys({ ...DEFAULT_TOOL_KEYS }).then(draw));
+    reset.addEventListener(`click`, () => void host.saveKeys({ ...DEFAULT_TOOL_KEYS }).then(() => host.saveFunctionKeys({})).then(draw));
   };
   draw();
 }
@@ -169,7 +193,7 @@ export class DrawButtonsModal extends Modal {
   onOpen(): void {
     this.titleEl.setText(t(`Boutons du dessinateur`));
     this.modalEl.addClass(`sketchnote-buttons-modal`);
-    this.contentEl.createEl(`p`, { cls: `sketchnote-icons-info`, text: t(`Cochez les boutons à afficher à droite du dessin. Glissez la poignée d'une ligne pour changer l'ordre, ajoutez des séparations entre les groupes, tapez une lettre dans le champ d'un outil pour changer sa touche au clavier, et ouvrez le point d'interrogation pour savoir ce que fait une fonction.`) });
+    this.contentEl.createEl(`p`, { cls: `sketchnote-icons-info`, text: t(`Cochez les boutons à afficher à droite du dessin. Glissez la poignée d'une ligne pour changer l'ordre, ajoutez des séparations entre les groupes, tapez une lettre dans le champ d'un outil pour changer sa touche au clavier (les autres fonctions ont un raccourci avec Ctrl et Maj, sans raccourci quand le champ est vide), et ouvrez le point d'interrogation pour savoir ce que fait une fonction.`) });
     renderDrawButtonList(this.contentEl, this.host);
   }
 
